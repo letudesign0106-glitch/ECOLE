@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ÉCOLE CAFÉ - 智能排班系統</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ÉCOLE CAFÉ">
+    <meta name="theme-color" content="#ffffff">
+    
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzExMTgyNyIvPjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1zaXplPSI0MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIj5FQzwvdGV4dD48L3N2Zz4=">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, 'LiHei Pro', '微軟正黑體', sans-serif; background-color: #ffffff; color: #111827; }
+        .table-container { height: calc(100vh - 180px); overflow: auto; -webkit-overflow-scrolling: touch; }
+        
+        table { border-collapse: collapse; min-width: 100%; width: max-content; table-layout: fixed; }
+        th, td { border: 1px solid #e5e7eb; text-align: center; vertical-align: middle; white-space: pre-line; font-size: 0.85rem; padding: 4px; min-width: 50px; }
+        thead th { position: sticky; top: 0; background-color: #ffffff; z-index: 20; border-bottom: 2px solid #111827; vertical-align: middle; }
+        tbody th.sticky-col { position: sticky; left: 0; background-color: #ffffff; z-index: 10; border-right: 2px solid #e5e7eb; }
+        thead th.sticky-corner { position: sticky; top: 0; left: 0; z-index: 30; background-color: #ffffff; border-bottom: 2px solid #111827; border-right: 2px solid #e5e7eb; }
+        
+        .shift-cell { cursor: pointer; height: 50px; transition: background-color 0.2s; line-height: 1.2; }
+        .shift-cell:hover, .shift-cell:active { background-color: #f3f4f6; }
+        
+        .color-morning { background-color: #dbe4d7; color: #3f4e38; } 
+        .color-evening { background-color: #ebd9d9; color: #5c3c3c; } 
+        .color-split { background-color: #d6dbe0; color: #3b4252; }   
+        .color-custom { background-color: #f3f4f6; color: #374151; } /* 自訂時間背景色 */
+        
+        .shift-off { color: #111827; font-weight: bold; } 
+        .shift-forced-off { color: #dc2626; font-weight: bold; } 
+        .shift-admin { color: #4b5563; background-color: #f3f4f6; } 
+        
+        .text-weekend { color: #dc2626; font-weight: bold; } /* 週末紅字 */
+        
+        .station-row-deep th, .station-row-deep td { background-color: #e5e7eb; } /* 較深的灰階配置區 */
+        .station-row-light th, .station-row-light td { background-color: #F0F0F0; } /* 外場專屬淺灰 */
+
+        dialog::backdrop { background-color: rgba(0, 0, 0, 0.4); backdrop-filter: blur(2px); }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #ffffff; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+    </style>
+</head>
+<body class="flex flex-col h-screen">
+
+    <header class="bg-white border-b border-gray-200 p-4 z-40 flex flex-wrap justify-between items-center gap-4">
+        <div>
+            <h1 class="text-xl font-bold tracking-widest text-gray-900 flex items-center gap-2">
+                ÉCOLE CAFÉ <span class="text-sm font-normal text-gray-500 ml-2">SCHEDULE SPACE</span>
+            </h1>
+            <div class="text-sm text-gray-600 mt-2 flex gap-4 items-center">
+                <span>選擇月份：</span>
+                <input type="month" id="monthSelector" class="border border-gray-300 rounded px-2 py-1 text-gray-700 outline-none focus:border-black" value="2026-07">
+            </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+            <button onclick="manageEmployees()" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition">👥 人員管理</button>
+            <div class="w-px h-8 bg-gray-200 mx-1 hidden sm:block"></div>
+            <button onclick="autoFill()" class="border border-black bg-black text-white hover:bg-gray-800 px-4 py-2 rounded-sm text-sm transition">自動帶入預設</button>
+            <button onclick="clearSchedule()" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-sm text-sm transition">清空當月資料</button>
+            <div class="w-px h-8 bg-gray-200 mx-1 hidden sm:block"></div>
+            <button onclick="triggerImport()" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition">匯入(JSON)</button>
+            <button onclick="exportJSON()" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition">備份(JSON)</button>
+            <button onclick="exportToImage()" class="border border-black bg-white text-black hover:bg-gray-50 px-4 py-2 rounded-sm text-sm transition">匯出圖片</button>
+            <input type="file" id="importFile" accept=".json" class="hidden" onchange="importJSON(event)">
+        </div>
+    </header>
+
+    <main class="flex-1 p-4 overflow-hidden flex flex-col bg-white">
+        <div class="border border-gray-200 flex-1 table-container relative" id="scheduleCaptureArea">
+            <table id="scheduleTable">
+                <thead id="tableHead"></thead>
+                <tbody id="tableBody"></tbody>
+                <tbody id="stationBody" class="border-t-2 border-gray-300"></tbody>
+                <tbody id="noteBody" class="border-t-2 border-gray-300"></tbody>
+            </table>
+        </div>
+        
+        <div class="mt-3 text-xs text-gray-500 flex flex-wrap gap-3 items-center">
+            <span class="flex items-center gap-1"><div class="w-3 h-3 bg-[#dbe4d7]"></div> 早班(D)</span>
+            <span class="flex items-center gap-1"><div class="w-3 h-3 bg-[#ebd9d9]"></div> 晚班(N)</span>
+            <span class="flex items-center gap-1"><div class="w-3 h-3 bg-[#d6dbe0]"></div> 兩頭班(A)</span>
+            <span class="flex items-center gap-1"><div class="w-3 h-3 bg-[#f3f4f6] border border-gray-300"></div> 自訂時間</span>
+            <span class="flex items-center gap-1"><span class="text-red-600 font-bold">❌</span> 指定休</span>
+            <span class="flex items-center gap-1"><span>✖</span> 排休</span>
+        </div>
+    </main>
+
+    <!-- 人員設定管理模態框 -->
+    <dialog id="empManageDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-md border border-gray-200">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h3 class="font-bold text-gray-800 tracking-wide">👥 人員設定管理</h3>
+            <button onclick="document.getElementById('empManageDialog').close()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 bg-white max-h-[60vh] overflow-y-auto flex flex-col gap-2" id="empListContainer">
+            <!-- 由 JS 動態渲染人員清單 -->
+        </div>
+        <div class="p-4 border-t border-gray-100 bg-gray-50 flex justify-between gap-2">
+            <div class="flex gap-2">
+                <button onclick="addNewEmp('FT')" class="border border-black bg-white text-black px-3 py-2 rounded text-xs hover:bg-gray-100">+ 新增正職</button>
+                <button onclick="addNewEmp('PT')" class="border border-gray-300 bg-white text-gray-700 px-3 py-2 rounded text-xs hover:bg-gray-100">+ 新增工讀</button>
+            </div>
+            <button onclick="saveEmpSettings()" class="bg-black text-white px-5 py-2 rounded text-sm hover:bg-gray-800">儲存變更</button>
+        </div>
+    </dialog>
+
+    <dialog id="shiftDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-md border border-gray-200">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h3 class="font-bold text-gray-800 tracking-wide" id="dialogTitle">編輯班別</h3>
+            <button onclick="closeDialog()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 flex flex-col gap-4 bg-white overflow-y-auto max-h-[75vh]">
+            <p class="text-sm text-gray-500 font-medium" id="dialogSubtitle"></p>
+            
+            <div class="grid grid-cols-4 gap-2">
+                <button onclick="setShift('✖')" class="border border-gray-200 py-2 rounded text-sm hover:bg-gray-50 font-bold">✖ 排休</button>
+                <button onclick="setShift('❌')" class="border border-red-200 text-red-600 py-2 rounded text-sm hover:bg-red-50 font-bold">❌ 指定休</button>
+                <button onclick="setShift('行政')" class="border border-gray-200 py-2 rounded text-sm hover:bg-gray-50">行政</button>
+                <button onclick="setShift('公出')" class="border border-gray-200 py-2 rounded text-sm hover:bg-gray-50">公出</button>
+            </div>
+            
+            <div class="text-xs text-gray-400 font-bold mt-1 tracking-widest border-t pt-2">早班系列</div>
+            <div class="grid grid-cols-4 gap-2 text-sm">
+                <button onclick="setShift('D1\n0830-1700')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80">D1<br><span class="text-[10px]">0830-1700</span></button>
+                <button onclick="setShift('D2\n0900-1730')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80">D2<br><span class="text-[10px]">0900-1730</span></button>
+                <button onclick="setShift('D3\n0900-1500')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80">D3<br><span class="text-[10px]">0900-1500</span></button>
+                <button onclick="setShift('D4\n1230-1630')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80">D4<br><span class="text-[10px]">1230-1630</span></button>
+            </div>
+
+            <div class="text-xs text-gray-400 font-bold mt-1 tracking-widest border-t pt-2">晚班系列</div>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+                <button onclick="setShift('N1\n1230-2130')" class="bg-[#ebd9d9] text-[#5c3c3c] py-2 rounded hover:opacity-80">N1 (12:30-21:30)</button>
+                <button onclick="setShift('N2\n1730-2130')" class="bg-[#ebd9d9] text-[#5c3c3c] py-2 rounded hover:opacity-80">N2 (17:30-21:30)</button>
+            </div>
+
+            <div class="text-xs text-gray-400 font-bold mt-1 tracking-widest border-t pt-2">兩頭班系列</div>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+                <button onclick="setShift('A1\n09-13/17-21')" class="bg-[#d6dbe0] text-[#3b4252] py-2 rounded hover:opacity-80 leading-tight">A1<br><span class="text-[10px]">0900-1300 / 1700-2100</span></button>
+                <button onclick="setShift('A2\n09-13/17-21')" class="bg-[#d6dbe0] text-[#3b4252] py-2 rounded hover:opacity-80 leading-tight">A2<br><span class="text-[10px]">0930-1330 / 1730-2130</span></button>
+            </div>
+            
+            <div class="text-xs text-gray-400 font-bold mt-1 tracking-widest border-t pt-2">工讀無法排班標示</div>
+            <div class="grid grid-cols-4 gap-2 text-sm">
+                <button onclick="setShift('X_R')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-red-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法全班</span></button>
+                <button onclick="setShift('X_B')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-blue-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法早班</span></button>
+                <button onclick="setShift('X_P')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-purple-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法午班</span></button>
+                <button onclick="setShift('X_G')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-green-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法晚班</span></button>
+            </div>
+
+            <!-- 新增：自訂時間與文字 -->
+            <div class="text-xs text-gray-400 font-bold mt-1 tracking-widest border-t pt-2">自訂時間 / 特殊文字</div>
+            <div class="flex flex-col gap-2 mt-1">
+                <!-- 自訂時間選取器 -->
+                <div class="flex items-center gap-2 text-sm">
+                    <input type="time" id="customTimeStart" class="border border-gray-300 rounded px-2 py-2 flex-1 outline-none focus:border-black">
+                    <span class="text-gray-400">-</span>
+                    <input type="time" id="customTimeEnd" class="border border-gray-300 rounded px-2 py-2 flex-1 outline-none focus:border-black">
+                    <button onclick="applyCustomTime()" class="bg-black text-white px-3 py-2 rounded hover:bg-gray-800 whitespace-nowrap">排入時間</button>
+                </div>
+                <!-- 自訂純文字輸入 -->
+                <div class="flex items-center gap-2 text-sm">
+                    <input type="text" id="customText" class="border border-gray-300 rounded px-2 py-2 flex-1 outline-none focus:border-black" placeholder="手動輸入特殊代碼...">
+                    <button onclick="setShift(document.getElementById('customText').value)" class="border border-gray-300 bg-gray-100 text-gray-700 px-3 py-2 rounded hover:bg-gray-200 whitespace-nowrap">排入文字</button>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="stationDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-sm border border-gray-200">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h3 class="font-bold text-gray-800 tracking-wide" id="stationDialogTitle">指派人員</h3>
+            <button onclick="closeStationDialog()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 bg-white">
+            <div id="stationCandidates" class="flex flex-col gap-2"></div>
+            <button onclick="setStation('')" class="w-full mt-4 border border-red-200 text-red-600 py-2 rounded text-sm hover:bg-red-50">清除人員</button>
+        </div>
+    </dialog>
+
+    <dialog id="noteDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-sm border border-gray-200">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h3 class="font-bold text-gray-800 tracking-wide" id="noteDialogTitle">當日備註</h3>
+            <button onclick="closeNoteDialog()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 bg-white flex flex-col gap-3">
+            <div class="grid grid-cols-3 gap-2">
+                <button onclick="setNote('員工會議')" class="border border-gray-200 py-2 rounded text-sm hover:bg-gray-50">員工會議</button>
+                <button onclick="setNote('主管會議')" class="border border-gray-200 py-2 rounded text-sm hover:bg-gray-50">主管會議</button>
+                <button onclick="setNote('店休')" class="border border-red-200 text-red-600 py-2 rounded text-sm hover:bg-red-50">店休</button>
+            </div>
+            <textarea id="customNote" rows="3" class="border border-gray-300 rounded p-2 text-sm w-full mt-2 outline-none focus:border-black" placeholder="輸入自訂備註..."></textarea>
+            <div class="flex gap-2">
+                <button onclick="setNote('')" class="border border-gray-300 text-gray-600 py-2 rounded text-sm flex-1 hover:bg-gray-50">清除</button>
+                <button onclick="setNote(document.getElementById('customNote').value)" class="bg-black text-white py-2 rounded text-sm flex-1 hover:bg-gray-800">儲存備註</button>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="confirmDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-sm border border-gray-200">
+        <div class="p-5 bg-white flex flex-col gap-4">
+            <p class="text-gray-800 text-sm leading-relaxed whitespace-pre-line" id="confirmMsg"></p>
+            <div class="flex justify-end gap-2 mt-2">
+                <button onclick="resolveConfirm(false)" class="border border-gray-300 text-gray-600 px-4 py-2 rounded text-sm hover:bg-gray-50">取消</button>
+                <button onclick="resolveConfirm(true)" class="bg-black text-white px-4 py-2 rounded text-sm hover:bg-gray-800">確定</button>
+            </div>
+        </div>
+    </dialog>
+    
+    <dialog id="alertDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-sm border border-gray-200">
+        <div class="p-5 bg-white flex flex-col gap-4 text-center">
+            <p class="text-gray-800 text-sm leading-relaxed whitespace-pre-line" id="alertMsg"></p>
+            <button onclick="document.getElementById('alertDialog').close()" class="bg-black text-white px-4 py-2 rounded text-sm hover:bg-gray-800 mx-auto w-1/2">確定</button>
+        </div>
+    </dialog>
+
+    <script>
+        let employees = JSON.parse(localStorage.getItem('ecoleEmployees')) || [
+            { id: 'FT1', name: 'Rita', type: 'FT' },
+            { id: 'FT2', name: '訓峰', type: 'FT' },
+            { id: 'FT3', name: '沛宣', type: 'FT' },
+            { id: 'FT4', name: '龍', type: 'FT' },
+            { id: 'FT5', name: '沐', type: 'FT' },
+            { id: 'PT1', name: 'JEFF', type: 'PT' },
+            { id: 'PT2', name: '煥哲', type: 'PT' },
+            { id: 'PT3', name: '澤凱', type: 'PT' },
+            { id: 'PT4', name: '書書', type: 'PT' }
+        ];
+        
+        let tempEmployees = []; 
+
+        const stations = ['早吧台', '早廚', '外場', '晚吧台', '晚廚'];
+        
+        let scheduleData = JSON.parse(localStorage.getItem('ecoleSchedule')) || {};
+        let stationData = JSON.parse(localStorage.getItem('ecoleStation')) || {};
+        let noteData = JSON.parse(localStorage.getItem('ecoleNote')) || {};
+        
+        let currentYearMonth = '2026-07';
+        let selectedCell = { empId: null, day: null, type: null, station: null };
+        let confirmResolver = null;
+
+        const shiftDialog = document.getElementById('shiftDialog');
+        const stationDialog = document.getElementById('stationDialog');
+        const noteDialog = document.getElementById('noteDialog');
+        const confirmDialog = document.getElementById('confirmDialog');
+
+        // 新增格式化顯示的輔助函數：將代碼放大、時間縮小
+        function formatShiftDisplay(shiftStr) {
+            const parts = shiftStr.split('\n');
+            if (parts.length === 2) {
+                return `<div class="font-bold text-[14px] leading-tight mb-0.5">${parts[0]}</div><div class="text-[9px] leading-tight opacity-80">${parts[1]}</div>`;
+            }
+            return shiftStr.replace(/\n/g, '<br>');
+        }
+
+        function init() {
+            document.getElementById('monthSelector').value = currentYearMonth;
+            document.getElementById('monthSelector').addEventListener('change', (e) => {
+                currentYearMonth = e.target.value;
+                renderTable();
+            });
+            renderTable();
+        }
+
+        function renderTable() {
+            const [year, month] = currentYearMonth.split('-').map(Number);
+            const daysInMonth = new Date(year, month, 0).getDate();
+            const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
+            const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+
+            if (!scheduleData[currentYearMonth]) scheduleData[currentYearMonth] = {};
+            if (!stationData[currentYearMonth]) stationData[currentYearMonth] = {};
+            if (!noteData[currentYearMonth]) noteData[currentYearMonth] = {};
+
+            employees.forEach(emp => { if(!scheduleData[currentYearMonth][emp.id]) scheduleData[currentYearMonth][emp.id] = {}; });
+            stations.forEach(st => { if(!stationData[currentYearMonth][st]) stationData[currentYearMonth][st] = {}; });
+
+            let theadHTML = `<tr><th rowspan="2" class="sticky-corner w-10 text-xs px-1 text-gray-500 font-normal">TYPE</th><th rowspan="2" class="sticky-corner px-2 py-1" style="left: 40px; min-width: 60px;">姓名</th>`;
+            
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dayIndex = (firstDayOfWeek + i - 1) % 7;
+                const isWeekend = dayIndex === 0 || dayIndex === 6;
+                const dateClass = isWeekend ? 'text-red-600 font-bold' : 'text-gray-500 font-normal';
+                theadHTML += `<th class="px-1 pt-2 pb-1 text-sm border-b-0 ${dateClass}">${i}</th>`;
+            }
+            theadHTML += `<th rowspan="2" class="px-2 py-1 min-w-[80px] text-xs font-normal text-gray-500">月休 / 工時</th></tr><tr>`;
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dayIndex = (firstDayOfWeek + i - 1) % 7;
+                const isWeekend = dayIndex === 0 || dayIndex === 6;
+                const weekdayClass = isWeekend ? 'text-red-600 font-bold' : 'text-gray-400 font-normal';
+                theadHTML += `<th class="px-1 pt-1 pb-2 text-xs border-t-0 ${weekdayClass}">${weekDays[dayIndex]}</th>`;
+            }
+            theadHTML += `</tr>`;
+            document.getElementById('tableHead').innerHTML = theadHTML;
+
+            let tbodyHTML = '';
+            let currentType = '';
+
+            employees.forEach(emp => {
+                let typeLabel = '';
+                if (emp.type !== currentType) {
+                    currentType = emp.type;
+                    const rowSpan = employees.filter(e => e.type === currentType).length;
+                    const typeText = currentType === 'FT' ? '正職' : '工讀';
+                    typeLabel = `<th rowspan="${rowSpan}" class="sticky-col text-vertical tracking-widest text-xs text-gray-500 font-normal bg-white" style="writing-mode: vertical-lr;">${typeText}</th>`;
+                }
+
+                tbodyHTML += `<tr>${typeLabel}<th class="sticky-col px-2 py-2 font-normal text-sm bg-white" style="left: 40px;">${emp.name}</th>`;
+
+                let daysOff = 0;
+                let totalHours = 0;
+
+                for (let i = 1; i <= daysInMonth; i++) {
+                    const shift = scheduleData[currentYearMonth]?.[emp.id]?.[i] || '';
+                    let cellClass = 'shift-cell ';
+                    let displayText = shift;
+                    
+                    if (shift === '✖') { cellClass += 'shift-off'; daysOff++; }
+                    else if (shift === '❌') { cellClass += 'shift-forced-off'; daysOff++; }
+                    else if (shift === '行政' || shift === '公出') { cellClass += 'shift-admin'; }
+                    
+                    // 套用 formatShiftDisplay，讓代碼變大、時間變小
+                    else if (shift.startsWith('D')) { cellClass += 'color-morning'; displayText = formatShiftDisplay(shift); }
+                    else if (shift.startsWith('N')) { cellClass += 'color-evening'; displayText = formatShiftDisplay(shift); }
+                    else if (shift.startsWith('A')) { cellClass += 'color-split'; displayText = formatShiftDisplay(shift); }
+                    else if (shift.startsWith('自訂')) { cellClass += 'color-custom'; displayText = formatShiftDisplay(shift); }
+                    
+                    // 特殊顏色X處理
+                    else if (shift === 'X_R') { displayText = '<span class="text-red-500 font-bold text-lg">X</span>'; cellClass += ' bg-gray-50'; }
+                    else if (shift === 'X_B') { displayText = '<span class="text-blue-500 font-bold text-lg">X</span>'; cellClass += ' bg-gray-50'; }
+                    else if (shift === 'X_P') { displayText = '<span class="text-purple-500 font-bold text-lg">X</span>'; cellClass += ' bg-gray-50'; }
+                    else if (shift === 'X_G') { displayText = '<span class="text-green-500 font-bold text-lg">X</span>'; cellClass += ' bg-gray-50'; }
+                    else { displayText = shift.replace(/\n/g, '<br>'); }
+
+                    if (shift && !['✖', '❌', '行政', '公出', 'X_R', 'X_B', 'X_P', 'X_G'].includes(shift)) {
+                        totalHours += calculateHours(shift);
+                    }
+
+                    tbodyHTML += `<td class="${cellClass}" onclick="openDialog('${emp.id}', ${i}, '${emp.name}')">${displayText}</td>`;
+                }
+
+                let statsText = emp.type === 'FT' 
+                    ? `<span class="${daysOff < 8 ? 'text-black font-bold' : 'text-gray-600'}">${daysOff} 天</span>`
+                    : `<span class="text-gray-600">${totalHours.toFixed(1)} hr</span>`;
+                
+                tbodyHTML += `<td class="px-2 py-1 text-xs bg-white">${statsText}</td></tr>`;
+            });
+            document.getElementById('tableBody').innerHTML = tbodyHTML;
+
+            // 內外場配置區 (包含錯誤防呆紅字邏輯)
+            let stationHTML = `<tr><td colspan="${daysInMonth + 3}" class="bg-gray-100 text-left px-4 py-1 text-xs text-gray-500 font-bold tracking-widest border-t-2 border-gray-300">STATION ASSIGNMENTS (內外場配置)</td></tr>`;
+            stations.forEach(st => {
+                const rowClass = st === '外場' ? 'station-row-light' : 'station-row-deep';
+                const bgHex = st === '外場' ? '#F0F0F0' : '#e5e7eb';
+                
+                stationHTML += `<tr class="${rowClass}"><th colspan="2" class="sticky-col px-2 py-1 text-sm font-normal text-gray-700" style="left: 0; background-color: ${bgHex};">${st}</th>`;
+                for (let i = 1; i <= daysInMonth; i++) {
+                    const sName = stationData[currentYearMonth]?.[st]?.[i] || '';
+                    
+                    let isError = false;
+                    if (sName) {
+                        const emp = employees.find(e => e.name === sName);
+                        if (emp) {
+                            const shift = scheduleData[currentYearMonth]?.[emp.id]?.[i];
+                            if (!shift || ['✖', '❌', '行政', '公出', 'X_R', 'X_B', 'X_P', 'X_G'].includes(shift)) {
+                                isError = true;
+                            }
+                        } else {
+                            isError = true;
+                        }
+                    }
+                    
+                    const cellClass = isError ? "shift-cell text-xs text-red-600 font-bold bg-red-50" : "shift-cell text-xs";
+                    const displayHTML = isError ? `⚠️<br>${sName}` : sName;
+
+                    stationHTML += `<td class="${cellClass}" onclick="openStationDialog('${st}', ${i})">${displayHTML}</td>`;
+                }
+                stationHTML += `<td></td></tr>`;
+            });
+            document.getElementById('stationBody').innerHTML = stationHTML;
+
+            // 備註區
+            let noteHTML = `<tr><th colspan="2" class="sticky-col px-2 py-1 text-sm font-normal text-gray-700 bg-white" style="left: 0;">備註</th>`;
+            for (let i = 1; i <= daysInMonth; i++) {
+                const n = noteData[currentYearMonth]?.[i] || '';
+                noteHTML += `<td class="shift-cell text-[10px] text-gray-500 bg-white" onclick="openNoteDialog(${i})">${n}</td>`;
+            }
+            noteHTML += `<td class="bg-white"></td></tr>`;
+            document.getElementById('noteBody').innerHTML = noteHTML;
+
+            saveData();
+        }
+
+        function calculateHours(shiftStr) {
+            // A1, A2 因為中午與晚上是分段上班，中間已空班休息，直接算 8 小時
+            if(shiftStr.includes('A1') || shiftStr.includes('A2')) return 8;
+            
+            // D1, D2 總時長 8.5 小時，扣 30 分鐘休息 = 8 小時
+            if(shiftStr.includes('D1') || shiftStr.includes('D2')) return 8; 
+            
+            // N1 總時長 9 小時，扣 1 小時休息 = 8 小時
+            if(shiftStr.includes('N1')) return 8; 
+            
+            // D3, D4, N2 都是短班，因此不另外安排休息
+            if(shiftStr.includes('D3')) return 6;
+            if(shiftStr.includes('D4') || shiftStr.includes('N2')) return 4;
+            
+            // 智能動態計算：自動抓取任意文字中的「時間至時間」格式 (例如 10:30-15:00)
+            let parsedHours = 0;
+            const matches = shiftStr.match(/(\d{2}):?(\d{2})\s*-\s*(\d{2}):?(\d{2})/g);
+            if (matches) {
+                matches.forEach(m => {
+                    const parts = m.match(/(\d{2}):?(\d{2})\s*-\s*(\d{2}):?(\d{2})/);
+                    if (parts) {
+                        let start = parseInt(parts[1], 10) + parseInt(parts[2], 10) / 60;
+                        let end = parseInt(parts[3], 10) + parseInt(parts[4], 10) / 60;
+                        if (end < start) end += 24; // 處理跨夜情況
+                        parsedHours += (end - start);
+                    }
+                });
+                
+                // 自訂時間判斷：非短班 (大於 6 小時) 自動扣除半小時 (0.5) 休息工時
+                if (parsedHours > 6) {
+                    parsedHours -= 0.5;
+                }
+                
+                return parsedHours;
+            }
+            
+            return 0; 
+        }
+
+        // --- 人員管理系統實作 ---
+        function manageEmployees() {
+            tempEmployees = JSON.parse(JSON.stringify(employees));
+            renderEmpManageList();
+            document.getElementById('empManageDialog').showModal();
+        }
+
+        function renderEmpManageList() {
+            let html = '';
+            tempEmployees.forEach((emp, index) => {
+                let bg = emp.type === 'FT' ? 'bg-gray-50 border-gray-300' : 'bg-white border-gray-200';
+                html += `
+                <div class="flex items-center gap-3 p-2 border rounded ${bg}">
+                    <span class="text-xs font-bold w-10 text-center ${emp.type === 'FT' ? 'text-black' : 'text-gray-500'}">${emp.type}</span>
+                    <input type="text" class="border border-gray-300 rounded px-2 py-1 flex-1 text-sm outline-none focus:border-black" value="${emp.name}" onchange="tempEmployees[${index}].name = this.value" placeholder="請輸入姓名">
+                    <button onclick="removeEmp(${index})" class="text-red-400 hover:text-red-600 px-2 font-bold text-lg">&times;</button>
+                </div>`;
+            });
+            document.getElementById('empListContainer').innerHTML = html;
+        }
+
+        function addNewEmp(type) {
+            tempEmployees.push({ id: type + '_' + Date.now(), name: '', type: type });
+            renderEmpManageList();
+            setTimeout(() => {
+                const container = document.getElementById('empListContainer');
+                container.scrollTop = container.scrollHeight;
+            }, 10);
+        }
+
+        function removeEmp(index) {
+            tempEmployees.splice(index, 1);
+            renderEmpManageList();
+        }
+
+        function saveEmpSettings() {
+            employees = JSON.parse(JSON.stringify(tempEmployees)).filter(e => e.name.trim() !== '');
+            saveData();
+            document.getElementById('empManageDialog').close();
+            renderTable();
+        }
+
+        // --- Dialog與系統提示功能 ---
+        function alertCustom(msg) {
+            document.getElementById('alertMsg').innerText = msg;
+            document.getElementById('alertDialog').showModal();
+        }
+
+        function customConfirm(msg) {
+            document.getElementById('confirmMsg').innerText = msg;
+            confirmDialog.showModal();
+            return new Promise(resolve => { confirmResolver = resolve; });
+        }
+        function resolveConfirm(result) {
+            confirmDialog.close();
+            if(confirmResolver) confirmResolver(result);
+        }
+
+        function openDialog(empId, day, empName) {
+            selectedCell = { empId, day };
+            document.getElementById('dialogSubtitle').innerText = `${empName} - ${currentYearMonth}-${day.toString().padStart(2, '0')}`;
+            
+            // 清除上次自訂輸入的資料
+            document.getElementById('customTimeStart').value = '';
+            document.getElementById('customTimeEnd').value = '';
+            document.getElementById('customText').value = '';
+            
+            shiftDialog.showModal();
+        }
+
+        function setShift(val) {
+            if(val.trim() === '') return;
+            scheduleData[currentYearMonth][selectedCell.empId][selectedCell.day] = val;
+            shiftDialog.close();
+            renderTable();
+        }
+
+        function applyCustomTime() {
+            const start = document.getElementById('customTimeStart').value;
+            const end = document.getElementById('customTimeEnd').value;
+            if (start && end) {
+                // 套用相同格式的展示邏輯，這樣文字會是大字配小時間，且智能計算系統會精準抓取
+                setShift(`自訂\n${start}-${end}`);
+            } else {
+                alertCustom('請完整選擇開始與結束時間');
+            }
+        }
+
+        function closeDialog() { shiftDialog.close(); }
+
+        function openStationDialog(station, day) {
+            selectedCell = { station, day };
+            document.getElementById('stationDialogTitle').innerText = `${station} - ${day}日`;
+            let html = '';
+            employees.forEach(emp => {
+                let shift = scheduleData[currentYearMonth]?.[emp.id]?.[day] || '';
+                if (shift && !['✖', '❌', '行政', '公出', 'X_R', 'X_B', 'X_P', 'X_G'].includes(shift)) {
+                    html += `<button onclick="setStation('${emp.name}')" class="border border-gray-200 py-2 rounded text-sm hover:bg-gray-50 text-left px-4">${emp.name} <span class="text-xs text-gray-400 float-right mt-0.5">${shift.split('\n')[0]}</span></button>`;
+                }
+            });
+            if(html === '') html = '<p class="text-sm text-gray-400 text-center py-4">當日無可用排班人員</p>';
+            document.getElementById('stationCandidates').innerHTML = html;
+            stationDialog.showModal();
+        }
+        function setStation(name) {
+            stationData[currentYearMonth][selectedCell.station][selectedCell.day] = name;
+            stationDialog.close();
+            renderTable();
+        }
+        function closeStationDialog() { stationDialog.close(); }
+
+        function openNoteDialog(day) {
+            selectedCell = { day };
+            document.getElementById('noteDialogTitle').innerText = `${day}日 備註`;
+            document.getElementById('customNote').value = noteData[currentYearMonth]?.[day] || '';
+            noteDialog.showModal();
+        }
+        function setNote(val) {
+            noteData[currentYearMonth][selectedCell.day] = val;
+            noteDialog.close();
+            renderTable();
+        }
+        function closeNoteDialog() { noteDialog.close(); }
+
+        async function autoFill() {
+            const confirm = await customConfirm('將執行智能排班：\n1. 優先精準排滿正職 8 天休假\n2. 晚班、A1、D1 限正職安排\n3. 工讀填補剩餘早班\n4. 獨立配滿外場，允許晚班兼任\n\n確定執行嗎？');
+            if(!confirm) return;
+            
+            const [year, month] = currentYearMonth.split('-').map(Number);
+            const daysInMonth = new Date(year, month, 0).getDate();
+
+            // 1. 優先處理正職 8 天休假
+            employees.filter(e => e.type === 'FT').forEach(emp => {
+                let offDays = 0;
+                for(let i=1; i<=daysInMonth; i++) {
+                    let s = scheduleData[currentYearMonth][emp.id][i];
+                    if(s === '✖' || s === '❌') offDays++;
+                }
+                
+                let neededOff = 8 - offDays;
+                while(neededOff > 0) {
+                    let possibleDays = [];
+                    for(let i=1; i<=daysInMonth; i++) {
+                        if(!scheduleData[currentYearMonth][emp.id][i]) {
+                            // 計算同日已有多少正職休假，越少越優先 (交錯排休)
+                            let othersOff = employees.filter(e => e.type === 'FT' && ['✖', '❌'].includes(scheduleData[currentYearMonth][e.id][i])).length;
+                            possibleDays.push({day: i, weight: othersOff + Math.random()});
+                        }
+                    }
+                    if(possibleDays.length === 0) break;
+                    possibleDays.sort((a,b) => a.weight - b.weight);
+                    scheduleData[currentYearMonth][emp.id][possibleDays[0].day] = '✖';
+                    neededOff--;
+                }
+            });
+
+            // 2. 每日班別指派
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayIndex = new Date(year, month - 1, day).getDay();
+                const isWeekend = dayIndex === 0 || dayIndex === 6;
+                const requiredStaff = isWeekend ? 5 : 4; 
+
+                let availableFTs = [];
+                let availablePTs = [];
+
+                employees.forEach(emp => {
+                    let s = scheduleData[currentYearMonth][emp.id][day];
+                    if (s === '✖' || s === '❌' || s === '公出' || s === '行政' || (typeof s === 'string' && s.startsWith('X_'))) {
+                        // 特殊標記不可自動排班
+                    } else if (!s) {
+                        if(emp.type === 'FT') availableFTs.push(emp);
+                        else availablePTs.push(emp);
+                    }
+                });
+
+                availableFTs.sort(() => Math.random() - 0.5);
+                availablePTs.sort(() => Math.random() - 0.5);
+
+                let existingLate = employees.filter(emp => {
+                    let s = scheduleData[currentYearMonth][emp.id][day];
+                    return s && (s.includes('N') || s.includes('晚'));
+                }).length;
+                
+                let neededLate = Math.max(0, 2 - existingLate);
+
+                while(neededLate > 0 && availableFTs.length > 0) {
+                    let emp = availableFTs.pop();
+                    scheduleData[currentYearMonth][emp.id][day] = 'N1\n1230-2130';
+                    neededLate--;
+                }
+
+                while(availableFTs.length > 0) {
+                    let emp = availableFTs.pop();
+                    scheduleData[currentYearMonth][emp.id][day] = Math.random() > 0.5 ? 'A1\n09-13/17-21' : 'D1\n0830-1700';
+                }
+
+                let currentStaff = employees.filter(emp => {
+                    let s = scheduleData[currentYearMonth][emp.id][day];
+                    return s && !['✖', '❌', '公出', '行政'].includes(s) && !s.startsWith('X_');
+                }).length;
+
+                let neededStaff = Math.max(0, requiredStaff - currentStaff);
+
+                while(neededStaff > 0 && availablePTs.length > 0) {
+                    let emp = availablePTs.pop();
+                    scheduleData[currentYearMonth][emp.id][day] = 'D2\n0900-1730';
+                    neededStaff--;
+                }
+
+                availablePTs.forEach(emp => {
+                    scheduleData[currentYearMonth][emp.id][day] = '✖';
+                });
+
+                // 3. 站點分配
+                let workingToday = employees.filter(emp => {
+                    let s = scheduleData[currentYearMonth][emp.id][day];
+                    return s && !['✖', '❌', '公出', '行政'].includes(s) && !s.startsWith('X_');
+                }).sort(() => Math.random() - 0.5);
+
+                if(workingToday.length === 0) continue;
+
+                if (!stationData[currentYearMonth]['外場'][day]) {
+                    stationData[currentYearMonth]['外場'][day] = workingToday[Math.floor(Math.random() * workingToday.length)].name;
+                }
+
+                let assignPool = [...workingToday];
+                ['晚吧台', '晚廚'].forEach(st => {
+                    if(!stationData[currentYearMonth][st][day]) {
+                        let ftIdx = assignPool.findIndex(e => e.type === 'FT');
+                        if(ftIdx !== -1) stationData[currentYearMonth][st][day] = assignPool.splice(ftIdx, 1)[0].name;
+                        else if(assignPool.length > 0) stationData[currentYearMonth][st][day] = assignPool.pop().name;
+                    }
+                });
+
+                ['早吧台', '早廚'].forEach(st => {
+                    if(!stationData[currentYearMonth][st][day] && assignPool.length > 0) {
+                        stationData[currentYearMonth][st][day] = assignPool.pop().name;
+                    }
+                });
+            }
+            renderTable();
+        }
+
+        async function clearSchedule() {
+            const confirm = await customConfirm(`確定要清空 ${currentYearMonth} 的所有排班與站點資料嗎？`);
+            if(confirm) {
+                scheduleData[currentYearMonth] = {};
+                stationData[currentYearMonth] = {};
+                noteData[currentYearMonth] = {};
+                employees.forEach(emp => scheduleData[currentYearMonth][emp.id] = {});
+                stations.forEach(st => stationData[currentYearMonth][st] = {});
+                renderTable();
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('ecoleSchedule', JSON.stringify(scheduleData));
+            localStorage.setItem('ecoleStation', JSON.stringify(stationData));
+            localStorage.setItem('ecoleNote', JSON.stringify(noteData));
+            localStorage.setItem('ecoleEmployees', JSON.stringify(employees));
+        }
+
+        async function exportJSON() {
+            const data = { scheduleData, stationData, noteData, employees };
+            const fileName = `EcoleCafe_Backup_${currentYearMonth}.json`;
+            const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+            const file = new File([blob], fileName, { type: 'application/json' });
+
+            const fallbackDownload = () => {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = fileName;
+                link.click();
+            };
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({ files: [file], title: fileName });
+                } catch (err) {
+                    if (err.name !== 'AbortError') fallbackDownload();
+                }
+            } else {
+                fallbackDownload();
+            }
+        }
+
+        function triggerImport() { document.getElementById('importFile').click(); }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if(data.scheduleData) scheduleData = data.scheduleData;
+                    if(data.stationData) stationData = data.stationData;
+                    if(data.noteData) noteData = data.noteData;
+                    if(data.employees) employees = data.employees;
+                    saveData();
+                    renderTable();
+                    alertCustom('資料匯入成功！');
+                } catch(err) {
+                    alertCustom('檔案格式錯誤，請確定是本系統匯出的 JSON 備份檔。');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function exportToImage() {
+            const originalElement = document.getElementById('scheduleCaptureArea');
+            const cloneWrapper = document.createElement('div');
+            cloneWrapper.style.position = 'absolute';
+            cloneWrapper.style.top = '-9999px';
+            cloneWrapper.style.left = '0';
+            cloneWrapper.style.width = 'max-content';
+            cloneWrapper.style.backgroundColor = '#ffffff';
+            cloneWrapper.style.padding = '24px';
+            cloneWrapper.style.fontFamily = 'Helvetica Neue, Arial, sans-serif';
+            
+            const [year, month] = currentYearMonth.split('-');
+            const titleEl = document.createElement('h2');
+            titleEl.innerHTML = `ÉCOLE CAFÉ ${year} 年 ${parseInt(month)} 月份排班表`;
+            titleEl.style.textAlign = 'center';
+            titleEl.style.fontSize = '24px';
+            titleEl.style.fontWeight = 'bold';
+            titleEl.style.marginBottom = '20px';
+            titleEl.style.color = '#111827';
+            cloneWrapper.appendChild(titleEl);
+            
+            const clone = originalElement.cloneNode(true);
+            clone.style.height = 'auto';
+            clone.style.overflow = 'visible';
+            clone.style.border = '1px solid #e5e7eb';
+            
+            const table = clone.querySelector('table');
+            table.style.width = 'auto';
+            
+            const cells = clone.querySelectorAll('th, td');
+            cells.forEach(el => { 
+                el.style.position = 'static'; 
+                el.style.textAlign = 'center';
+                el.style.verticalAlign = 'middle';
+                
+                if (el.tagName === 'TH' && el.parentElement.parentElement.tagName === 'THEAD') {
+                    el.style.paddingTop = '8px';
+                    el.style.paddingBottom = '8px';
+                }
+            });
+            
+            cloneWrapper.appendChild(clone);
+            document.body.appendChild(cloneWrapper);
+
+            html2canvas(cloneWrapper, { 
+                scale: 2, 
+                backgroundColor: '#ffffff',
+                useCORS: true
+            }).then(canvas => {
+                document.body.removeChild(cloneWrapper);
+                const fileName = `EcoleCafe_${currentYearMonth}_班表.jpg`;
+                
+                canvas.toBlob(async (blob) => {
+                    const file = new File([blob], fileName, { type: 'image/jpeg' });
+                    const fallbackDownload = () => {
+                        const link = document.createElement('a');
+                        link.download = fileName;
+                        link.href = URL.createObjectURL(blob);
+                        link.click();
+                    };
+
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        try {
+                            await navigator.share({ files: [file], title: fileName });
+                        } catch (err) {
+                            if (err.name !== 'AbortError') fallbackDownload();
+                        }
+                    } else {
+                        fallbackDownload();
+                    }
+                }, 'image/jpeg', 1.0);
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
