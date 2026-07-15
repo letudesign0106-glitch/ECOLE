@@ -22,8 +22,8 @@
         table { border-collapse: collapse; min-width: 100%; width: max-content; table-layout: fixed; }
         th, td { border: 1px solid #e5e7eb; text-align: center; vertical-align: middle; white-space: pre-line; font-size: 0.85rem; padding: 4px; min-width: 50px; }
         thead th { position: sticky; top: 0; background-color: #ffffff; z-index: 20; border-bottom: 2px solid #111827; vertical-align: middle; }
-        tbody th.sticky-col { position: sticky; left: 0; background-color: #ffffff; z-index: 10; border-right: 2px solid #e5e7eb; }
-        thead th.sticky-corner { position: sticky; top: 0; left: 0; z-index: 30; background-color: #ffffff; border-bottom: 2px solid #111827; border-right: 2px solid #e5e7eb; }
+        tbody th.sticky-col, tbody td.sticky-col { position: sticky; background-color: #ffffff; z-index: 10; }
+        thead th.sticky-corner { position: sticky; top: 0; left: 0; z-index: 30; background-color: #ffffff; border-bottom: 2px solid #111827; }
         
         .shift-cell { cursor: pointer; height: 50px; transition: background-color 0.2s; line-height: 1.2; }
         .shift-cell:hover, .shift-cell:active { background-color: #f3f4f6; }
@@ -31,22 +31,26 @@
         .color-morning { background-color: #dbe4d7; color: #3f4e38; } 
         .color-evening { background-color: #ebd9d9; color: #5c3c3c; } 
         .color-split { background-color: #d6dbe0; color: #3b4252; }   
-        .color-custom { background-color: #f3f4f6; color: #374151; } /* 自訂時間背景色 */
+        .color-custom { background-color: #f3f4f6; color: #374151; } 
         
         .shift-off { color: #111827; font-weight: bold; } 
         .shift-forced-off { color: #dc2626; font-weight: bold; } 
+        .shift-annual { background-color: #f3f4f6; color: #6b7280; font-weight: bold; } /* 年假樣式 */
         .shift-admin { color: #4b5563; background-color: #f3f4f6; } 
         
-        .text-weekend { color: #dc2626; font-weight: bold; } /* 週末紅字 */
+        .text-weekend { color: #dc2626; font-weight: bold; } 
         
-        .station-row-deep th, .station-row-deep td { background-color: #e5e7eb; } /* 較深的灰階配置區 */
-        .station-row-light th, .station-row-light td { background-color: #F0F0F0; } /* 外場專屬淺灰 */
+        .station-row-deep th, .station-row-deep td { background-color: #e5e7eb; } 
+        .station-row-light th, .station-row-light td { background-color: #F0F0F0; } 
 
         dialog::backdrop { background-color: rgba(0, 0, 0, 0.4); backdrop-filter: blur(2px); }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #ffffff; }
         ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+        /* 隱藏 number input 的箭頭 */
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
 <body class="flex flex-col h-screen">
@@ -63,14 +67,14 @@
         </div>
 
         <div class="flex flex-wrap gap-2">
-            <button onclick="manageEmployees()" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition">👥 人員管理</button>
+            <button onclick="manageEmployees()" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition shadow-sm">👥 人員管理</button>
             <div class="w-px h-8 bg-gray-200 mx-1 hidden sm:block"></div>
-            <button onclick="autoFill()" class="border border-black bg-black text-white hover:bg-gray-800 px-4 py-2 rounded-sm text-sm transition">自動帶入預設</button>
-            <button onclick="clearSchedule()" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-sm text-sm transition">清空當月資料</button>
+            <button onclick="autoFill()" class="border border-black bg-black text-white hover:bg-gray-800 px-4 py-2 rounded-sm text-sm transition shadow-sm"> 自動帶入預設</button>
+            <button onclick="clearSchedule()" class="border border-gray-300 bg-white text-red-600 hover:bg-red-50 px-4 py-2 rounded-sm text-sm transition"> 清空當月</button>
             <div class="w-px h-8 bg-gray-200 mx-1 hidden sm:block"></div>
-            <button onclick="triggerImport()" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition">匯入(JSON)</button>
-            <button onclick="exportJSON()" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition">備份(JSON)</button>
-            <button onclick="exportToImage()" class="border border-black bg-white text-black hover:bg-gray-50 px-4 py-2 rounded-sm text-sm transition">匯出圖片</button>
+            <button onclick="triggerImport()" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition"> 匯入(JSON)</button>
+            <button onclick="exportJSON()" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition"> 備份(JSON)</button>
+            <button onclick="exportToImage()" class="border border-black bg-white text-black hover:bg-gray-50 px-4 py-2 rounded-sm text-sm transition shadow-sm"> 匯出圖片</button>
             <input type="file" id="importFile" accept=".json" class="hidden" onchange="importJSON(event)">
         </div>
     </header>
@@ -89,11 +93,34 @@
             <span class="flex items-center gap-1"><div class="w-3 h-3 bg-[#dbe4d7]"></div> 早班(D)</span>
             <span class="flex items-center gap-1"><div class="w-3 h-3 bg-[#ebd9d9]"></div> 晚班(N)</span>
             <span class="flex items-center gap-1"><div class="w-3 h-3 bg-[#d6dbe0]"></div> 兩頭班(A)</span>
-            <span class="flex items-center gap-1"><div class="w-3 h-3 bg-[#f3f4f6] border border-gray-300"></div> 自訂時間</span>
+            <span class="flex items-center gap-1"><div class="w-3 h-3 bg-[#f3f4f6] border border-gray-300"></div> 自訂/年假</span>
             <span class="flex items-center gap-1"><span class="text-red-600 font-bold">❌</span> 指定休</span>
             <span class="flex items-center gap-1"><span>✖</span> 排休</span>
         </div>
     </main>
+
+    <!-- 自動排班設定模態框 -->
+    <dialog id="autoFillDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-sm border border-gray-200">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h3 class="font-bold text-gray-800 tracking-wide">✨ 自動排班設定</h3>
+            <button onclick="document.getElementById('autoFillDialog').close()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
+        </div>
+        <div class="p-5 bg-white flex flex-col gap-4 text-sm">
+            <div>
+                <label class="block text-gray-700 mb-2 font-bold">正職預設休息天數：</label>
+                <input type="number" id="ftRestDaysInput" value="8" min="0" max="15" class="border border-gray-300 rounded px-3 py-2 w-full outline-none focus:border-black">
+            </div>
+            <div class="text-xs text-gray-500 bg-gray-50 p-3 rounded border border-gray-100 leading-relaxed">
+                * 系統會自動讀取「上月連續」，確保正職與工讀皆不連續上班 6 天。<br>
+                * 晚班、A1、D1 優先配給正職。<br>
+                * 外場優先排滿，允許晚班人員兼任。
+            </div>
+            <div class="flex justify-end gap-2 mt-2">
+                <button onclick="document.getElementById('autoFillDialog').close()" class="border border-gray-300 text-gray-600 px-4 py-2 rounded hover:bg-gray-50">取消</button>
+                <button onclick="executeAutoFill()" class="bg-black text-white px-4 py-2 rounded hover:bg-gray-800">確定排班</button>
+            </div>
+        </div>
+    </dialog>
 
     <!-- 人員設定管理模態框 -->
     <dialog id="empManageDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-md border border-gray-200">
@@ -102,7 +129,6 @@
             <button onclick="document.getElementById('empManageDialog').close()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
         </div>
         <div class="p-4 bg-white max-h-[60vh] overflow-y-auto flex flex-col gap-2" id="empListContainer">
-            <!-- 由 JS 動態渲染人員清單 -->
         </div>
         <div class="p-4 border-t border-gray-100 bg-gray-50 flex justify-between gap-2">
             <div class="flex gap-2">
@@ -121,11 +147,12 @@
         <div class="p-4 flex flex-col gap-4 bg-white overflow-y-auto max-h-[75vh]">
             <p class="text-sm text-gray-500 font-medium" id="dialogSubtitle"></p>
             
-            <div class="grid grid-cols-4 gap-2">
-                <button onclick="setShift('✖')" class="border border-gray-200 py-2 rounded text-sm hover:bg-gray-50 font-bold">✖ 排休</button>
-                <button onclick="setShift('❌')" class="border border-red-200 text-red-600 py-2 rounded text-sm hover:bg-red-50 font-bold">❌ 指定休</button>
-                <button onclick="setShift('行政')" class="border border-gray-200 py-2 rounded text-sm hover:bg-gray-50">行政</button>
-                <button onclick="setShift('公出')" class="border border-gray-200 py-2 rounded text-sm hover:bg-gray-50">公出</button>
+            <div class="grid grid-cols-5 gap-1">
+                <button onclick="setShift('✖')" class="border border-gray-200 py-2 rounded text-xs hover:bg-gray-50 font-bold">✖ 排休</button>
+                <button onclick="setShift('❌')" class="border border-red-200 text-red-600 py-2 rounded text-xs hover:bg-red-50 font-bold">❌ 指定休</button>
+                <button onclick="setShift('年假')" class="bg-gray-200 text-gray-600 py-2 rounded text-xs hover:bg-gray-300 font-bold">年假</button>
+                <button onclick="setShift('行政')" class="border border-gray-200 py-2 rounded text-xs hover:bg-gray-50">行政</button>
+                <button onclick="setShift('公出')" class="border border-gray-200 py-2 rounded text-xs hover:bg-gray-50">公出</button>
             </div>
             
             <div class="text-xs text-gray-400 font-bold mt-1 tracking-widest border-t pt-2">早班系列</div>
@@ -156,19 +183,17 @@
                 <button onclick="setShift('X_G')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-green-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法晚班</span></button>
             </div>
 
-            <!-- 新增：自訂時間與文字 -->
             <div class="text-xs text-gray-400 font-bold mt-1 tracking-widest border-t pt-2">自訂時間 / 特殊文字</div>
             <div class="flex flex-col gap-2 mt-1">
-                <!-- 自訂時間選取器 -->
                 <div class="flex items-center gap-2 text-sm">
-                    <input type="time" id="customTimeStart" class="border border-gray-300 rounded px-2 py-2 flex-1 outline-none focus:border-black">
+                    <input type="text" id="customTimeCode" class="border border-gray-300 rounded px-2 py-2 w-[70px] outline-none focus:border-black" placeholder="代碼">
+                    <input type="time" id="customTimeStart" class="border border-gray-300 rounded px-1 py-2 flex-1 outline-none focus:border-black">
                     <span class="text-gray-400">-</span>
-                    <input type="time" id="customTimeEnd" class="border border-gray-300 rounded px-2 py-2 flex-1 outline-none focus:border-black">
-                    <button onclick="applyCustomTime()" class="bg-black text-white px-3 py-2 rounded hover:bg-gray-800 whitespace-nowrap">排入時間</button>
+                    <input type="time" id="customTimeEnd" class="border border-gray-300 rounded px-1 py-2 flex-1 outline-none focus:border-black">
+                    <button onclick="applyCustomTime()" class="bg-black text-white px-3 py-2 rounded hover:bg-gray-800 whitespace-nowrap">排入</button>
                 </div>
-                <!-- 自訂純文字輸入 -->
                 <div class="flex items-center gap-2 text-sm">
-                    <input type="text" id="customText" class="border border-gray-300 rounded px-2 py-2 flex-1 outline-none focus:border-black" placeholder="手動輸入特殊代碼...">
+                    <input type="text" id="customText" class="border border-gray-300 rounded px-2 py-2 flex-1 outline-none focus:border-black" placeholder="手動輸入純文字代碼...">
                     <button onclick="setShift(document.getElementById('customText').value)" class="border border-gray-300 bg-gray-100 text-gray-700 px-3 py-2 rounded hover:bg-gray-200 whitespace-nowrap">排入文字</button>
                 </div>
             </div>
@@ -236,12 +261,12 @@
         ];
         
         let tempEmployees = []; 
-
         const stations = ['早吧台', '早廚', '外場', '晚吧台', '晚廚'];
         
         let scheduleData = JSON.parse(localStorage.getItem('ecoleSchedule')) || {};
         let stationData = JSON.parse(localStorage.getItem('ecoleStation')) || {};
         let noteData = JSON.parse(localStorage.getItem('ecoleNote')) || {};
+        let carryOverData = JSON.parse(localStorage.getItem('ecoleCarryOver')) || {}; // 上月連續天數記錄
         
         let currentYearMonth = '2026-07';
         let selectedCell = { empId: null, day: null, type: null, station: null };
@@ -252,7 +277,6 @@
         const noteDialog = document.getElementById('noteDialog');
         const confirmDialog = document.getElementById('confirmDialog');
 
-        // 新增格式化顯示的輔助函數：將代碼放大、時間縮小
         function formatShiftDisplay(shiftStr) {
             const parts = shiftStr.split('\n');
             if (parts.length === 2) {
@@ -270,6 +294,12 @@
             renderTable();
         }
 
+        function updateCarryOver(empId, val) {
+            if (!carryOverData[currentYearMonth]) carryOverData[currentYearMonth] = {};
+            carryOverData[currentYearMonth][empId] = parseInt(val, 10) || 0;
+            saveData();
+        }
+
         function renderTable() {
             const [year, month] = currentYearMonth.split('-').map(Number);
             const daysInMonth = new Date(year, month, 0).getDate();
@@ -279,11 +309,15 @@
             if (!scheduleData[currentYearMonth]) scheduleData[currentYearMonth] = {};
             if (!stationData[currentYearMonth]) stationData[currentYearMonth] = {};
             if (!noteData[currentYearMonth]) noteData[currentYearMonth] = {};
+            if (!carryOverData[currentYearMonth]) carryOverData[currentYearMonth] = {};
 
             employees.forEach(emp => { if(!scheduleData[currentYearMonth][emp.id]) scheduleData[currentYearMonth][emp.id] = {}; });
             stations.forEach(st => { if(!stationData[currentYearMonth][st]) stationData[currentYearMonth][st] = {}; });
 
-            let theadHTML = `<tr><th rowspan="2" class="sticky-corner w-10 text-xs px-1 text-gray-500 font-normal">TYPE</th><th rowspan="2" class="sticky-corner px-2 py-1" style="left: 40px; min-width: 60px;">姓名</th>`;
+            let theadHTML = `<tr>
+                <th rowspan="2" class="sticky-corner text-xs px-1 text-gray-500 font-normal border-r border-gray-200" style="left: 0; width: 40px; min-width: 40px; max-width: 40px;">TYPE</th>
+                <th rowspan="2" class="sticky-corner px-2 py-1 border-r border-gray-200" style="left: 40px; width: 60px; min-width: 60px; max-width: 60px;">姓名</th>
+                <th rowspan="2" class="sticky-corner px-1 py-1 text-[10px] text-gray-500 font-normal leading-tight border-r-2 border-gray-300" style="left: 100px; width: 40px; min-width: 40px; max-width: 40px;">上月<br>連續</th>`;
             
             for (let i = 1; i <= daysInMonth; i++) {
                 const dayIndex = (firstDayOfWeek + i - 1) % 7;
@@ -291,7 +325,8 @@
                 const dateClass = isWeekend ? 'text-red-600 font-bold' : 'text-gray-500 font-normal';
                 theadHTML += `<th class="px-1 pt-2 pb-1 text-sm border-b-0 ${dateClass}">${i}</th>`;
             }
-            theadHTML += `<th rowspan="2" class="px-2 py-1 min-w-[80px] text-xs font-normal text-gray-500">月休 / 工時</th></tr><tr>`;
+            theadHTML += `<th rowspan="2" class="px-2 py-1 min-w-[80px] text-xs font-normal text-gray-500 border-l-2 border-gray-300">月休 / 工時</th>
+                          <th rowspan="2" class="px-2 py-1 min-w-[50px] text-xs font-normal text-gray-500 border-l border-gray-200">年假<br>(天)</th></tr><tr>`;
             for (let i = 1; i <= daysInMonth; i++) {
                 const dayIndex = (firstDayOfWeek + i - 1) % 7;
                 const isWeekend = dayIndex === 0 || dayIndex === 6;
@@ -310,13 +345,19 @@
                     currentType = emp.type;
                     const rowSpan = employees.filter(e => e.type === currentType).length;
                     const typeText = currentType === 'FT' ? '正職' : '工讀';
-                    typeLabel = `<th rowspan="${rowSpan}" class="sticky-col text-vertical tracking-widest text-xs text-gray-500 font-normal bg-white" style="writing-mode: vertical-lr;">${typeText}</th>`;
+                    typeLabel = `<th rowspan="${rowSpan}" class="sticky-col text-vertical tracking-widest text-xs text-gray-500 font-normal bg-white border-r border-gray-200" style="left: 0; writing-mode: vertical-lr; width: 40px; min-width: 40px; max-width: 40px;">${typeText}</th>`;
                 }
 
-                tbodyHTML += `<tr>${typeLabel}<th class="sticky-col px-2 py-2 font-normal text-sm bg-white" style="left: 40px;">${emp.name}</th>`;
+                tbodyHTML += `<tr>${typeLabel}<th class="sticky-col px-1 py-2 font-normal text-sm bg-white overflow-hidden text-ellipsis border-r border-gray-200" style="left: 40px; width: 60px; min-width: 60px; max-width: 60px;">${emp.name}</th>`;
+
+                let carryOverVal = carryOverData[currentYearMonth]?.[emp.id] || 0;
+                tbodyHTML += `<td class="sticky-col bg-white px-1 border-r-2 border-gray-300" style="left: 100px; width: 40px; min-width: 40px; max-width: 40px;">
+                    <input type="number" min="0" max="5" class="w-full bg-transparent text-center text-xs outline-none focus:border-black font-bold text-gray-600" value="${carryOverVal}" onchange="updateCarryOver('${emp.id}', this.value)">
+                </td>`;
 
                 let daysOff = 0;
                 let totalHours = 0;
+                let annualLeaves = 0;
 
                 for (let i = 1; i <= daysInMonth; i++) {
                     const shift = scheduleData[currentYearMonth]?.[emp.id]?.[i] || '';
@@ -325,22 +366,19 @@
                     
                     if (shift === '✖') { cellClass += 'shift-off'; daysOff++; }
                     else if (shift === '❌') { cellClass += 'shift-forced-off'; daysOff++; }
+                    else if (shift === '年假') { cellClass += 'shift-annual'; annualLeaves++; }
                     else if (shift === '行政' || shift === '公出') { cellClass += 'shift-admin'; }
-                    
-                    // 套用 formatShiftDisplay，讓代碼變大、時間變小
                     else if (shift.startsWith('D')) { cellClass += 'color-morning'; displayText = formatShiftDisplay(shift); }
                     else if (shift.startsWith('N')) { cellClass += 'color-evening'; displayText = formatShiftDisplay(shift); }
                     else if (shift.startsWith('A')) { cellClass += 'color-split'; displayText = formatShiftDisplay(shift); }
-                    else if (shift.startsWith('自訂')) { cellClass += 'color-custom'; displayText = formatShiftDisplay(shift); }
-                    
-                    // 特殊顏色X處理
+                    else if (shift.includes('-') && shift.includes('\n')) { cellClass += 'color-custom'; displayText = formatShiftDisplay(shift); }
                     else if (shift === 'X_R') { displayText = '<span class="text-red-500 font-bold text-lg">X</span>'; cellClass += ' bg-gray-50'; }
                     else if (shift === 'X_B') { displayText = '<span class="text-blue-500 font-bold text-lg">X</span>'; cellClass += ' bg-gray-50'; }
                     else if (shift === 'X_P') { displayText = '<span class="text-purple-500 font-bold text-lg">X</span>'; cellClass += ' bg-gray-50'; }
                     else if (shift === 'X_G') { displayText = '<span class="text-green-500 font-bold text-lg">X</span>'; cellClass += ' bg-gray-50'; }
                     else { displayText = shift.replace(/\n/g, '<br>'); }
 
-                    if (shift && !['✖', '❌', '行政', '公出', 'X_R', 'X_B', 'X_P', 'X_G'].includes(shift)) {
+                    if (shift && !['✖', '❌', '年假', '行政', '公出', 'X_R', 'X_B', 'X_P', 'X_G'].includes(shift)) {
                         totalHours += calculateHours(shift);
                     }
 
@@ -351,17 +389,17 @@
                     ? `<span class="${daysOff < 8 ? 'text-black font-bold' : 'text-gray-600'}">${daysOff} 天</span>`
                     : `<span class="text-gray-600">${totalHours.toFixed(1)} hr</span>`;
                 
-                tbodyHTML += `<td class="px-2 py-1 text-xs bg-white">${statsText}</td></tr>`;
+                tbodyHTML += `<td class="px-2 py-1 text-xs bg-white border-l-2 border-gray-300">${statsText}</td>`;
+                tbodyHTML += `<td class="px-2 py-1 text-xs bg-white text-gray-500 font-bold border-l border-gray-200">${annualLeaves > 0 ? annualLeaves : ''}</td></tr>`;
             });
             document.getElementById('tableBody').innerHTML = tbodyHTML;
 
-            // 內外場配置區 (包含錯誤防呆紅字邏輯)
-            let stationHTML = `<tr><td colspan="${daysInMonth + 3}" class="bg-gray-100 text-left px-4 py-1 text-xs text-gray-500 font-bold tracking-widest border-t-2 border-gray-300">STATION ASSIGNMENTS (內外場配置)</td></tr>`;
+            let stationHTML = `<tr><td colspan="${daysInMonth + 5}" class="bg-gray-100 text-left px-4 py-1 text-xs text-gray-500 font-bold tracking-widest border-t-2 border-gray-300">STATION ASSIGNMENTS (內外場配置)</td></tr>`;
             stations.forEach(st => {
                 const rowClass = st === '外場' ? 'station-row-light' : 'station-row-deep';
                 const bgHex = st === '外場' ? '#F0F0F0' : '#e5e7eb';
                 
-                stationHTML += `<tr class="${rowClass}"><th colspan="2" class="sticky-col px-2 py-1 text-sm font-normal text-gray-700" style="left: 0; background-color: ${bgHex};">${st}</th>`;
+                stationHTML += `<tr class="${rowClass}"><th colspan="3" class="sticky-col px-2 py-1 text-sm font-normal text-gray-700 border-r-2 border-gray-300" style="left: 0; background-color: ${bgHex}; z-index: 10;">${st}</th>`;
                 for (let i = 1; i <= daysInMonth; i++) {
                     const sName = stationData[currentYearMonth]?.[st]?.[i] || '';
                     
@@ -370,7 +408,7 @@
                         const emp = employees.find(e => e.name === sName);
                         if (emp) {
                             const shift = scheduleData[currentYearMonth]?.[emp.id]?.[i];
-                            if (!shift || ['✖', '❌', '行政', '公出', 'X_R', 'X_B', 'X_P', 'X_G'].includes(shift)) {
+                            if (!shift || ['✖', '❌', '年假', '行政', '公出', 'X_R', 'X_B', 'X_P', 'X_G'].includes(shift)) {
                                 isError = true;
                             }
                         } else {
@@ -383,37 +421,28 @@
 
                     stationHTML += `<td class="${cellClass}" onclick="openStationDialog('${st}', ${i})">${displayHTML}</td>`;
                 }
-                stationHTML += `<td></td></tr>`;
+                stationHTML += `<td class="border-l-2 border-gray-300"></td><td class="border-l border-gray-200"></td></tr>`;
             });
             document.getElementById('stationBody').innerHTML = stationHTML;
 
-            // 備註區
-            let noteHTML = `<tr><th colspan="2" class="sticky-col px-2 py-1 text-sm font-normal text-gray-700 bg-white" style="left: 0;">備註</th>`;
+            let noteHTML = `<tr><th colspan="3" class="sticky-col px-2 py-1 text-sm font-normal text-gray-700 bg-white border-r-2 border-gray-300" style="left: 0; z-index: 10;">備註</th>`;
             for (let i = 1; i <= daysInMonth; i++) {
                 const n = noteData[currentYearMonth]?.[i] || '';
                 noteHTML += `<td class="shift-cell text-[10px] text-gray-500 bg-white" onclick="openNoteDialog(${i})">${n}</td>`;
             }
-            noteHTML += `<td class="bg-white"></td></tr>`;
+            noteHTML += `<td class="bg-white border-l-2 border-gray-300"></td><td class="bg-white border-l border-gray-200"></td></tr>`;
             document.getElementById('noteBody').innerHTML = noteHTML;
 
             saveData();
         }
 
         function calculateHours(shiftStr) {
-            // A1, A2 因為中午與晚上是分段上班，中間已空班休息，直接算 8 小時
             if(shiftStr.includes('A1') || shiftStr.includes('A2')) return 8;
-            
-            // D1, D2 總時長 8.5 小時，扣 30 分鐘休息 = 8 小時
             if(shiftStr.includes('D1') || shiftStr.includes('D2')) return 8; 
-            
-            // N1 總時長 9 小時，扣 1 小時休息 = 8 小時
             if(shiftStr.includes('N1')) return 8; 
-            
-            // D3, D4, N2 都是短班，因此不另外安排休息
             if(shiftStr.includes('D3')) return 6;
             if(shiftStr.includes('D4') || shiftStr.includes('N2')) return 4;
             
-            // 智能動態計算：自動抓取任意文字中的「時間至時間」格式 (例如 10:30-15:00)
             let parsedHours = 0;
             const matches = shiftStr.match(/(\d{2}):?(\d{2})\s*-\s*(\d{2}):?(\d{2})/g);
             if (matches) {
@@ -422,23 +451,19 @@
                     if (parts) {
                         let start = parseInt(parts[1], 10) + parseInt(parts[2], 10) / 60;
                         let end = parseInt(parts[3], 10) + parseInt(parts[4], 10) / 60;
-                        if (end < start) end += 24; // 處理跨夜情況
+                        if (end < start) end += 24; 
                         parsedHours += (end - start);
                     }
                 });
                 
-                // 自訂時間判斷：非短班 (大於 6 小時) 自動扣除半小時 (0.5) 休息工時
                 if (parsedHours > 6) {
                     parsedHours -= 0.5;
                 }
-                
                 return parsedHours;
             }
-            
             return 0; 
         }
 
-        // --- 人員管理系統實作 ---
         function manageEmployees() {
             tempEmployees = JSON.parse(JSON.stringify(employees));
             renderEmpManageList();
@@ -480,7 +505,6 @@
             renderTable();
         }
 
-        // --- Dialog與系統提示功能 ---
         function alertCustom(msg) {
             document.getElementById('alertMsg').innerText = msg;
             document.getElementById('alertDialog').showModal();
@@ -499,12 +523,10 @@
         function openDialog(empId, day, empName) {
             selectedCell = { empId, day };
             document.getElementById('dialogSubtitle').innerText = `${empName} - ${currentYearMonth}-${day.toString().padStart(2, '0')}`;
-            
-            // 清除上次自訂輸入的資料
+            document.getElementById('customTimeCode').value = '';
             document.getElementById('customTimeStart').value = '';
             document.getElementById('customTimeEnd').value = '';
             document.getElementById('customText').value = '';
-            
             shiftDialog.showModal();
         }
 
@@ -516,11 +538,11 @@
         }
 
         function applyCustomTime() {
+            const code = document.getElementById('customTimeCode').value || '自訂';
             const start = document.getElementById('customTimeStart').value;
             const end = document.getElementById('customTimeEnd').value;
             if (start && end) {
-                // 套用相同格式的展示邏輯，這樣文字會是大字配小時間，且智能計算系統會精準抓取
-                setShift(`自訂\n${start}-${end}`);
+                setShift(`${code}\n${start}-${end}`);
             } else {
                 alertCustom('請完整選擇開始與結束時間');
             }
@@ -534,7 +556,7 @@
             let html = '';
             employees.forEach(emp => {
                 let shift = scheduleData[currentYearMonth]?.[emp.id]?.[day] || '';
-                if (shift && !['✖', '❌', '行政', '公出', 'X_R', 'X_B', 'X_P', 'X_G'].includes(shift)) {
+                if (shift && !['✖', '❌', '年假', '行政', '公出', 'X_R', 'X_B', 'X_P', 'X_G'].includes(shift)) {
                     html += `<button onclick="setStation('${emp.name}')" class="border border-gray-200 py-2 rounded text-sm hover:bg-gray-50 text-left px-4">${emp.name} <span class="text-xs text-gray-400 float-right mt-0.5">${shift.split('\n')[0]}</span></button>`;
                 }
             });
@@ -562,28 +584,63 @@
         }
         function closeNoteDialog() { noteDialog.close(); }
 
-        async function autoFill() {
-            const confirm = await customConfirm('將執行智能排班：\n1. 優先精準排滿正職 8 天休假\n2. 晚班、A1、D1 限正職安排\n3. 工讀填補剩餘早班\n4. 獨立配滿外場，允許晚班兼任\n\n確定執行嗎？');
-            if(!confirm) return;
+        // --- 自動排班核心邏輯 ---
+        function autoFill() {
+            document.getElementById('autoFillDialog').showModal();
+        }
+
+        function executeAutoFill() {
+            document.getElementById('autoFillDialog').close();
+            const targetRestDays = parseInt(document.getElementById('ftRestDaysInput').value, 10) || 8;
             
             const [year, month] = currentYearMonth.split('-').map(Number);
             const daysInMonth = new Date(year, month, 0).getDate();
 
-            // 1. 優先處理正職 8 天休假
+            // 擷取本機最新的連續工作天數記錄
+            let consecutiveDays = {};
+            employees.forEach(emp => {
+                consecutiveDays[emp.id] = parseInt(carryOverData[currentYearMonth]?.[emp.id] || 0, 10);
+            });
+
+            const isWork = (s) => s && !['✖', '❌', '年假', 'X_R', 'X_B', 'X_P', 'X_G'].includes(s);
+
+            // 1. 正職休假安排 (嚴格限制不連上 6 天)
             employees.filter(e => e.type === 'FT').forEach(emp => {
-                let offDays = 0;
+                let tempConsecutive = consecutiveDays[emp.id];
+                let manualOffs = 0;
+
+                // 統計已手動排休的天數
                 for(let i=1; i<=daysInMonth; i++) {
                     let s = scheduleData[currentYearMonth][emp.id][i];
-                    if(s === '✖' || s === '❌') offDays++;
+                    if(['✖', '❌', '年假'].includes(s)) manualOffs++;
                 }
-                
-                let neededOff = 8 - offDays;
+
+                let neededOff = targetRestDays - manualOffs;
+
+                // 強制分配休假以防止 6 連班
+                for(let i=1; i<=daysInMonth; i++) {
+                    let s = scheduleData[currentYearMonth][emp.id][i];
+                    if (['✖', '❌', '年假'].includes(s)) {
+                        tempConsecutive = 0;
+                    } else if (isWork(s)) {
+                        tempConsecutive++;
+                    } else {
+                        if (tempConsecutive >= 5) {
+                            scheduleData[currentYearMonth][emp.id][i] = '✖';
+                            tempConsecutive = 0;
+                            neededOff--;
+                        } else {
+                            tempConsecutive++;
+                        }
+                    }
+                }
+
+                // 分配剩餘不足的月休天數 (盡量交錯)
                 while(neededOff > 0) {
                     let possibleDays = [];
                     for(let i=1; i<=daysInMonth; i++) {
                         if(!scheduleData[currentYearMonth][emp.id][i]) {
-                            // 計算同日已有多少正職休假，越少越優先 (交錯排休)
-                            let othersOff = employees.filter(e => e.type === 'FT' && ['✖', '❌'].includes(scheduleData[currentYearMonth][e.id][i])).length;
+                            let othersOff = employees.filter(e => e.type === 'FT' && ['✖', '❌', '年假'].includes(scheduleData[currentYearMonth][e.id][i])).length;
                             possibleDays.push({day: i, weight: othersOff + Math.random()});
                         }
                     }
@@ -592,6 +649,11 @@
                     scheduleData[currentYearMonth][emp.id][possibleDays[0].day] = '✖';
                     neededOff--;
                 }
+            });
+
+            // 重置連續天數以供逐日排班引擎推算
+            employees.forEach(emp => {
+                consecutiveDays[emp.id] = parseInt(carryOverData[currentYearMonth]?.[emp.id] || 0, 10);
             });
 
             // 2. 每日班別指派
@@ -605,8 +667,15 @@
 
                 employees.forEach(emp => {
                     let s = scheduleData[currentYearMonth][emp.id][day];
-                    if (s === '✖' || s === '❌' || s === '公出' || s === '行政' || (typeof s === 'string' && s.startsWith('X_'))) {
-                        // 特殊標記不可自動排班
+                    
+                    // 每日指派前，先驗證是否達到連續 5 天，若達到強制休假
+                    if (!s && consecutiveDays[emp.id] >= 5) {
+                        scheduleData[currentYearMonth][emp.id][day] = '✖';
+                        s = '✖';
+                    }
+
+                    if (s === '✖' || s === '❌' || s === '年假' || s === '公出' || s === '行政' || (typeof s === 'string' && s.startsWith('X_'))) {
+                        // 無法排班
                     } else if (!s) {
                         if(emp.type === 'FT') availableFTs.push(emp);
                         else availablePTs.push(emp);
@@ -636,7 +705,7 @@
 
                 let currentStaff = employees.filter(emp => {
                     let s = scheduleData[currentYearMonth][emp.id][day];
-                    return s && !['✖', '❌', '公出', '行政'].includes(s) && !s.startsWith('X_');
+                    return isWork(s) || ['公出', '行政'].includes(s);
                 }).length;
 
                 let neededStaff = Math.max(0, requiredStaff - currentStaff);
@@ -651,10 +720,20 @@
                     scheduleData[currentYearMonth][emp.id][day] = '✖';
                 });
 
+                // 一日排班結束，更新隔日的連續天數基礎
+                employees.forEach(emp => {
+                    let s = scheduleData[currentYearMonth][emp.id][day];
+                    if (isWork(s) || ['行政', '公出'].includes(s)) {
+                        consecutiveDays[emp.id]++;
+                    } else {
+                        consecutiveDays[emp.id] = 0;
+                    }
+                });
+
                 // 3. 站點分配
                 let workingToday = employees.filter(emp => {
                     let s = scheduleData[currentYearMonth][emp.id][day];
-                    return s && !['✖', '❌', '公出', '行政'].includes(s) && !s.startsWith('X_');
+                    return isWork(s) || ['公出', '行政'].includes(s);
                 }).sort(() => Math.random() - 0.5);
 
                 if(workingToday.length === 0) continue;
@@ -682,7 +761,7 @@
         }
 
         async function clearSchedule() {
-            const confirm = await customConfirm(`確定要清空 ${currentYearMonth} 的所有排班與站點資料嗎？`);
+            const confirm = await customConfirm(`確定要清空 ${currentYearMonth} 的所有排班與站點資料嗎？\n(將保留上月連續設定)`);
             if(confirm) {
                 scheduleData[currentYearMonth] = {};
                 stationData[currentYearMonth] = {};
@@ -697,11 +776,12 @@
             localStorage.setItem('ecoleSchedule', JSON.stringify(scheduleData));
             localStorage.setItem('ecoleStation', JSON.stringify(stationData));
             localStorage.setItem('ecoleNote', JSON.stringify(noteData));
+            localStorage.setItem('ecoleCarryOver', JSON.stringify(carryOverData));
             localStorage.setItem('ecoleEmployees', JSON.stringify(employees));
         }
 
         async function exportJSON() {
-            const data = { scheduleData, stationData, noteData, employees };
+            const data = { scheduleData, stationData, noteData, carryOverData, employees };
             const fileName = `EcoleCafe_Backup_${currentYearMonth}.json`;
             const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
             const file = new File([blob], fileName, { type: 'application/json' });
@@ -736,6 +816,7 @@
                     if(data.scheduleData) scheduleData = data.scheduleData;
                     if(data.stationData) stationData = data.stationData;
                     if(data.noteData) noteData = data.noteData;
+                    if(data.carryOverData) carryOverData = data.carryOverData;
                     if(data.employees) employees = data.employees;
                     saveData();
                     renderTable();
