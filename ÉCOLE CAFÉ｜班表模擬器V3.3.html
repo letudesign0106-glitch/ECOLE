@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ÉCOLE CAFÉ - 智能排班系統</title>
+    <title>ÉCOLE CAFÉ - 雲端協作排班系統</title>
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -13,12 +13,18 @@
     
     <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzExMTgyNyIvPjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1zaXplPSI0MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIj5FQzwvdGV4dD48L3N2Zz4=">
     
+    <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- 引入 Firebase Web SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
     <style>
         body { font-family: 'Helvetica Neue', Arial, 'LiHei Pro', '微軟正黑體', sans-serif; background-color: #ffffff; color: #111827; }
         .table-container { height: calc(100vh - 180px); overflow: auto; -webkit-overflow-scrolling: touch; }
-        
         table { border-collapse: collapse; min-width: 100%; width: max-content; table-layout: fixed; }
         th, td { border: 1px solid #e5e7eb; text-align: center; vertical-align: middle; white-space: pre-line; font-size: 0.85rem; padding: 4px; min-width: 50px; }
         thead th { position: sticky; top: 0; background-color: #ffffff; z-index: 20; border-bottom: 2px solid #111827; vertical-align: middle; }
@@ -35,7 +41,7 @@
         
         .shift-off { color: #111827; font-weight: bold; } 
         .shift-forced-off { color: #dc2626; font-weight: bold; } 
-        .shift-annual { background-color: #f3f4f6; color: #6b7280; font-weight: bold; } /* 年假樣式 */
+        .shift-annual { background-color: #f3f4f6; color: #6b7280; font-weight: bold; }
         .shift-admin { color: #4b5563; background-color: #f3f4f6; } 
         
         .text-weekend { color: #dc2626; font-weight: bold; } 
@@ -49,16 +55,20 @@
         ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
-        /* 隱藏 number input 的箭頭 */
         input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
-<body class="flex flex-col h-screen">
+<body class="flex flex-col h-screen relative">
+
+    <div id="loadingOverlay" class="absolute inset-0 bg-white bg-opacity-80 z-50 flex items-center justify-center hidden flex-col">
+        <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-black mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        <div class="font-bold tracking-widest text-gray-700" id="loadingText">雲端資料同步中...</div>
+    </div>
 
     <header class="bg-white border-b border-gray-200 p-4 z-40 flex flex-wrap justify-between items-center gap-4">
         <div>
             <h1 class="text-xl font-bold tracking-widest text-gray-900 flex items-center gap-2">
-                ÉCOLE CAFÉ <span class="text-sm font-normal text-gray-500 ml-2">SCHEDULE SPACE</span>
+                ÉCOLE CAFÉ <span class="text-sm font-normal text-gray-500 ml-2">CLOUD SCHEDULE</span>
             </h1>
             <div class="text-sm text-gray-600 mt-2 flex gap-4 items-center">
                 <span>選擇月份：</span>
@@ -66,14 +76,18 @@
             </div>
         </div>
 
-        <div class="flex flex-wrap gap-2">
-            <button onclick="manageEmployees()" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition shadow-sm">👥 人員管理</button>
-            <div class="w-px h-8 bg-gray-200 mx-1 hidden sm:block"></div>
-            <button onclick="autoFill()" class="border border-black bg-black text-white hover:bg-gray-800 px-4 py-2 rounded-sm text-sm transition shadow-sm"> 自動帶入預設</button>
-            <button onclick="clearSchedule()" class="border border-gray-300 bg-white text-red-600 hover:bg-red-50 px-4 py-2 rounded-sm text-sm transition"> 清空當月</button>
-            <div class="w-px h-8 bg-gray-200 mx-1 hidden sm:block"></div>
-            <button onclick="triggerImport()" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition"> 匯入(JSON)</button>
-            <button onclick="exportJSON()" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition"> 備份(JSON)</button>
+        <div class="flex flex-wrap gap-2 items-center">
+            <div id="authArea" class="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200 mr-2">
+                <!-- 將由 JS 動態填入 -->
+            </div>
+            
+            <button onclick="manageEmployees()" class="admin-only border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition shadow-sm">👥 人員管理</button>
+            <div class="admin-only w-px h-8 bg-gray-200 mx-1 hidden sm:block"></div>
+            <button onclick="autoFill()" class="admin-only border border-black bg-black text-white hover:bg-gray-800 px-4 py-2 rounded-sm text-sm transition shadow-sm"> 自動排班</button>
+            <button onclick="clearSchedule()" class="admin-only border border-gray-300 bg-white text-red-600 hover:bg-red-50 px-4 py-2 rounded-sm text-sm transition"> 清空當月</button>
+            <div class="admin-only w-px h-8 bg-gray-200 mx-1 hidden sm:block"></div>
+            <button onclick="triggerImport()" class="admin-only border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition"> 匯入(JSON)</button>
+            <button onclick="exportJSON()" class="admin-only border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition"> 備份(JSON)</button>
             <button onclick="exportToImage()" class="border border-black bg-white text-black hover:bg-gray-50 px-4 py-2 rounded-sm text-sm transition shadow-sm"> 匯出圖片</button>
             <input type="file" id="importFile" accept=".json" class="hidden" onchange="importJSON(event)">
         </div>
@@ -139,6 +153,7 @@
         </div>
     </dialog>
 
+    <!-- 編輯班別模態框 -->
     <dialog id="shiftDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-md border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
             <h3 class="font-bold text-gray-800 tracking-wide" id="dialogTitle">編輯班別</h3>
@@ -147,54 +162,72 @@
         <div class="p-4 flex flex-col gap-4 bg-white overflow-y-auto max-h-[75vh]">
             <p class="text-sm text-gray-500 font-medium" id="dialogSubtitle"></p>
             
-            <div class="grid grid-cols-5 gap-1">
-                <button onclick="setShift('✖')" class="border border-gray-200 py-2 rounded text-xs hover:bg-gray-50 font-bold">✖ 排休</button>
-                <button onclick="setShift('❌')" class="border border-red-200 text-red-600 py-2 rounded text-xs hover:bg-red-50 font-bold">❌ 指定休</button>
-                <button onclick="setShift('年假')" class="bg-gray-200 text-gray-600 py-2 rounded text-xs hover:bg-gray-300 font-bold">年假</button>
-                <button onclick="setShift('行政')" class="border border-gray-200 py-2 rounded text-xs hover:bg-gray-50">行政</button>
-                <button onclick="setShift('公出')" class="border border-gray-200 py-2 rounded text-xs hover:bg-gray-50">公出</button>
+            <!-- 員工與管理員皆可見的：指定休與清除 -->
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="setShift('❌')" class="border border-red-200 text-red-600 py-2 rounded text-sm hover:bg-red-50 font-bold shadow-sm">❌ 指定休</button>
+                <button onclick="setShift('')" class="border border-gray-200 text-gray-600 py-2 rounded text-sm hover:bg-gray-50 font-bold shadow-sm">清除重置</button>
             </div>
             
-            <div class="text-xs text-gray-400 font-bold mt-1 tracking-widest border-t pt-2">早班系列</div>
-            <div class="grid grid-cols-4 gap-2 text-sm">
-                <button onclick="setShift('D1\n0830-1700')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80">D1<br><span class="text-[10px]">0830-1700</span></button>
-                <button onclick="setShift('D2\n0900-1730')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80">D2<br><span class="text-[10px]">0900-1730</span></button>
-                <button onclick="setShift('D3\n0900-1500')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80">D3<br><span class="text-[10px]">0900-1500</span></button>
-                <button onclick="setShift('D4\n1230-1630')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80">D4<br><span class="text-[10px]">1230-1630</span></button>
-            </div>
-
-            <div class="text-xs text-gray-400 font-bold mt-1 tracking-widest border-t pt-2">晚班系列</div>
-            <div class="grid grid-cols-2 gap-2 text-sm">
-                <button onclick="setShift('N1\n1230-2130')" class="bg-[#ebd9d9] text-[#5c3c3c] py-2 rounded hover:opacity-80">N1 (12:30-21:30)</button>
-                <button onclick="setShift('N2\n1730-2130')" class="bg-[#ebd9d9] text-[#5c3c3c] py-2 rounded hover:opacity-80">N2 (17:30-21:30)</button>
-            </div>
-
-            <div class="text-xs text-gray-400 font-bold mt-1 tracking-widest border-t pt-2">兩頭班系列</div>
-            <div class="grid grid-cols-2 gap-2 text-sm">
-                <button onclick="setShift('A1\n09-13/17-21')" class="bg-[#d6dbe0] text-[#3b4252] py-2 rounded hover:opacity-80 leading-tight">A1<br><span class="text-[10px]">0900-1300 / 1700-2100</span></button>
-                <button onclick="setShift('A2\n09-13/17-21')" class="bg-[#d6dbe0] text-[#3b4252] py-2 rounded hover:opacity-80 leading-tight">A2<br><span class="text-[10px]">0930-1330 / 1730-2130</span></button>
-            </div>
-            
-            <div class="text-xs text-gray-400 font-bold mt-1 tracking-widest border-t pt-2">工讀無法排班標示</div>
-            <div class="grid grid-cols-4 gap-2 text-sm">
-                <button onclick="setShift('X_R')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-red-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法全班</span></button>
-                <button onclick="setShift('X_B')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-blue-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法早班</span></button>
-                <button onclick="setShift('X_P')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-purple-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法午班</span></button>
-                <button onclick="setShift('X_G')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-green-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法晚班</span></button>
-            </div>
-
-            <div class="text-xs text-gray-400 font-bold mt-1 tracking-widest border-t pt-2">自訂時間 / 特殊文字</div>
-            <div class="flex flex-col gap-2 mt-1">
-                <div class="flex items-center gap-2 text-sm">
-                    <input type="text" id="customTimeCode" class="border border-gray-300 rounded px-2 py-2 w-[70px] outline-none focus:border-black" placeholder="代碼">
-                    <input type="time" id="customTimeStart" class="border border-gray-300 rounded px-1 py-2 flex-1 outline-none focus:border-black">
-                    <span class="text-gray-400">-</span>
-                    <input type="time" id="customTimeEnd" class="border border-gray-300 rounded px-1 py-2 flex-1 outline-none focus:border-black">
-                    <button onclick="applyCustomTime()" class="bg-black text-white px-3 py-2 rounded hover:bg-gray-800 whitespace-nowrap">排入</button>
+            <!-- 管理員專屬專區 (員工登入時會自動隱藏) -->
+            <div class="admin-only w-full flex flex-col gap-4">
+                <div class="grid grid-cols-4 gap-1">
+                    <button onclick="setShift('✖')" class="border border-gray-200 py-2 rounded text-xs hover:bg-gray-50 font-bold">✖ 排休</button>
+                    <button onclick="setShift('年假')" class="bg-gray-200 text-gray-600 py-2 rounded text-xs hover:bg-gray-300 font-bold">年假</button>
+                    <button onclick="setShift('行政')" class="border border-gray-200 py-2 rounded text-xs hover:bg-gray-50">行政</button>
+                    <button onclick="setShift('公出')" class="border border-gray-200 py-2 rounded text-xs hover:bg-gray-50">公出</button>
                 </div>
-                <div class="flex items-center gap-2 text-sm">
-                    <input type="text" id="customText" class="border border-gray-300 rounded px-2 py-2 flex-1 outline-none focus:border-black" placeholder="手動輸入純文字代碼...">
-                    <button onclick="setShift(document.getElementById('customText').value)" class="border border-gray-300 bg-gray-100 text-gray-700 px-3 py-2 rounded hover:bg-gray-200 whitespace-nowrap">排入文字</button>
+                
+                <div>
+                    <div class="text-xs text-gray-400 font-bold tracking-widest border-t pt-2 mb-2">早班系列</div>
+                    <div class="grid grid-cols-4 gap-2 text-sm">
+                        <button onclick="setShift('D1\n0830-1700')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80">D1<br><span class="text-[10px]">0830-1700</span></button>
+                        <button onclick="setShift('D2\n0900-1730')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80">D2<br><span class="text-[10px]">0900-1730</span></button>
+                        <button onclick="setShift('D3\n0900-1500')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80">D3<br><span class="text-[10px]">0900-1500</span></button>
+                        <button onclick="setShift('D4\n1230-1630')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80">D4<br><span class="text-[10px]">1230-1630</span></button>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="text-xs text-gray-400 font-bold tracking-widest border-t pt-2 mb-2">晚班系列</div>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <button onclick="setShift('N1\n1230-2130')" class="bg-[#ebd9d9] text-[#5c3c3c] py-2 rounded hover:opacity-80">N1 (12:30-21:30)</button>
+                        <button onclick="setShift('N2\n1730-2130')" class="bg-[#ebd9d9] text-[#5c3c3c] py-2 rounded hover:opacity-80">N2 (17:30-21:30)</button>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="text-xs text-gray-400 font-bold tracking-widest border-t pt-2 mb-2">兩頭班系列</div>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <button onclick="setShift('A1\n09-13/17-21')" class="bg-[#d6dbe0] text-[#3b4252] py-2 rounded hover:opacity-80 leading-tight">A1<br><span class="text-[10px]">0900-1300 / 1700-2100</span></button>
+                        <button onclick="setShift('A2\n09-13/17-21')" class="bg-[#d6dbe0] text-[#3b4252] py-2 rounded hover:opacity-80 leading-tight">A2<br><span class="text-[10px]">0930-1330 / 1730-2130</span></button>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="text-xs text-gray-400 font-bold tracking-widest border-t pt-2 mb-2">工讀無法排班標示</div>
+                    <div class="grid grid-cols-4 gap-2 text-sm">
+                        <button onclick="setShift('X_R')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-red-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法全班</span></button>
+                        <button onclick="setShift('X_B')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-blue-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法早班</span></button>
+                        <button onclick="setShift('X_P')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-purple-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法午班</span></button>
+                        <button onclick="setShift('X_G')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-green-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法晚班</span></button>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="text-xs text-gray-400 font-bold tracking-widest border-t pt-2 mb-2">自訂時間 / 特殊文字</div>
+                    <div class="flex flex-col gap-2">
+                        <div class="flex items-center gap-2 text-sm">
+                            <input type="text" id="customTimeCode" class="border border-gray-300 rounded px-2 py-2 w-[70px] outline-none focus:border-black" placeholder="代碼">
+                            <input type="time" id="customTimeStart" class="border border-gray-300 rounded px-1 py-2 flex-1 outline-none focus:border-black">
+                            <span class="text-gray-400">-</span>
+                            <input type="time" id="customTimeEnd" class="border border-gray-300 rounded px-1 py-2 flex-1 outline-none focus:border-black">
+                            <button onclick="applyCustomTime()" class="bg-black text-white px-3 py-2 rounded hover:bg-gray-800 whitespace-nowrap">排入</button>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm">
+                            <input type="text" id="customText" class="border border-gray-300 rounded px-2 py-2 flex-1 outline-none focus:border-black" placeholder="手動輸入純文字代碼...">
+                            <button onclick="setShift(document.getElementById('customText').value)" class="border border-gray-300 bg-gray-100 text-gray-700 px-3 py-2 rounded hover:bg-gray-200 whitespace-nowrap">排入文字</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -248,7 +281,125 @@
     </dialog>
 
     <script>
-        let employees = JSON.parse(localStorage.getItem('ecoleEmployees')) || [
+        // ==========================================
+        // 1. 🔥 Firebase 金鑰設定區 🔥 
+        // 部署至 Netlify 時，請務必將此處替換為您的專屬設定
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
+            authDomain: "ecole-1f392.firebaseapp.com",
+            projectId: "ecole-1f392",
+            storageBucket: "ecole-1f392.firebasestorage.app",
+            messagingSenderId: "117812812078",
+            appId: "1:117812812078:web:41664b4e6f0a1c6aff42bf",
+            measurementId: "G-Q1SRBC7T5J"
+        };
+        
+        let auth, db, provider;
+        let currentUser = null;
+        let currentUserRole = 'admin'; // 'admin' 或是 'staff' (本機測試預設給 admin)
+        let currentUserEmpId = null;   
+        let unsubscribeSnapshot = null;
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+            db = firebase.firestore();
+            provider = new firebase.auth.GoogleAuthProvider();
+            
+            // 監聽登入狀態並處理權限 (RBAC)
+            auth.onAuthStateChanged(async (user) => {
+                const authArea = document.getElementById('authArea');
+                if (user) {
+                    try {
+                        document.getElementById('loadingText').innerText = "驗證權限中...";
+                        document.getElementById('loadingOverlay').style.display = 'flex';
+                        
+                        // 從雲端取得白名單設定
+                        const wlSnap = await db.collection("systemConfig").doc("whitelist").get();
+                        let isAdmin = false;
+                        let isStaff = false;
+                        let empId = null;
+
+                        if (wlSnap.exists) {
+                            const wlData = wlSnap.data();
+                            const adminEmails = wlData.adminEmails || [];
+                            const staffMapping = wlData.staffMapping || {};
+
+                            if (adminEmails.includes(user.email)) {
+                                isAdmin = true;
+                            } else if (staffMapping[user.email]) {
+                                isStaff = true;
+                                empId = staffMapping[user.email];
+                            }
+                        } else {
+                            // 若是第一次建立資料庫尚未設定 whitelist，預設放行第一位登入者為管理員方便設定
+                            console.warn("未找到 whitelist 設定，以開發模式賦予管理員權限");
+                            isAdmin = true;
+                        }
+
+                        if (isAdmin || isStaff) {
+                            currentUser = user;
+                            currentUserRole = isAdmin ? 'admin' : 'staff';
+                            currentUserEmpId = empId;
+
+                            authArea.innerHTML = `
+                                <img src="${user.photoURL}" class="w-6 h-6 rounded-full border border-gray-300">
+                                <span class="text-xs font-bold text-gray-700">${user.displayName} <span class="text-[9px] text-gray-400">(${isAdmin ? '管理員' : '員工'})</span></span>
+                                <button onclick="logoutGoogle()" class="ml-2 text-[10px] bg-white border border-gray-300 px-2 py-1 rounded hover:bg-gray-100">登出</button>
+                            `;
+                            
+                            updateUIPermissions();
+                            setupCloudSync(); // 啟動即時協同編輯監聽
+                        } else {
+                            alertCustom("存取被拒絕：您的帳號未在此系統的授權名單中。");
+                            auth.signOut();
+                            document.getElementById('loadingOverlay').style.display = 'none';
+                        }
+                    } catch(e) {
+                        console.error("驗證發生錯誤:", e);
+                        alertCustom("系統權限驗證失敗，請檢查資料庫連線。");
+                        auth.signOut();
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                    }
+                } else {
+                    // 未登入，回歸本機測試模式 (給予全權限)
+                    currentUser = null;
+                    currentUserRole = 'admin'; 
+                    currentUserEmpId = null;
+                    if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+                    
+                    authArea.innerHTML = `
+                        <button onclick="loginGoogle()" class="flex items-center gap-1 text-xs font-bold text-gray-700 hover:text-black">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 15.01 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                            Google 登入同步
+                        </button>
+                    `;
+                    updateUIPermissions();
+                    renderTable(); 
+                }
+            });
+        } catch(e) {
+            console.warn("Firebase 尚未正確設定，系統將以本機單機模式運行。");
+            document.getElementById('authArea').innerHTML = `<span class="text-xs text-gray-400">單機測試模式</span>`;
+            updateUIPermissions();
+        }
+
+        function loginGoogle() { if(auth) auth.signInWithPopup(provider); }
+        function logoutGoogle() { if(auth) auth.signOut(); }
+
+        // 控制 UI 按鈕顯示與隱藏
+        function updateUIPermissions() {
+            const adminElements = document.querySelectorAll('.admin-only');
+            adminElements.forEach(el => {
+                el.style.display = (currentUserRole === 'admin') ? '' : 'none';
+            });
+        }
+
+        // ==========================================
+        // 2. 資料狀態與本機暫存載入
+        // ==========================================
+        let defaultEmployees = [
             { id: 'FT1', name: 'Rita', type: 'FT' },
             { id: 'FT2', name: '訓峰', type: 'FT' },
             { id: 'FT3', name: '沛宣', type: 'FT' },
@@ -263,10 +414,11 @@
         let tempEmployees = []; 
         const stations = ['早吧台', '早廚', '外場', '晚吧台', '晚廚'];
         
+        let employees = JSON.parse(localStorage.getItem('ecoleEmployees')) || defaultEmployees;
         let scheduleData = JSON.parse(localStorage.getItem('ecoleSchedule')) || {};
         let stationData = JSON.parse(localStorage.getItem('ecoleStation')) || {};
         let noteData = JSON.parse(localStorage.getItem('ecoleNote')) || {};
-        let carryOverData = JSON.parse(localStorage.getItem('ecoleCarryOver')) || {}; // 上月連續天數記錄
+        let carryOverData = JSON.parse(localStorage.getItem('ecoleCarryOver')) || {}; 
         
         let currentYearMonth = '2026-07';
         let selectedCell = { empId: null, day: null, type: null, station: null };
@@ -276,6 +428,56 @@
         const stationDialog = document.getElementById('stationDialog');
         const noteDialog = document.getElementById('noteDialog');
         const confirmDialog = document.getElementById('confirmDialog');
+
+        // ==========================================
+        // 3. 核心協作存檔邏輯 (Real-time Collaboration)
+        // ==========================================
+        
+        // 啟動雲端即時同步監聽 (共同編輯)
+        function setupCloudSync() {
+            if (!currentUser || !db) return;
+            document.getElementById('loadingText').innerText = "載入共用班表...";
+            
+            // 指向唯一的共用檔案 main_schedule
+            const docRef = db.collection("ecoleCafe").doc("main_schedule");
+            
+            // onSnapshot 能夠在任何人修改資料時，即時自動更新畫面
+            unsubscribeSnapshot = docRef.onSnapshot((docSnap) => {
+                if (docSnap.exists) {
+                    const data = docSnap.data();
+                    scheduleData = data.scheduleData || {};
+                    stationData = data.stationData || {};
+                    noteData = data.noteData || {};
+                    carryOverData = data.carryOverData || {};
+                    employees = data.employees || defaultEmployees;
+                    renderTable();
+                } else {
+                    // 若雲端尚未有資料，由管理員發起初始化
+                    if (currentUserRole === 'admin') saveData();
+                }
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }, (error) => {
+                console.error("同步失敗:", error);
+                document.getElementById('loadingOverlay').style.display = 'none';
+            });
+        }
+
+        // 雙軌存檔 (本機 + 寫入共用雲端)
+        function saveData() {
+            // 本機備份
+            localStorage.setItem('ecoleSchedule', JSON.stringify(scheduleData));
+            localStorage.setItem('ecoleStation', JSON.stringify(stationData));
+            localStorage.setItem('ecoleNote', JSON.stringify(noteData));
+            localStorage.setItem('ecoleCarryOver', JSON.stringify(carryOverData));
+            localStorage.setItem('ecoleEmployees', JSON.stringify(employees));
+
+            // 若登入，將修改寫入共用雲端 (會自動觸發其他人的 onSnapshot)
+            if (currentUser && db) {
+                const dataToSave = { scheduleData, stationData, noteData, carryOverData, employees };
+                db.collection("ecoleCafe").doc("main_schedule").set(dataToSave)
+                    .catch((error) => { console.error("雲端存檔失敗:", error); });
+            }
+        }
 
         function formatShiftDisplay(shiftStr) {
             const parts = shiftStr.split('\n');
@@ -295,6 +497,8 @@
         }
 
         function updateCarryOver(empId, val) {
+            // 權限防呆：非管理員不應觸發
+            if (currentUserRole !== 'admin') return; 
             if (!carryOverData[currentYearMonth]) carryOverData[currentYearMonth] = {};
             carryOverData[currentYearMonth][empId] = parseInt(val, 10) || 0;
             saveData();
@@ -338,6 +542,9 @@
 
             let tbodyHTML = '';
             let currentType = '';
+            
+            // 是否鎖定上月連續天數的輸入框 (限管理員可編輯)
+            const inputDisabledAttr = (currentUserRole !== 'admin') ? 'disabled' : '';
 
             employees.forEach(emp => {
                 let typeLabel = '';
@@ -352,7 +559,7 @@
 
                 let carryOverVal = carryOverData[currentYearMonth]?.[emp.id] || 0;
                 tbodyHTML += `<td class="sticky-col bg-white px-1 border-r-2 border-gray-300" style="left: 100px; width: 40px; min-width: 40px; max-width: 40px;">
-                    <input type="number" min="0" max="5" class="w-full bg-transparent text-center text-xs outline-none focus:border-black font-bold text-gray-600" value="${carryOverVal}" onchange="updateCarryOver('${emp.id}', this.value)">
+                    <input type="number" ${inputDisabledAttr} min="0" max="5" class="w-full bg-transparent text-center text-xs outline-none focus:border-black font-bold text-gray-600" value="${carryOverVal}" onchange="updateCarryOver('${emp.id}', this.value)">
                 </td>`;
 
                 let daysOff = 0;
@@ -382,7 +589,9 @@
                         totalHours += calculateHours(shift);
                     }
 
-                    tbodyHTML += `<td class="${cellClass}" onclick="openDialog('${emp.id}', ${i}, '${emp.name}')">${displayText}</td>`;
+                    // 對員工只顯示滑鼠游標為 pointer (若點擊自己的)；非本人則用 default 游標
+                    let pointerClass = (currentUserRole === 'admin' || currentUserEmpId === emp.id) ? '' : 'cursor-default opacity-90';
+                    tbodyHTML += `<td class="${cellClass} ${pointerClass}" onclick="openDialog('${emp.id}', ${i}, '${emp.name}')">${displayText}</td>`;
                 }
 
                 let statsText = emp.type === 'FT' 
@@ -417,9 +626,10 @@
                     }
                     
                     const cellClass = isError ? "shift-cell text-xs text-red-600 font-bold bg-red-50" : "shift-cell text-xs";
+                    const pointerClass = (currentUserRole === 'admin') ? '' : 'cursor-default';
                     const displayHTML = isError ? `⚠️<br>${sName}` : sName;
 
-                    stationHTML += `<td class="${cellClass}" onclick="openStationDialog('${st}', ${i})">${displayHTML}</td>`;
+                    stationHTML += `<td class="${cellClass} ${pointerClass}" onclick="openStationDialog('${st}', ${i})">${displayHTML}</td>`;
                 }
                 stationHTML += `<td class="border-l-2 border-gray-300"></td><td class="border-l border-gray-200"></td></tr>`;
             });
@@ -428,11 +638,13 @@
             let noteHTML = `<tr><th colspan="3" class="sticky-col px-2 py-1 text-sm font-normal text-gray-700 bg-white border-r-2 border-gray-300" style="left: 0; z-index: 10;">備註</th>`;
             for (let i = 1; i <= daysInMonth; i++) {
                 const n = noteData[currentYearMonth]?.[i] || '';
-                noteHTML += `<td class="shift-cell text-[10px] text-gray-500 bg-white" onclick="openNoteDialog(${i})">${n}</td>`;
+                const pointerClass = (currentUserRole === 'admin') ? 'shift-cell' : 'cursor-default';
+                noteHTML += `<td class="${pointerClass} text-[10px] text-gray-500 bg-white" onclick="openNoteDialog(${i})">${n}</td>`;
             }
             noteHTML += `<td class="bg-white border-l-2 border-gray-300"></td><td class="bg-white border-l border-gray-200"></td></tr>`;
             document.getElementById('noteBody').innerHTML = noteHTML;
 
+            // 若非透過 onSnapshot 進來，手動變更時透過 saveData 將資料推上雲端
             saveData();
         }
 
@@ -463,6 +675,93 @@
             }
             return 0; 
         }
+
+        // ==========================================
+        // 4. 權限檢查與 Dialog 控制
+        // ==========================================
+        
+        function openDialog(empId, day, empName) {
+            // ⭐ 核心權限防護：員工只能編輯自己名字的那列
+            if (currentUserRole === 'staff' && currentUserEmpId !== empId) {
+                alertCustom('提醒：您只能編輯或預排您自己的班表喔！');
+                return;
+            }
+
+            selectedCell = { empId, day };
+            document.getElementById('dialogSubtitle').innerText = `${empName} - ${currentYearMonth}-${day.toString().padStart(2, '0')}`;
+            document.getElementById('customTimeCode').value = '';
+            document.getElementById('customTimeStart').value = '';
+            document.getElementById('customTimeEnd').value = '';
+            document.getElementById('customText').value = '';
+            shiftDialog.showModal();
+        }
+
+        function setShift(val) {
+            scheduleData[currentYearMonth][selectedCell.empId][selectedCell.day] = val;
+            shiftDialog.close();
+            renderTable();
+        }
+
+        function applyCustomTime() {
+            const code = document.getElementById('customTimeCode').value || '自訂';
+            const start = document.getElementById('customTimeStart').value;
+            const end = document.getElementById('customTimeEnd').value;
+            if (start && end) {
+                setShift(`${code}\n${start}-${end}`);
+            } else {
+                alertCustom('請完整選擇開始與結束時間');
+            }
+        }
+
+        function closeDialog() { shiftDialog.close(); }
+
+        function openStationDialog(station, day) {
+            // ⭐ 權限防護：僅管理員可編輯內外場
+            if (currentUserRole !== 'admin') {
+                return; // 直接忽略點擊
+            }
+
+            selectedCell = { station, day };
+            document.getElementById('stationDialogTitle').innerText = `${station} - ${day}日`;
+            let html = '';
+            employees.forEach(emp => {
+                let shift = scheduleData[currentYearMonth]?.[emp.id]?.[day] || '';
+                if (shift && !['✖', '❌', '年假', '行政', '公出', 'X_R', 'X_B', 'X_P', 'X_G'].includes(shift)) {
+                    html += `<button onclick="setStation('${emp.name}')" class="border border-gray-200 py-2 rounded text-sm hover:bg-gray-50 text-left px-4">${emp.name} <span class="text-xs text-gray-400 float-right mt-0.5">${shift.split('\n')[0]}</span></button>`;
+                }
+            });
+            if(html === '') html = '<p class="text-sm text-gray-400 text-center py-4">當日無可用排班人員</p>';
+            document.getElementById('stationCandidates').innerHTML = html;
+            stationDialog.showModal();
+        }
+        function setStation(name) {
+            stationData[currentYearMonth][selectedCell.station][selectedCell.day] = name;
+            stationDialog.close();
+            renderTable();
+        }
+        function closeStationDialog() { stationDialog.close(); }
+
+        function openNoteDialog(day) {
+            // ⭐ 權限防護：僅管理員可編輯備註
+            if (currentUserRole !== 'admin') {
+                return; // 直接忽略點擊
+            }
+
+            selectedCell = { day };
+            document.getElementById('noteDialogTitle').innerText = `${day}日 備註`;
+            document.getElementById('customNote').value = noteData[currentYearMonth]?.[day] || '';
+            noteDialog.showModal();
+        }
+        function setNote(val) {
+            noteData[currentYearMonth][selectedCell.day] = val;
+            noteDialog.close();
+            renderTable();
+        }
+        function closeNoteDialog() { noteDialog.close(); }
+
+        // ==========================================
+        // 5. 其餘管理員功能 (人員管理、自動排班等)
+        // ==========================================
 
         function manageEmployees() {
             tempEmployees = JSON.parse(JSON.stringify(employees));
@@ -520,71 +819,6 @@
             if(confirmResolver) confirmResolver(result);
         }
 
-        function openDialog(empId, day, empName) {
-            selectedCell = { empId, day };
-            document.getElementById('dialogSubtitle').innerText = `${empName} - ${currentYearMonth}-${day.toString().padStart(2, '0')}`;
-            document.getElementById('customTimeCode').value = '';
-            document.getElementById('customTimeStart').value = '';
-            document.getElementById('customTimeEnd').value = '';
-            document.getElementById('customText').value = '';
-            shiftDialog.showModal();
-        }
-
-        function setShift(val) {
-            if(val.trim() === '') return;
-            scheduleData[currentYearMonth][selectedCell.empId][selectedCell.day] = val;
-            shiftDialog.close();
-            renderTable();
-        }
-
-        function applyCustomTime() {
-            const code = document.getElementById('customTimeCode').value || '自訂';
-            const start = document.getElementById('customTimeStart').value;
-            const end = document.getElementById('customTimeEnd').value;
-            if (start && end) {
-                setShift(`${code}\n${start}-${end}`);
-            } else {
-                alertCustom('請完整選擇開始與結束時間');
-            }
-        }
-
-        function closeDialog() { shiftDialog.close(); }
-
-        function openStationDialog(station, day) {
-            selectedCell = { station, day };
-            document.getElementById('stationDialogTitle').innerText = `${station} - ${day}日`;
-            let html = '';
-            employees.forEach(emp => {
-                let shift = scheduleData[currentYearMonth]?.[emp.id]?.[day] || '';
-                if (shift && !['✖', '❌', '年假', '行政', '公出', 'X_R', 'X_B', 'X_P', 'X_G'].includes(shift)) {
-                    html += `<button onclick="setStation('${emp.name}')" class="border border-gray-200 py-2 rounded text-sm hover:bg-gray-50 text-left px-4">${emp.name} <span class="text-xs text-gray-400 float-right mt-0.5">${shift.split('\n')[0]}</span></button>`;
-                }
-            });
-            if(html === '') html = '<p class="text-sm text-gray-400 text-center py-4">當日無可用排班人員</p>';
-            document.getElementById('stationCandidates').innerHTML = html;
-            stationDialog.showModal();
-        }
-        function setStation(name) {
-            stationData[currentYearMonth][selectedCell.station][selectedCell.day] = name;
-            stationDialog.close();
-            renderTable();
-        }
-        function closeStationDialog() { stationDialog.close(); }
-
-        function openNoteDialog(day) {
-            selectedCell = { day };
-            document.getElementById('noteDialogTitle').innerText = `${day}日 備註`;
-            document.getElementById('customNote').value = noteData[currentYearMonth]?.[day] || '';
-            noteDialog.showModal();
-        }
-        function setNote(val) {
-            noteData[currentYearMonth][selectedCell.day] = val;
-            noteDialog.close();
-            renderTable();
-        }
-        function closeNoteDialog() { noteDialog.close(); }
-
-        // --- 自動排班核心邏輯 ---
         function autoFill() {
             document.getElementById('autoFillDialog').showModal();
         }
@@ -596,7 +830,6 @@
             const [year, month] = currentYearMonth.split('-').map(Number);
             const daysInMonth = new Date(year, month, 0).getDate();
 
-            // 擷取本機最新的連續工作天數記錄
             let consecutiveDays = {};
             employees.forEach(emp => {
                 consecutiveDays[emp.id] = parseInt(carryOverData[currentYearMonth]?.[emp.id] || 0, 10);
@@ -604,12 +837,10 @@
 
             const isWork = (s) => s && !['✖', '❌', '年假', 'X_R', 'X_B', 'X_P', 'X_G'].includes(s);
 
-            // 1. 正職休假安排 (嚴格限制不連上 6 天)
             employees.filter(e => e.type === 'FT').forEach(emp => {
                 let tempConsecutive = consecutiveDays[emp.id];
                 let manualOffs = 0;
 
-                // 統計已手動排休的天數
                 for(let i=1; i<=daysInMonth; i++) {
                     let s = scheduleData[currentYearMonth][emp.id][i];
                     if(['✖', '❌', '年假'].includes(s)) manualOffs++;
@@ -617,7 +848,6 @@
 
                 let neededOff = targetRestDays - manualOffs;
 
-                // 強制分配休假以防止 6 連班
                 for(let i=1; i<=daysInMonth; i++) {
                     let s = scheduleData[currentYearMonth][emp.id][i];
                     if (['✖', '❌', '年假'].includes(s)) {
@@ -635,7 +865,6 @@
                     }
                 }
 
-                // 分配剩餘不足的月休天數 (盡量交錯)
                 while(neededOff > 0) {
                     let possibleDays = [];
                     for(let i=1; i<=daysInMonth; i++) {
@@ -651,12 +880,10 @@
                 }
             });
 
-            // 重置連續天數以供逐日排班引擎推算
             employees.forEach(emp => {
                 consecutiveDays[emp.id] = parseInt(carryOverData[currentYearMonth]?.[emp.id] || 0, 10);
             });
 
-            // 2. 每日班別指派
             for (let day = 1; day <= daysInMonth; day++) {
                 const dayIndex = new Date(year, month - 1, day).getDay();
                 const isWeekend = dayIndex === 0 || dayIndex === 6;
@@ -668,14 +895,13 @@
                 employees.forEach(emp => {
                     let s = scheduleData[currentYearMonth][emp.id][day];
                     
-                    // 每日指派前，先驗證是否達到連續 5 天，若達到強制休假
                     if (!s && consecutiveDays[emp.id] >= 5) {
                         scheduleData[currentYearMonth][emp.id][day] = '✖';
                         s = '✖';
                     }
 
                     if (s === '✖' || s === '❌' || s === '年假' || s === '公出' || s === '行政' || (typeof s === 'string' && s.startsWith('X_'))) {
-                        // 無法排班
+                        // pass
                     } else if (!s) {
                         if(emp.type === 'FT') availableFTs.push(emp);
                         else availablePTs.push(emp);
@@ -720,7 +946,6 @@
                     scheduleData[currentYearMonth][emp.id][day] = '✖';
                 });
 
-                // 一日排班結束，更新隔日的連續天數基礎
                 employees.forEach(emp => {
                     let s = scheduleData[currentYearMonth][emp.id][day];
                     if (isWork(s) || ['行政', '公出'].includes(s)) {
@@ -730,7 +955,6 @@
                     }
                 });
 
-                // 3. 站點分配
                 let workingToday = employees.filter(emp => {
                     let s = scheduleData[currentYearMonth][emp.id][day];
                     return isWork(s) || ['公出', '行政'].includes(s);
@@ -757,7 +981,7 @@
                     }
                 });
             }
-            renderTable();
+            renderTable(); 
         }
 
         async function clearSchedule() {
@@ -770,14 +994,6 @@
                 stations.forEach(st => stationData[currentYearMonth][st] = {});
                 renderTable();
             }
-        }
-
-        function saveData() {
-            localStorage.setItem('ecoleSchedule', JSON.stringify(scheduleData));
-            localStorage.setItem('ecoleStation', JSON.stringify(stationData));
-            localStorage.setItem('ecoleNote', JSON.stringify(noteData));
-            localStorage.setItem('ecoleCarryOver', JSON.stringify(carryOverData));
-            localStorage.setItem('ecoleEmployees', JSON.stringify(employees));
         }
 
         async function exportJSON() {
