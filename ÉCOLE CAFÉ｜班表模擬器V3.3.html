@@ -13,7 +13,7 @@
     
     <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzExMTgyNyIvPjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1zaXplPSI0MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIj5FQzwvdGV4dD48L3N2Zz4=">
     
-    <!-- 引入 Tailwind CSS -->
+    <!-- 引入 Tailwind CSS 與 Html2Canvas -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
@@ -81,14 +81,15 @@
                 <!-- 將由 JS 動態填入 -->
             </div>
             
+            <button onclick="openGanttDialog()" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition shadow-sm">📊 單日進度表</button>
+            <div class="w-px h-8 bg-gray-200 mx-1 hidden sm:block"></div>
             <button onclick="manageEmployees()" class="admin-only border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition shadow-sm">👥 人員管理</button>
-            <div class="admin-only w-px h-8 bg-gray-200 mx-1 hidden sm:block"></div>
-            <button onclick="autoFill()" class="admin-only border border-black bg-black text-white hover:bg-gray-800 px-4 py-2 rounded-sm text-sm transition shadow-sm"> 自動排班</button>
+            <button onclick="autoFill()" class="admin-only border border-black bg-black text-white hover:bg-gray-800 px-4 py-2 rounded-sm text-sm transition shadow-sm">✨ 自動排班</button>
             <button onclick="clearSchedule()" class="admin-only border border-gray-300 bg-white text-red-600 hover:bg-red-50 px-4 py-2 rounded-sm text-sm transition"> 清空當月</button>
             <div class="admin-only w-px h-8 bg-gray-200 mx-1 hidden sm:block"></div>
             <button onclick="triggerImport()" class="admin-only border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition"> 匯入(JSON)</button>
             <button onclick="exportJSON()" class="admin-only border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition"> 備份(JSON)</button>
-            <button onclick="exportToImage()" class="border border-black bg-white text-black hover:bg-gray-50 px-4 py-2 rounded-sm text-sm transition shadow-sm"> 匯出圖片</button>
+            <button onclick="exportToImage()" class="border border-black bg-white text-black hover:bg-gray-50 px-4 py-2 rounded-sm text-sm transition shadow-sm"> 匯出大表</button>
             <input type="file" id="importFile" accept=".json" class="hidden" onchange="importJSON(event)">
         </div>
     </header>
@@ -127,12 +128,27 @@
             <div class="text-xs text-gray-500 bg-gray-50 p-3 rounded border border-gray-100 leading-relaxed">
                 * 系統會自動讀取「上月連續」，確保正職與工讀皆不連續上班 6 天。<br>
                 * 晚班、A1、D1 優先配給正職。<br>
-                * 外場優先排滿，允許晚班人員兼任。
+                * 內外場配置已嚴格遵守：早班站(D/A)、晚班站(N/A) 的指派規則。
             </div>
             <div class="flex justify-end gap-2 mt-2">
                 <button onclick="document.getElementById('autoFillDialog').close()" class="border border-gray-300 text-gray-600 px-4 py-2 rounded hover:bg-gray-50">取消</button>
                 <button onclick="executeAutoFill()" class="bg-black text-white px-4 py-2 rounded hover:bg-gray-800">確定排班</button>
             </div>
+        </div>
+    </dialog>
+
+    <!-- 單日進度表(甘特圖)模態框 -->
+    <dialog id="ganttDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-4xl border border-gray-200">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h3 class="font-bold text-gray-800 tracking-wide" id="ganttTitle">單日排班進度表</h3>
+            <div class="flex items-center gap-2">
+                <select id="ganttDaySelect" class="border border-gray-300 rounded px-2 py-1 text-sm outline-none bg-white font-bold" onchange="renderGanttChart(this.value)"></select>
+                <button onclick="exportGanttImage()" class="bg-black text-white px-3 py-1 rounded text-sm hover:bg-gray-800 shadow-sm flex items-center gap-1">🖼️ 匯出</button>
+                <button onclick="document.getElementById('ganttDialog').close()" class="text-gray-400 hover:text-black text-2xl leading-none ml-2">&times;</button>
+            </div>
+        </div>
+        <div class="p-4 bg-white overflow-x-auto">
+            <div id="ganttChartContent" class="min-w-[700px] relative"></div>
         </div>
     </dialog>
 
@@ -162,13 +178,23 @@
         <div class="p-4 flex flex-col gap-4 bg-white overflow-y-auto max-h-[75vh]">
             <p class="text-sm text-gray-500 font-medium" id="dialogSubtitle"></p>
             
-            <!-- 員工與管理員皆可見的：指定休與清除 -->
             <div class="grid grid-cols-2 gap-2">
                 <button onclick="setShift('❌')" class="border border-red-200 text-red-600 py-2 rounded text-sm hover:bg-red-50 font-bold shadow-sm">❌ 指定休</button>
                 <button onclick="setShift('')" class="border border-gray-200 text-gray-600 py-2 rounded text-sm hover:bg-gray-50 font-bold shadow-sm">清除重置</button>
             </div>
+
+            <!-- 員工也能使用的工讀標記 -->
+            <div>
+                <div class="text-xs text-gray-400 font-bold tracking-widest border-t pt-2 mb-2">無法排班標示 (所有人員可用)</div>
+                <div class="grid grid-cols-4 gap-2 text-sm">
+                    <button onclick="setShift('X_R')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-red-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法全班</span></button>
+                    <button onclick="setShift('X_B')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-blue-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法早班</span></button>
+                    <button onclick="setShift('X_P')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-purple-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法午班</span></button>
+                    <button onclick="setShift('X_G')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-green-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法晚班</span></button>
+                </div>
+            </div>
             
-            <!-- 管理員專屬專區 (員工登入時會自動隱藏) -->
+            <!-- 管理員專屬專區 -->
             <div class="admin-only w-full flex flex-col gap-4">
                 <div class="grid grid-cols-4 gap-1">
                     <button onclick="setShift('✖')" class="border border-gray-200 py-2 rounded text-xs hover:bg-gray-50 font-bold">✖ 排休</button>
@@ -178,12 +204,14 @@
                 </div>
                 
                 <div>
-                    <div class="text-xs text-gray-400 font-bold tracking-widest border-t pt-2 mb-2">早班系列</div>
+                    <div class="text-xs text-gray-400 font-bold tracking-widest border-t pt-2 mb-2 flex justify-between">
+                        <span>早班系列</span>
+                    </div>
                     <div class="grid grid-cols-4 gap-2 text-sm">
-                        <button onclick="setShift('D1\n0830-1700')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80">D1<br><span class="text-[10px]">0830-1700</span></button>
-                        <button onclick="setShift('D2\n0900-1730')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80">D2<br><span class="text-[10px]">0900-1730</span></button>
-                        <button onclick="setShift('D3\n0900-1500')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80">D3<br><span class="text-[10px]">0900-1500</span></button>
-                        <button onclick="setShift('D4\n1230-1630')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80">D4<br><span class="text-[10px]">1230-1630</span></button>
+                        <button onclick="setShift('D1\n0830-1700')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80 leading-tight">D1<br><span class="text-[10px]">0830-1700</span></button>
+                        <button onclick="setShift('D2\n0900-1730')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80 leading-tight">D2<br><span class="text-[10px]">0900-1730</span></button>
+                        <button onclick="setShift('D3\n0900-1500')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80 leading-tight">D3<br><span class="text-[10px]">0900-1500</span></button>
+                        <button onclick="setShift('D4\n1230-1630')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80 leading-tight">D4<br><span class="text-[10px]">1230-1630</span></button>
                     </div>
                 </div>
 
@@ -198,18 +226,8 @@
                 <div>
                     <div class="text-xs text-gray-400 font-bold tracking-widest border-t pt-2 mb-2">兩頭班系列</div>
                     <div class="grid grid-cols-2 gap-2 text-sm">
-                        <button onclick="setShift('A1\n09-13/17-21')" class="bg-[#d6dbe0] text-[#3b4252] py-2 rounded hover:opacity-80 leading-tight">A1<br><span class="text-[10px]">0900-1300 / 1700-2100</span></button>
-                        <button onclick="setShift('A2\n09-13/17-21')" class="bg-[#d6dbe0] text-[#3b4252] py-2 rounded hover:opacity-80 leading-tight">A2<br><span class="text-[10px]">0930-1330 / 1730-2130</span></button>
-                    </div>
-                </div>
-                
-                <div>
-                    <div class="text-xs text-gray-400 font-bold tracking-widest border-t pt-2 mb-2">工讀無法排班標示</div>
-                    <div class="grid grid-cols-4 gap-2 text-sm">
-                        <button onclick="setShift('X_R')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-red-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法全班</span></button>
-                        <button onclick="setShift('X_B')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-blue-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法早班</span></button>
-                        <button onclick="setShift('X_P')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-purple-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法午班</span></button>
-                        <button onclick="setShift('X_G')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-green-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法晚班</span></button>
+                        <button onclick="setShift('A1\n09-13/17-21')" class="bg-[#d6dbe0] text-[#3b4252] py-2 rounded hover:opacity-80 leading-tight">A1<br><span class="text-[10px]">09-13 / 17-21</span></button>
+                        <button onclick="setShift('A2\n0930-1330/1730-2130')" class="bg-[#d6dbe0] text-[#3b4252] py-2 rounded hover:opacity-80 leading-tight">A2<br><span class="text-[10px]">0930-1330 / 1730-2130</span></button>
                     </div>
                 </div>
 
@@ -297,7 +315,7 @@
         
         let auth, db, provider;
         let currentUser = null;
-        let currentUserRole = 'admin'; // 'admin' 或是 'staff' (本機測試預設給 admin)
+        let currentUserRole = 'admin'; // 'admin' 或 'staff'
         let currentUserEmpId = null;   
         let unsubscribeSnapshot = null;
 
@@ -333,7 +351,6 @@
                                 empId = staffMapping[user.email];
                             }
                         } else {
-                            // 若是第一次建立資料庫尚未設定 whitelist，預設放行第一位登入者為管理員方便設定
                             console.warn("未找到 whitelist 設定，以開發模式賦予管理員權限");
                             isAdmin = true;
                         }
@@ -363,7 +380,7 @@
                         document.getElementById('loadingOverlay').style.display = 'none';
                     }
                 } else {
-                    // 未登入，回歸本機測試模式 (給予全權限)
+                    // 未登入，回歸本機測試模式 (預設全開以利測試)
                     currentUser = null;
                     currentUserRole = 'admin'; 
                     currentUserEmpId = null;
@@ -388,7 +405,6 @@
         function loginGoogle() { if(auth) auth.signInWithPopup(provider); }
         function logoutGoogle() { if(auth) auth.signOut(); }
 
-        // 控制 UI 按鈕顯示與隱藏
         function updateUIPermissions() {
             const adminElements = document.querySelectorAll('.admin-only');
             adminElements.forEach(el => {
@@ -396,9 +412,6 @@
             });
         }
 
-        // ==========================================
-        // 2. 資料狀態與本機暫存載入
-        // ==========================================
         let defaultEmployees = [
             { id: 'FT1', name: 'Rita', type: 'FT' },
             { id: 'FT2', name: '訓峰', type: 'FT' },
@@ -429,19 +442,12 @@
         const noteDialog = document.getElementById('noteDialog');
         const confirmDialog = document.getElementById('confirmDialog');
 
-        // ==========================================
-        // 3. 核心協作存檔邏輯 (Real-time Collaboration)
-        // ==========================================
-        
-        // 啟動雲端即時同步監聽 (共同編輯)
         function setupCloudSync() {
             if (!currentUser || !db) return;
             document.getElementById('loadingText').innerText = "載入共用班表...";
             
-            // 指向唯一的共用檔案 main_schedule
             const docRef = db.collection("ecoleCafe").doc("main_schedule");
             
-            // onSnapshot 能夠在任何人修改資料時，即時自動更新畫面
             unsubscribeSnapshot = docRef.onSnapshot((docSnap) => {
                 if (docSnap.exists) {
                     const data = docSnap.data();
@@ -452,7 +458,6 @@
                     employees = data.employees || defaultEmployees;
                     renderTable();
                 } else {
-                    // 若雲端尚未有資料，由管理員發起初始化
                     if (currentUserRole === 'admin') saveData();
                 }
                 document.getElementById('loadingOverlay').style.display = 'none';
@@ -462,16 +467,13 @@
             });
         }
 
-        // 雙軌存檔 (本機 + 寫入共用雲端)
         function saveData() {
-            // 本機備份
             localStorage.setItem('ecoleSchedule', JSON.stringify(scheduleData));
             localStorage.setItem('ecoleStation', JSON.stringify(stationData));
             localStorage.setItem('ecoleNote', JSON.stringify(noteData));
             localStorage.setItem('ecoleCarryOver', JSON.stringify(carryOverData));
             localStorage.setItem('ecoleEmployees', JSON.stringify(employees));
 
-            // 若登入，將修改寫入共用雲端 (會自動觸發其他人的 onSnapshot)
             if (currentUser && db) {
                 const dataToSave = { scheduleData, stationData, noteData, carryOverData, employees };
                 db.collection("ecoleCafe").doc("main_schedule").set(dataToSave)
@@ -497,7 +499,6 @@
         }
 
         function updateCarryOver(empId, val) {
-            // 權限防呆：非管理員不應觸發
             if (currentUserRole !== 'admin') return; 
             if (!carryOverData[currentYearMonth]) carryOverData[currentYearMonth] = {};
             carryOverData[currentYearMonth][empId] = parseInt(val, 10) || 0;
@@ -542,8 +543,6 @@
 
             let tbodyHTML = '';
             let currentType = '';
-            
-            // 是否鎖定上月連續天數的輸入框 (限管理員可編輯)
             const inputDisabledAttr = (currentUserRole !== 'admin') ? 'disabled' : '';
 
             employees.forEach(emp => {
@@ -589,7 +588,6 @@
                         totalHours += calculateHours(shift);
                     }
 
-                    // 對員工只顯示滑鼠游標為 pointer (若點擊自己的)；非本人則用 default 游標
                     let pointerClass = (currentUserRole === 'admin' || currentUserEmpId === emp.id) ? '' : 'cursor-default opacity-90';
                     tbodyHTML += `<td class="${cellClass} ${pointerClass}" onclick="openDialog('${emp.id}', ${i}, '${emp.name}')">${displayText}</td>`;
                 }
@@ -644,7 +642,6 @@
             noteHTML += `<td class="bg-white border-l-2 border-gray-300"></td><td class="bg-white border-l border-gray-200"></td></tr>`;
             document.getElementById('noteBody').innerHTML = noteHTML;
 
-            // 若非透過 onSnapshot 進來，手動變更時透過 saveData 將資料推上雲端
             saveData();
         }
 
@@ -656,32 +653,27 @@
             if(shiftStr.includes('D4') || shiftStr.includes('N2')) return 4;
             
             let parsedHours = 0;
-            const matches = shiftStr.match(/(\d{2}):?(\d{2})\s*-\s*(\d{2}):?(\d{2})/g);
-            if (matches) {
-                matches.forEach(m => {
-                    const parts = m.match(/(\d{2}):?(\d{2})\s*-\s*(\d{2}):?(\d{2})/);
-                    if (parts) {
-                        let start = parseInt(parts[1], 10) + parseInt(parts[2], 10) / 60;
-                        let end = parseInt(parts[3], 10) + parseInt(parts[4], 10) / 60;
-                        if (end < start) end += 24; 
-                        parsedHours += (end - start);
-                    }
-                });
-                
-                if (parsedHours > 6) {
-                    parsedHours -= 0.5;
-                }
-                return parsedHours;
+            // Handle multiple ranges correctly for custom shifts
+            const regex = /(\d{1,2})(?::?(\d{2}))?\s*[-~]\s*(\d{1,2})(?::?(\d{2}))?/g;
+            let match;
+            while ((match = regex.exec(shiftStr)) !== null) {
+                let startH = parseInt(match[1], 10);
+                let startM = parseInt(match[2] || 0, 10);
+                let endH = parseInt(match[3], 10);
+                let endM = parseInt(match[4] || 0, 10);
+                let start = startH + startM / 60;
+                let end = endH + endM / 60;
+                if (end < start) end += 24; 
+                parsedHours += (end - start);
             }
-            return 0; 
+            
+            if (parsedHours > 6) {
+                parsedHours -= 0.5; // Custom shifts > 6hrs get 0.5hr unpaid break
+            }
+            return parsedHours;
         }
 
-        // ==========================================
-        // 4. 權限檢查與 Dialog 控制
-        // ==========================================
-        
         function openDialog(empId, day, empName) {
-            // ⭐ 核心權限防護：員工只能編輯自己名字的那列
             if (currentUserRole === 'staff' && currentUserEmpId !== empId) {
                 alertCustom('提醒：您只能編輯或預排您自己的班表喔！');
                 return;
@@ -716,11 +708,7 @@
         function closeDialog() { shiftDialog.close(); }
 
         function openStationDialog(station, day) {
-            // ⭐ 權限防護：僅管理員可編輯內外場
-            if (currentUserRole !== 'admin') {
-                return; // 直接忽略點擊
-            }
-
+            if (currentUserRole !== 'admin') return;
             selectedCell = { station, day };
             document.getElementById('stationDialogTitle').innerText = `${station} - ${day}日`;
             let html = '';
@@ -742,11 +730,7 @@
         function closeStationDialog() { stationDialog.close(); }
 
         function openNoteDialog(day) {
-            // ⭐ 權限防護：僅管理員可編輯備註
-            if (currentUserRole !== 'admin') {
-                return; // 直接忽略點擊
-            }
-
+            if (currentUserRole !== 'admin') return;
             selectedCell = { day };
             document.getElementById('noteDialogTitle').innerText = `${day}日 備註`;
             document.getElementById('customNote').value = noteData[currentYearMonth]?.[day] || '';
@@ -758,10 +742,6 @@
             renderTable();
         }
         function closeNoteDialog() { noteDialog.close(); }
-
-        // ==========================================
-        // 5. 其餘管理員功能 (人員管理、自動排班等)
-        // ==========================================
 
         function manageEmployees() {
             tempEmployees = JSON.parse(JSON.stringify(employees));
@@ -982,6 +962,150 @@
                 });
             }
             renderTable(); 
+        }
+
+        // 解析班別字串 (完美捕捉 A1 兩段式時間、自訂時間)
+        function parseTimeRanges(shiftStr) {
+            let ranges = [];
+            // 優化的 Regex: (\d{1,2})可選擇配上冒號跟分鐘 -> (\d{1,2})(?::?(\d{2}))? 
+            // 中間以 - 或 ~ 或 甚至漢字到 為分隔
+            const regex = /(\d{1,2})(?::?(\d{2}))?\s*[-~]\s*(\d{1,2})(?::?(\d{2}))?/g;
+            let match;
+            
+            // 使用 /g 搭配 exec 迴圈，可抓出像 "09-13 / 17-21" 裡面的兩組時間！
+            while ((match = regex.exec(shiftStr)) !== null) {
+                let startH = parseInt(match[1], 10);
+                let startM = parseInt(match[2] || 0, 10);
+                let endH = parseInt(match[3], 10);
+                let endM = parseInt(match[4] || 0, 10);
+                
+                let start = startH + startM / 60;
+                let end = endH + endM / 60;
+                
+                // 處理跨夜
+                if (end < start) end += 24; 
+                ranges.push({start, end});
+            }
+            return ranges;
+        }
+
+        function openGanttDialog() {
+            const select = document.getElementById('ganttDaySelect');
+            const [year, month] = currentYearMonth.split('-').map(Number);
+            const daysInMonth = new Date(year, month, 0).getDate();
+            
+            let options = '';
+            for(let i=1; i<=daysInMonth; i++) {
+                options += `<option value="${i}">${i}日</option>`;
+            }
+            select.innerHTML = options;
+            // 預設選擇第一天
+            select.value = "1";
+            renderGanttChart("1");
+            document.getElementById('ganttDialog').showModal();
+        }
+
+        function renderGanttChart(day) {
+            const container = document.getElementById('ganttChartContent');
+            if (!container) return;
+
+            document.getElementById('ganttTitle').innerText = `ÉCOLE CAFÉ 單日進度表 - ${currentYearMonth}-${day.toString().padStart(2, '0')}`;
+            
+            const minTime = 6;
+            const maxTime = 24;
+            const totalHours = maxTime - minTime;
+            
+            // 過濾出當天有排班(非休假)的員工
+            let workingEmployees = employees.filter(emp => {
+                const shiftStr = scheduleData[currentYearMonth]?.[emp.id]?.[day] || '';
+                return shiftStr && !['✖', '❌', '年假', '公出', '行政', 'X_R', 'X_B', 'X_P', 'X_G'].includes(shiftStr);
+            });
+
+            if (workingEmployees.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-400 py-10 tracking-widest font-bold">本日無排班人員</p>';
+                container.style.height = '100px';
+                return;
+            }
+
+            // 動態計算高度
+            let height = workingEmployees.length * 45 + 60;
+            let html = `<div class="relative w-full rounded" style="height: ${height}px; background: #ffffff;">`;
+            
+            // 畫時間軸與網格
+            html += `<div class="absolute top-0 left-0 w-[80px] text-xs font-bold text-gray-500 text-right pr-4 z-10 pt-1">姓名</div>`;
+            html += `<div class="absolute top-0 bottom-0 border-l-2 border-gray-400 z-10" style="left: 80px;"></div>`;
+            
+            for (let h = minTime; h <= maxTime; h++) {
+                let leftPercent = ((h - minTime) / totalHours) * 100;
+                let isMajor = h % 2 === 0;
+                
+                // 畫格線
+                html += `<div class="absolute top-[25px] bottom-0 border-l ${isMajor ? 'border-gray-300' : 'border-gray-100'} z-0" style="left: calc(80px + (100% - 80px) * ${leftPercent / 100});"></div>`;
+                
+                // 畫時間刻度文字
+                if (isMajor) {
+                    html += `<div class="absolute top-1 text-xs text-gray-400 font-bold transform -translate-x-1/2 z-10" style="left: calc(80px + (100% - 80px) * ${leftPercent / 100});">${h}:00</div>`;
+                }
+            }
+
+            // 畫人員與條狀色塊
+            let yOffset = 35;
+            workingEmployees.forEach(emp => {
+                const shiftStr = scheduleData[currentYearMonth]?.[emp.id]?.[day];
+                const ranges = parseTimeRanges(shiftStr);
+                
+                // 員工姓名
+                html += `<div class="absolute left-0 w-[80px] text-sm text-gray-800 font-bold text-right pr-4 z-10" style="top: ${yOffset}px; line-height: 30px;">${emp.name}</div>`;
+                
+                // 員工對應的底線 (讓對齊更清楚)
+                html += `<div class="absolute border-b border-gray-100 z-0" style="top: ${yOffset + 30}px; left: 80px; right: 0;"></div>`;
+                
+                // 畫色塊 (A1 等特殊班別如果有多段時間，迴圈會繪製多條色塊)
+                ranges.forEach(r => {
+                    let start = Math.max(minTime, r.start);
+                    let end = Math.min(maxTime, r.end);
+                    if (start < end) {
+                        let left = ((start - minTime) / totalHours) * 100;
+                        let width = ((end - start) / totalHours) * 100;
+                        
+                        // 動態指派顏色
+                        let colorClass = "bg-[#f3f4f6] text-[#374151] border border-gray-300"; // 預設自訂班顏色
+                        if (shiftStr.startsWith('D')) colorClass = "bg-[#dbe4d7] text-[#3f4e38] border border-[#b8cbb3]";
+                        else if (shiftStr.startsWith('N')) colorClass = "bg-[#ebd9d9] text-[#5c3c3c] border border-[#d6bcbc]";
+                        else if (shiftStr.startsWith('A')) colorClass = "bg-[#d6dbe0] text-[#3b4252] border border-[#b5bcc7]";
+
+                        html += `<div class="absolute h-[26px] rounded flex items-center justify-center text-[11px] font-bold overflow-hidden whitespace-nowrap shadow-sm z-20 hover:opacity-80 transition ${colorClass}" 
+                                      style="top: ${yOffset + 2}px; left: calc(80px + (100% - 80px) * ${left / 100}); width: calc((100% - 80px) * ${width / 100});">
+                                    ${shiftStr.split('\n')[0]}
+                                 </div>`;
+                    }
+                });
+                yOffset += 45;
+            });
+
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        function exportGanttImage() {
+            const container = document.getElementById('ganttDialog').querySelector('.p-4.bg-white');
+            const day = document.getElementById('ganttDaySelect').value;
+            
+            // 由於在 Modal 中有時有捲軸，先鎖定寬度避免截圖異常
+            const originalWidth = container.style.width;
+            container.style.width = 'max-content';
+            container.style.padding = '20px';
+
+            html2canvas(container, { scale: 2, backgroundColor: '#ffffff' }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `EcoleCafe_進度表_${currentYearMonth}-${day.toString().padStart(2, '0')}.jpg`;
+                link.href = canvas.toDataURL('image/jpeg', 1.0);
+                link.click();
+                
+                // 復原原本樣式
+                container.style.width = originalWidth;
+                container.style.padding = '1rem';
+            });
         }
 
         async function clearSchedule() {
