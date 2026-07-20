@@ -117,14 +117,12 @@
         </div>
     </main>
 
-    <!-- 班別時間設定模態框 (新增) -->
     <dialog id="shiftSettingsDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-sm border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
             <h3 class="font-bold text-gray-800 tracking-wide">⚙️ 班別時間設定</h3>
             <button onclick="document.getElementById('shiftSettingsDialog').close()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
         </div>
         <div class="p-4 bg-white flex flex-col gap-3 max-h-[60vh] overflow-y-auto" id="shiftSettingsForm">
-            <!-- 內容由 JS 動態生成 -->
         </div>
         <div class="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
              <button onclick="document.getElementById('shiftSettingsDialog').close()" class="border border-gray-300 text-gray-600 px-4 py-2 rounded text-sm hover:bg-gray-50">取消</button>
@@ -132,7 +130,6 @@
         </div>
     </dialog>
 
-    <!-- 自動排班設定模態框 -->
     <dialog id="autoFillDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-sm border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
             <h3 class="font-bold text-gray-800 tracking-wide">✨ 自動排班設定</h3>
@@ -146,7 +143,7 @@
             <div class="text-xs text-gray-500 bg-gray-50 p-3 rounded border border-gray-100 leading-relaxed">
                 * 系統會自動讀取「上月連續」，確保正職與工讀皆不連續上班 6 天。<br>
                 * 晚班、A1、D1 優先配給正職。<br>
-                * 內外場配置已嚴格遵守：早班站(D/A)、晚班站(N/A) 的指派規則。
+                * 外場優先排滿，允許晚班人員兼任。
             </div>
             <div class="flex justify-end gap-2 mt-2">
                 <button onclick="document.getElementById('autoFillDialog').close()" class="border border-gray-300 text-gray-600 px-4 py-2 rounded hover:bg-gray-50">取消</button>
@@ -155,22 +152,21 @@
         </div>
     </dialog>
 
-    <!-- 單日進度表(甘特圖)模態框 -->
     <dialog id="ganttDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-4xl border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
             <h3 class="font-bold text-gray-800 tracking-wide" id="ganttTitle">單日排班進度表</h3>
             <div class="flex items-center gap-2">
                 <select id="ganttDaySelect" class="border border-gray-300 rounded px-2 py-1 text-sm outline-none bg-white font-bold" onchange="renderGanttChart(this.value)"></select>
-                <button onclick="exportGanttImage()" class="bg-black text-white px-3 py-1 rounded text-sm hover:bg-gray-800 shadow-sm flex items-center gap-1"> 匯出</button>
+                <button onclick="exportGanttImage()" class="bg-black text-white px-3 py-1 rounded text-sm hover:bg-gray-800 shadow-sm flex items-center gap-1">🖼️ 匯出</button>
                 <button onclick="document.getElementById('ganttDialog').close()" class="text-gray-400 hover:text-black text-2xl leading-none ml-2">&times;</button>
             </div>
         </div>
-        <div class="p-4 bg-white overflow-x-auto">
+        <!-- 確保手機版原生順暢滑動 (touch) -->
+        <div class="p-4 bg-white overflow-x-auto" style="-webkit-overflow-scrolling: touch;">
             <div id="ganttChartContent" class="min-w-[700px] relative"></div>
         </div>
     </dialog>
 
-    <!-- 人員設定管理模態框 -->
     <dialog id="empManageDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-md border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
             <h3 class="font-bold text-gray-800 tracking-wide">👥 人員設定管理</h3>
@@ -186,7 +182,6 @@
         </div>
     </dialog>
 
-    <!-- 編輯班別模態框 -->
     <dialog id="shiftDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-md border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
             <h3 class="font-bold text-gray-800 tracking-wide" id="dialogTitle">編輯班別</h3>
@@ -199,9 +194,9 @@
                 <button onclick="setShift('❌')" class="border border-red-200 text-red-600 py-2 rounded text-sm hover:bg-red-50 font-bold shadow-sm">❌ 指定休</button>
                 <button onclick="setShift('')" class="border border-gray-200 text-gray-600 py-2 rounded text-sm hover:bg-gray-50 font-bold shadow-sm">清除重置</button>
             </div>
-
+            
             <div>
-                <div class="text-xs text-gray-400 font-bold tracking-widest border-t pt-2 mb-2">無法排班標示 (所有人員可用)</div>
+                <div class="text-xs text-gray-400 font-bold tracking-widest border-t pt-2 mb-2">工讀無法排班標示 (員工可用)</div>
                 <div class="grid grid-cols-4 gap-2 text-sm">
                     <button onclick="setShift('X_R')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-red-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法全班</span></button>
                     <button onclick="setShift('X_B')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-blue-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法早班</span></button>
@@ -209,7 +204,7 @@
                     <button onclick="setShift('X_G')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-green-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法晚班</span></button>
                 </div>
             </div>
-            
+
             <div class="admin-only w-full flex flex-col gap-4">
                 <div class="grid grid-cols-4 gap-1">
                     <button onclick="setShift('✖')" class="border border-gray-200 py-2 rounded text-xs hover:bg-gray-50 font-bold">✖ 排休</button>
@@ -222,7 +217,6 @@
                     <div class="text-xs text-gray-400 font-bold tracking-widest border-t pt-2 mb-2 flex justify-between">
                         <span>早班系列</span>
                     </div>
-                    <!-- 內容會由 JS renderShiftButtons 動態生成 -->
                     <div id="dynamicMorningShifts" class="grid grid-cols-4 gap-2 text-sm"></div>
                 </div>
 
@@ -451,7 +445,6 @@
         function setupCloudSync() {
             if (!currentUser || !db) return;
             document.getElementById('loadingText').innerText = "載入共用班表...";
-            
             const docRef = db.collection("ecoleCafe").doc("main_schedule");
             
             unsubscribeSnapshot = docRef.onSnapshot((docSnap) => {
@@ -463,7 +456,7 @@
                     carryOverData = data.carryOverData || {};
                     employees = data.employees || defaultEmployees;
                     shiftSettings = data.shiftSettings || defaultShiftTypes;
-                    renderShiftButtons(); // 根據雲端資料重新渲染班別按鈕
+                    renderShiftButtons(); 
                     renderTable();
                 } else {
                     if (currentUserRole === 'admin') saveData();
@@ -531,7 +524,7 @@
                 currentYearMonth = e.target.value;
                 renderTable();
             });
-            renderShiftButtons(); // 啟動時先渲染一次班別按鈕
+            renderShiftButtons(); 
             renderTable();
         }
 
@@ -683,31 +676,29 @@
         }
 
         function calculateHours(shiftStr) {
-            if(shiftStr.includes('A1') || shiftStr.includes('A2')) return 8;
-            if(shiftStr.includes('D1') || shiftStr.includes('D2')) return 8; 
-            if(shiftStr.includes('N1')) return 8; 
-            if(shiftStr.includes('D3')) return 6;
-            if(shiftStr.includes('D4') || shiftStr.includes('N2')) return 4;
-            
             let parsedHours = 0;
             const ranges = parseTimeRanges(shiftStr);
-            ranges.forEach(r => {
-                parsedHours += (r.end - r.start);
-            });
-            
-            if (parsedHours > 6) {
-                parsedHours -= 0.5; // 超過6小時扣除半小時休息
-            }
+            ranges.forEach(r => { parsedHours += (r.end - r.start); });
+            if (parsedHours > 6) parsedHours -= 0.5;
             return parsedHours;
         }
 
-        // 升級版解析時間邏輯：能精準抓出多組以 - / ~ 組合的時間字串
         function parseTimeRanges(shiftStr) {
             let ranges = [];
-            const regex = /(\d{1,2})(?::?(\d{2}))?\s*[-~]\s*(\d{1,2})(?::?(\d{2}))?/g;
+            const regex = /(\d{1,2})(?::?(\d{2}))?\s*[-~/]\s*(\d{1,2})(?::?(\d{2}))?/g;
             let match;
             
-            while ((match = regex.exec(shiftStr)) !== null) {
+            let searchStr = shiftStr;
+            if (shiftStr.startsWith('D1') || shiftStr.startsWith('D2') || shiftStr.startsWith('D3') || 
+                shiftStr.startsWith('D4') || shiftStr.startsWith('N1') || shiftStr.startsWith('N2') || 
+                shiftStr.startsWith('A1') || shiftStr.startsWith('A2')) {
+                const parts = shiftStr.split('\n');
+                if (parts.length > 1) searchStr = parts[1];
+            }
+
+            let found = false;
+            while ((match = regex.exec(searchStr)) !== null) {
+                found = true;
                 let startH = parseInt(match[1], 10);
                 let startM = parseInt(match[2] || 0, 10);
                 let endH = parseInt(match[3], 10);
@@ -715,9 +706,16 @@
                 
                 let start = startH + startM / 60;
                 let end = endH + endM / 60;
-                
                 if (end < start) end += 24; 
                 ranges.push({start, end});
+            }
+            
+            if (!found) {
+                if(shiftStr.includes('A1') || shiftStr.includes('A2')) { ranges.push({start: 9, end: 13}, {start: 17, end: 21}); }
+                else if(shiftStr.includes('D1') || shiftStr.includes('D2')) { ranges.push({start: 9, end: 17}); }
+                else if(shiftStr.includes('N1')) { ranges.push({start: 13, end: 21}); }
+                else if(shiftStr.includes('D3')) { ranges.push({start: 9, end: 15}); }
+                else if(shiftStr.includes('D4') || shiftStr.includes('N2')) { ranges.push({start: 13, end: 17}); }
             }
             return ranges;
         }
@@ -727,7 +725,6 @@
                 alertCustom('提醒：您只能編輯或預排您自己的班表喔！');
                 return;
             }
-
             selectedCell = { empId, day };
             document.getElementById('dialogSubtitle').innerText = `${empName} - ${currentYearMonth}-${day.toString().padStart(2, '0')}`;
             document.getElementById('customTimeCode').value = '';
@@ -747,18 +744,14 @@
             const code = document.getElementById('customTimeCode').value || '自訂';
             const start = document.getElementById('customTimeStart').value;
             const end = document.getElementById('customTimeEnd').value;
-            if (start && end) {
-                setShift(`${code}\n${start}-${end}`);
-            } else {
-                alertCustom('請完整選擇開始與結束時間');
-            }
+            if (start && end) { setShift(`${code}\n${start}-${end}`); } 
+            else { alertCustom('請完整選擇開始與結束時間'); }
         }
 
         function closeDialog() { shiftDialog.close(); }
 
         function openStationDialog(station, day) {
             if (currentUserRole !== 'admin') return;
-
             selectedCell = { station, day };
             document.getElementById('stationDialogTitle').innerText = `${station} - ${day}日`;
             let html = '';
@@ -821,11 +814,7 @@
                 container.scrollTop = container.scrollHeight;
             }, 10);
         }
-
-        function removeEmp(index) {
-            tempEmployees.splice(index, 1);
-            renderEmpManageList();
-        }
+        function removeEmp(index) { tempEmployees.splice(index, 1); renderEmpManageList(); }
 
         function saveEmpSettings() {
             employees = JSON.parse(JSON.stringify(tempEmployees)).filter(e => e.name.trim() !== '');
@@ -834,7 +823,6 @@
             renderTable();
         }
 
-        // 新增：班別時間設定管理邏輯
         function manageShiftSettings() {
             tempShiftSettings = JSON.parse(JSON.stringify(shiftSettings));
             let html = '';
@@ -854,7 +842,7 @@
         function saveShiftSettings() {
             shiftSettings = JSON.parse(JSON.stringify(tempShiftSettings));
             saveData();
-            renderShiftButtons(); // 即時更新排班選單內的按鈕時間
+            renderShiftButtons(); 
             document.getElementById('shiftSettingsDialog').close();
             alertCustom('班別設定已儲存！下次自動排班將套用新時間。');
         }
@@ -863,7 +851,6 @@
             document.getElementById('alertMsg').innerText = msg;
             document.getElementById('alertDialog').showModal();
         }
-
         function customConfirm(msg) {
             document.getElementById('confirmMsg').innerText = msg;
             confirmDialog.showModal();
@@ -874,50 +861,37 @@
             if(confirmResolver) confirmResolver(result);
         }
 
-        function autoFill() {
-            document.getElementById('autoFillDialog').showModal();
-        }
+        function autoFill() { document.getElementById('autoFillDialog').showModal(); }
 
         function executeAutoFill() {
             document.getElementById('autoFillDialog').close();
             const targetRestDays = parseInt(document.getElementById('ftRestDaysInput').value, 10) || 8;
-            
             const [year, month] = currentYearMonth.split('-').map(Number);
             const daysInMonth = new Date(year, month, 0).getDate();
 
             let consecutiveDays = {};
-            employees.forEach(emp => {
-                consecutiveDays[emp.id] = parseInt(carryOverData[currentYearMonth]?.[emp.id] || 0, 10);
-            });
+            employees.forEach(emp => { consecutiveDays[emp.id] = parseInt(carryOverData[currentYearMonth]?.[emp.id] || 0, 10); });
 
             const isWork = (s) => s && !['✖', '❌', '年假', 'X_R', 'X_B', 'X_P', 'X_G'].includes(s);
 
-            // 正職排休邏輯
             employees.filter(e => e.type === 'FT').forEach(emp => {
                 let tempConsecutive = consecutiveDays[emp.id];
                 let manualOffs = 0;
-
                 for(let i=1; i<=daysInMonth; i++) {
                     let s = scheduleData[currentYearMonth][emp.id][i];
                     if(['✖', '❌', '年假'].includes(s)) manualOffs++;
                 }
 
                 let neededOff = targetRestDays - manualOffs;
-
                 for(let i=1; i<=daysInMonth; i++) {
                     let s = scheduleData[currentYearMonth][emp.id][i];
-                    if (['✖', '❌', '年假'].includes(s)) {
-                        tempConsecutive = 0;
-                    } else if (isWork(s)) {
-                        tempConsecutive++;
-                    } else {
+                    if (['✖', '❌', '年假'].includes(s)) { tempConsecutive = 0; } 
+                    else if (isWork(s)) { tempConsecutive++; } 
+                    else {
                         if (tempConsecutive >= 5) {
                             scheduleData[currentYearMonth][emp.id][i] = '✖';
-                            tempConsecutive = 0;
-                            neededOff--;
-                        } else {
-                            tempConsecutive++;
-                        }
+                            tempConsecutive = 0; neededOff--;
+                        } else { tempConsecutive++; }
                     }
                 }
 
@@ -936,9 +910,7 @@
                 }
             });
 
-            employees.forEach(emp => {
-                consecutiveDays[emp.id] = parseInt(carryOverData[currentYearMonth]?.[emp.id] || 0, 10);
-            });
+            employees.forEach(emp => { consecutiveDays[emp.id] = parseInt(carryOverData[currentYearMonth]?.[emp.id] || 0, 10); });
 
             for (let day = 1; day <= daysInMonth; day++) {
                 const dayIndex = new Date(year, month - 1, day).getDay();
@@ -950,14 +922,11 @@
 
                 employees.forEach(emp => {
                     let s = scheduleData[currentYearMonth][emp.id][day];
-                    
                     if (!s && consecutiveDays[emp.id] >= 5) {
                         scheduleData[currentYearMonth][emp.id][day] = '✖';
                         s = '✖';
                     }
-
                     if (s === '✖' || s === '❌' || s === '年假' || s === '公出' || s === '行政' || (typeof s === 'string' && s.startsWith('X_'))) {
-                        // pass
                     } else if (!s) {
                         if(emp.type === 'FT') availableFTs.push(emp);
                         else availablePTs.push(emp);
@@ -971,19 +940,16 @@
                     let s = scheduleData[currentYearMonth][emp.id][day];
                     return s && (s.includes('N') || s.includes('晚'));
                 }).length;
-                
                 let neededLate = Math.max(0, 2 - existingLate);
 
                 while(neededLate > 0 && availableFTs.length > 0) {
                     let emp = availableFTs.pop();
-                    // 套用自訂班別時間
                     scheduleData[currentYearMonth][emp.id][day] = `N1\n${shiftSettings.N1}`;
                     neededLate--;
                 }
 
                 while(availableFTs.length > 0) {
                     let emp = availableFTs.pop();
-                    // 套用自訂班別時間
                     scheduleData[currentYearMonth][emp.id][day] = Math.random() > 0.5 ? `A1\n${shiftSettings.A1}` : `D1\n${shiftSettings.D1}`;
                 }
 
@@ -991,27 +957,20 @@
                     let s = scheduleData[currentYearMonth][emp.id][day];
                     return isWork(s) || ['公出', '行政'].includes(s);
                 }).length;
-
                 let neededStaff = Math.max(0, requiredStaff - currentStaff);
 
                 while(neededStaff > 0 && availablePTs.length > 0) {
                     let emp = availablePTs.pop();
-                    // 套用自訂班別時間
                     scheduleData[currentYearMonth][emp.id][day] = `D2\n${shiftSettings.D2}`;
                     neededStaff--;
                 }
 
-                availablePTs.forEach(emp => {
-                    scheduleData[currentYearMonth][emp.id][day] = '✖';
-                });
+                availablePTs.forEach(emp => { scheduleData[currentYearMonth][emp.id][day] = '✖'; });
 
                 employees.forEach(emp => {
                     let s = scheduleData[currentYearMonth][emp.id][day];
-                    if (isWork(s) || ['行政', '公出'].includes(s)) {
-                        consecutiveDays[emp.id]++;
-                    } else {
-                        consecutiveDays[emp.id] = 0;
-                    }
+                    if (isWork(s) || ['行政', '公出'].includes(s)) { consecutiveDays[emp.id]++; } 
+                    else { consecutiveDays[emp.id] = 0; }
                 });
 
                 let workingToday = employees.filter(emp => {
@@ -1021,12 +980,10 @@
 
                 if(workingToday.length === 0) continue;
 
-                // 內外場指派邏輯：嚴格遵守 D/A 配早班站，N/A 配晚班站
                 let earlyPool = workingToday.filter(emp => {
                     let s = scheduleData[currentYearMonth][emp.id][day];
                     return s && (s.startsWith('D') || s.startsWith('A'));
                 });
-
                 let latePool = workingToday.filter(emp => {
                     let s = scheduleData[currentYearMonth][emp.id][day];
                     return s && (s.startsWith('N') || s.startsWith('A'));
@@ -1077,12 +1034,9 @@
         function renderGanttChart(day) {
             const container = document.getElementById('ganttChartContent');
             if (!container) return;
-
-            document.getElementById('ganttTitle').innerText = `ÉCOLE CAFÉ 單日進度表 - ${currentYearMonth}-${day.toString().padStart(2, '0')}`;
+            document.getElementById('ganttTitle').innerText = `單日排班進度表 - ${currentYearMonth}-${day.toString().padStart(2, '0')}`;
             
-            const minTime = 6;
-            const maxTime = 24;
-            const totalHours = maxTime - minTime;
+            const minTime = 6; const maxTime = 24; const totalHours = maxTime - minTime;
             
             let workingEmployees = employees.filter(emp => {
                 const shiftStr = scheduleData[currentYearMonth]?.[emp.id]?.[day] || '';
@@ -1097,7 +1051,6 @@
 
             let height = workingEmployees.length * 45 + 60;
             let html = `<div class="relative w-full rounded" style="height: ${height}px; background: #ffffff;">`;
-            
             html += `<div class="absolute top-0 left-0 w-[80px] text-xs font-bold text-gray-500 text-right pr-4 z-10 pt-1">姓名</div>`;
             html += `<div class="absolute top-0 bottom-0 border-l-2 border-gray-400 z-10" style="left: 80px;"></div>`;
             
@@ -1124,7 +1077,6 @@
                     if (start < end) {
                         let left = ((start - minTime) / totalHours) * 100;
                         let width = ((end - start) / totalHours) * 100;
-                        
                         let colorClass = "bg-[#f3f4f6] text-[#374151] border border-gray-300"; 
                         if (shiftStr.startsWith('D')) colorClass = "bg-[#dbe4d7] text-[#3f4e38] border border-[#b8cbb3]";
                         else if (shiftStr.startsWith('N')) colorClass = "bg-[#ebd9d9] text-[#5c3c3c] border border-[#d6bcbc]";
@@ -1138,27 +1090,67 @@
                 });
                 yOffset += 45;
             });
-
             html += `</div>`;
             container.innerHTML = html;
         }
 
+        // 升級版跨平台匯出功能：使用 off-screen 虛擬節點截圖，解決手機版/Safari裁切問題
         function exportGanttImage() {
-            const container = document.getElementById('ganttDialog').querySelector('.p-4.bg-white');
+            const originalElement = document.getElementById('ganttChartContent');
             const day = document.getElementById('ganttDaySelect').value;
+            const [year, month] = currentYearMonth.split('-');
             
-            const originalWidth = container.style.width;
-            container.style.width = 'max-content';
-            container.style.padding = '20px';
+            const cloneWrapper = document.createElement('div');
+            cloneWrapper.style.position = 'absolute';
+            cloneWrapper.style.top = '-9999px';
+            cloneWrapper.style.left = '0';
+            cloneWrapper.style.width = '800px'; 
+            cloneWrapper.style.backgroundColor = '#ffffff';
+            cloneWrapper.style.padding = '24px';
+            cloneWrapper.style.fontFamily = 'Helvetica Neue, Arial, sans-serif';
+            
+            const titleEl = document.createElement('h2');
+            titleEl.innerHTML = `ÉCOLE CAFÉ ${year}年${parseInt(month)}月${day}日 排班進度表`;
+            titleEl.style.textAlign = 'center';
+            titleEl.style.fontSize = '20px';
+            titleEl.style.fontWeight = 'bold';
+            titleEl.style.marginBottom = '20px';
+            titleEl.style.color = '#111827';
+            cloneWrapper.appendChild(titleEl);
+            
+            const clone = originalElement.cloneNode(true);
+            clone.style.width = '100%';
+            clone.style.minWidth = 'auto'; 
+            cloneWrapper.appendChild(clone);
+            document.body.appendChild(cloneWrapper);
 
-            html2canvas(container, { scale: 2, backgroundColor: '#ffffff' }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = `EcoleCafe_單日進度表_${currentYearMonth}-${day.toString().padStart(2, '0')}.jpg`;
-                link.href = canvas.toDataURL('image/jpeg', 1.0);
-                link.click();
+            html2canvas(cloneWrapper, { 
+                scale: 2, 
+                backgroundColor: '#ffffff',
+                useCORS: true
+            }).then(canvas => {
+                document.body.removeChild(cloneWrapper);
+                const fileName = `EcoleCafe_單日進度表_${currentYearMonth}-${day.toString().padStart(2, '0')}.jpg`;
                 
-                container.style.width = originalWidth;
-                container.style.padding = '1rem';
+                canvas.toBlob(async (blob) => {
+                    const file = new File([blob], fileName, { type: 'image/jpeg' });
+                    const fallbackDownload = () => {
+                        const link = document.createElement('a');
+                        link.download = fileName;
+                        link.href = URL.createObjectURL(blob);
+                        link.click();
+                    };
+
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        try {
+                            await navigator.share({ files: [file], title: fileName });
+                        } catch (err) {
+                            if (err.name !== 'AbortError') fallbackDownload();
+                        }
+                    } else {
+                        fallbackDownload();
+                    }
+                }, 'image/jpeg', 1.0);
             });
         }
 
@@ -1258,7 +1250,6 @@
                 el.style.position = 'static'; 
                 el.style.textAlign = 'center';
                 el.style.verticalAlign = 'middle';
-                
                 if (el.tagName === 'TH' && el.parentElement.parentElement.tagName === 'THEAD') {
                     el.style.paddingTop = '8px';
                     el.style.paddingBottom = '8px';
