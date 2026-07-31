@@ -949,11 +949,18 @@
         const container = document.getElementById('task-list');
         const div = document.createElement('div');
         div.className = 'row-group';
+        div.style.alignItems = 'stretch';
         div.innerHTML = `
-            <input type="text" class="task-assignee" list="staff-options" value="${assignee}" style="flex: 0 0 130px;" placeholder="負責人">
-            <input type="text" class="task-desc" value="${desc}" placeholder="交辦事項內容">
-            <label class="checkbox-label"><input type="checkbox" class="task-done" ${done ? 'checked' : ''}> 已完成</label>
-            <button type="button" class="remove-btn" onclick="removeRow(this)">×</button>
+            <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="text" class="task-assignee" list="staff-options" value="${assignee}" placeholder="負責人" style="flex: 1;">
+                    <label class="checkbox-label" style="white-space: nowrap;"><input type="checkbox" class="task-done" ${done ? 'checked' : ''}> 已完成</label>
+                </div>
+                <div>
+                    <input type="text" class="task-desc" value="${desc}" placeholder="交辦事項內容">
+                </div>
+            </div>
+            <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>
         `;
         container.appendChild(div);
     }
