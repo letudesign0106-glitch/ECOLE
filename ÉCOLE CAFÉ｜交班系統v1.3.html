@@ -941,7 +941,11 @@
         const container = document.getElementById('alignment-list');
         const div = document.createElement('div');
         div.className = 'row-group';
-        div.innerHTML = `<input type="text" value="${val}" placeholder="請輸入對齊項目..."><button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`;
+        div.style.alignItems = 'stretch';
+        div.innerHTML = `
+            <textarea class="alignment-input" placeholder="請輸入對齊項目..." style="min-height: 42px;">${val}</textarea>
+            <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>
+        `;
         container.appendChild(div);
     }
 
@@ -1055,7 +1059,7 @@
         briefing += `\n\n📍客情訂位狀況：${resText.trim()}`;
 
         // 對齊項目 (無填寫不顯示內文，但顯示標題)
-        const alignmentRows = document.querySelectorAll('#alignment-list input');
+        const alignmentRows = document.querySelectorAll('.alignment-input');
         let alignmentText = '';
         alignmentRows.forEach(row => {
             if(row.value.trim() !== '') alignmentText += `${row.value}\n`;
@@ -1147,7 +1151,7 @@
                 revTotal: document.getElementById('rev-total').value,
                 attendance: document.getElementById('attendance-summary').value,
                 reservations: Array.from(document.querySelectorAll('.reservation-input')).map(i => i.value),
-                alignments: Array.from(document.querySelectorAll('#alignment-list input')).map(i => i.value),
+                alignments: Array.from(document.querySelectorAll('.alignment-input')).map(i => i.value),
                 discussions: document.getElementById('discussion-notes').value,
                 incidents: document.getElementById('incident-notes').value,
                 shortages: Array.from(document.querySelectorAll('.shortage-item')).map(i => i.value),
