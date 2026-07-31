@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ÉCOLE CAFÉ 智慧交班系統</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f4;
+            --card-bg: #ffffff;
+            --text-main: #1a1a1a;
+            --text-muted: #666666;
+            --border-color: #dcdcdc;
+            --accent-color: #111111;
+            --accent-hover: #333333;
+            --danger-color: #666666;
+            --danger-hover: #111111;
+            --focus-ring: rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft JhengHei", sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .date-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #e2e2e2;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .date-input-wrapper input[type="date"] {
+            border: none;
+            background: transparent;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-main);
+            cursor: pointer;
+            outline: none;
+        }
+
+        .action-icon-btn {
+            background: #ffffff;
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .action-icon-btn:hover {
+            background: var(--accent-color);
+            color: #ffffff;
+            border-color: var(--accent-color);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .section-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-main);
+            border-left: 3px solid var(--accent-color);
+            padding-left: 8px;
+        }
+
+        .add-row-btn {
+            background: transparent;
+            border: 1px dashed var(--accent-color);
+            color: var(--accent-color);
+            padding: 4px 12px;
+            font-size: 0.8rem;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .add-row-btn:hover {
+            background: var(--accent-color);
+            color: #fff;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 600px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        input[type="text"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            background: #fff;
+            color: var(--text-main);
+            transition: all 0.2s ease;
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: #a8a8a8;
+            opacity: 1;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px var(--focus-ring);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .list-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .row-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .row-group input[type="text"],
+        .row-group select {
+            flex: 1;
+        }
+
+        .row-group label.checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            color: var(--text-main);
+            cursor: pointer;
+            white-space: nowrap;
+            margin-bottom: 0;
+        }
+
+        /* 快速點擊選取人員標籤列 */
+        .staff-pills-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .staff-pill {
+            background: #f0f0f0;
+            border: 1px solid #dcdcdc;
+            color: var(--text-main);
+            padding: 2px 10px;
+            font-size: 0.8rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .staff-pill:hover {
+            background: var(--accent-color);
+            color: #ffffff;
+            border-color: var(--accent-color);
+        }
+
+        .remove-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--danger-color);
+            width: 36px;
+            height: 41px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .remove-btn:hover {
+            background: var(--danger-hover);
+            color: #ffffff;
+            border-color: var(--danger-hover);
+        }
+
+        .btn {
+            background-color: var(--accent-color);
+            color: #ffffff;
+            border: none;
+            padding: 14px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 24px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 24px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .output-section {
+            background: #111111;
+            color: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 24px;
+            display: none;
+        }
+
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .output-header h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ccc;
+        }
+
+        .copy-btn {
+            background: #333;
+            color: #fff;
+            border: none;
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: #555;
+        }
+
+        pre {
+            background: #1a1a1a;
+            padding: 16px;
+            border-radius: 6px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 0.9rem;
+            color: #e0e0e0;
+            border: 1px solid #333;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .hidden-file-input {
+            display: none;
+        }
+
+        /* 彈跳視窗樣式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: #ffffff;
+            padding: 24px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+        .modal-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .close-modal-btn {
+            background: transparent;
+            border: none;
+            font-size: 1.3rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+        .close-modal-btn:hover {
+            background: #eee;
+            color: var(--text-main);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>ÉCOLE CAFÉ 智慧交班系統</h1>
+        <div class="header-controls">
+            <div class="date-input-wrapper">
+                <span>日期：</span>
+                <input type="date" id="briefing-date-picker" onchange="onDateChange()">
+            </div>
+            <button type="button" class="action-icon-btn" onclick="openStaffModal()">人員配置</button>
+            <button type="button" class="action-icon-btn" onclick="clearAllFields()">全部清空</button>
+            <button type="button" class="action-icon-btn" onclick="exportJSON()">匯出備份</button>
+            <button type="button" class="action-icon-btn" onclick="document.getElementById('import-file').click()">讀取備份</button>
+            <input type="file" id="import-file" class="hidden-file-input" accept=".json" onchange="importJSON(event)">
+        </div>
+    </header>
+
+    <form id="handover-form">
+        <!-- 共同人員清單 (Datalist 供下拉與自訂輸入使用) -->
+        <datalist id="staff-options">
+            <!-- 動態載入 -->
+        </datalist>
+
+        <!-- 1. 值班與站區配置 -->
+        <div class="card">
+            <div class="section-title">├── 值班主管與站區配置</div>
+            <div class="grid-2" style="margin-bottom: 12px; margin-top: 12px;">
+                <div>
+                    <label>值班主管 (單選)</label>
+                    <input type="text" id="shift-manager" value="" placeholder="請選擇或輸入值班主管">
+                    <div class="staff-pills-container" id="pills-manager"></div>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div>
+                    <label>吧台 (可點擊下方人員複選或重新選擇)</label>
+                    <input type="text" id="station-bar" value="" placeholder="請選擇或輸入吧台人員">
+                    <div class="staff-pills-container" id="pills-bar"></div>
+                </div>
+                <div>
+                    <label>櫃檯外場 (可點擊下方人員複選或重新選擇)</label>
+                    <input type="text" id="station-counter" value="" placeholder="請選擇或輸入外場人員">
+                    <div class="staff-pills-container" id="pills-counter"></div>
+                </div>
+            </div>
+            <div style="margin-top: 12px;">
+                <label>廚房 (可點擊下方人員複選或重新選擇)</label>
+                <input type="text" id="station-kitchen" value="" placeholder="請選擇或輸入廚房人員">
+                <div class="staff-pills-container" id="pills-kitchen"></div>
+            </div>
+        </div>
+
+        <!-- 2. 營業額與出勤資訊 -->
+        <div class="card">
+            <div class="section-title">├── 💰 營業額與出勤資訊</div>
+            <div class="grid-2" style="margin-top: 12px; margin-bottom: 12px;">
+                <div>
+                    <label>日營業額</label>
+                    <input type="text" id="rev-day" placeholder="例如: 19216" oninput="calcTotalRevenue()">
+                </div>
+                <div>
+                    <label>夜營業額</label>
+                    <input type="text" id="rev-night" placeholder="例如: 1080" oninput="calcTotalRevenue()">
+                </div>
+            </div>
+            <div class="grid-2">
+                <div>
+                    <label>總計業績</label>
+                    <input type="text" id="rev-total" placeholder="例如: 20296">
+                </div>
+                <div>
+                    <label>本日出勤</label>
+                    <input type="text" id="attendance-summary" placeholder="例如: 3正1工">
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. 客情訂位狀況 -->
+        <div class="card">
+            <div class="section-header">
+                <div class="section-title">├── 📍 客情訂位狀況</div>
+                <button type="button" class="add-row-btn" onclick="addReservationRow()">新增項目</button>
+            </div>
+            <div class="list-inputs" id="reservation-list">
+                <!-- 初始為空 -->
+            </div>
+        </div>
+
+        <!-- 4. 對齊項目 -->
+        <div class="card">
+            <div class="section-header">
+                <div class="section-title">├── 📍 對齊項目</div>
+                <button type="button" class="add-row-btn" onclick="addAlignmentRow()">新增項目</button>
+            </div>
+            <div class="list-inputs" id="alignment-list">
+                <!-- 初始為空 -->
+            </div>
+        </div>
+
+        <!-- 5. 主管交辦 -->
+        <div class="card">
+            <div class="section-header">
+                <div class="section-title">├── 📍 主管交辦</div>
+                <button type="button" class="add-row-btn" onclick="addTaskRow()">新增交辦</button>
+            </div>
+            <div class="list-inputs" id="task-list">
+                <!-- 初始為空 -->
+            </div>
+        </div>
+
+        <!-- 6. 意見討論 -->
+        <div class="card">
+            <div class="section-title">├── 📍 意見討論</div>
+            <div style="margin-top: 12px;">
+                <textarea id="discussion-notes" placeholder="請輸入意見討論事項..."></textarea>
+            </div>
+        </div>
+
+        <!-- 7. 現場事件 -->
+        <div class="card">
+            <div class="section-title">├── 📍 現場事件</div>
+            <div style="margin-top: 12px;">
+                <textarea id="incident-notes" placeholder="請記錄現場突發狀況、客訴或設備異常..."></textarea>
+            </div>
+        </div>
+
+        <!-- 8. 缺貨商品 -->
+        <div class="card">
+            <div class="section-header">
+                <div class="section-title">├── 📍 缺貨商品</div>
+                <button type="button" class="add-row-btn" onclick="addShortageRow()">新增品項</button>
+            </div>
+            <div class="list-inputs" id="shortage-list" style="margin-top: 12px;">
+                <!-- 初始為空 -->
+            </div>
+        </div>
+
+        <!-- 9. 需叫貨項目 -->
+        <div class="card">
+            <div class="section-header">
+                <div class="section-title">├── 📍 需叫貨項目</div>
+                <button type="button" class="add-row-btn" onclick="addOrderRow()">新增叫貨</button>
+            </div>
+            <div class="list-inputs" id="order-list" style="margin-top: 12px;">
+                <!-- 初始為空 -->
+            </div>
+        </div>
+
+        <!-- 10. 推銷品項 -->
+        <div class="card">
+            <div class="section-header">
+                <div class="section-title">├── 📍 推銷品項</div>
+                <button type="button" class="add-row-btn" onclick="addPromoRow()">新增品項</button>
+            </div>
+            <div class="list-inputs" id="promo-list" style="margin-top: 12px;">
+                <!-- 初始為空 -->
+            </div>
+        </div>
+
+        <!-- 一鍵產生 LINE Briefing -->
+        <button type="button" class="btn" onclick="generateLineBriefing()">
+            一鍵產生 LINE Briefing
+        </button>
+    </form>
+
+    <!-- 結果預覽區塊 -->
+    <div class="output-section" id="output-section">
+        <div class="output-header">
+            <h3>LINE 交班訊息預覽</h3>
+            <button class="copy-btn" onclick="copyBriefing()">一鍵複製內容</button>
+        </div>
+        <pre id="briefing-text"></pre>
+    </div>
+</div>
+
+<!-- 人員配置彈跳視窗 -->
+<div id="staff-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>人員配置管理</h3>
+            <button type="button" class="close-modal-btn" onclick="closeStaffModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="row-group" style="margin-bottom: 16px;">
+                <input type="text" id="new-staff-name" placeholder="輸入新人員姓名">
+                <button type="button" class="action-icon-btn" style="border-radius: 6px; padding: 10px 16px; white-space: nowrap;" onclick="addNewStaff()">新增人員</button>
+            </div>
+            <label style="margin-bottom: 6px;">現有人員列表：</label>
+            <div id="staff-manage-list" class="list-inputs" style="max-height: 220px; overflow-y: auto; padding-right: 4px;">
+                <!-- 動態載入 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 全域完整資料結構 (對應排班表人員)[cite: 1]
+    let globalDataStore = {
+        scheduleData: {},
+        stationData: {},
+        noteData: {},
+        carryOverData: {},
+        employees: [
+            {"id":"FT1","name":"緎俽","type":"FT"},
+            {"id":"FT2","name":"龍","type":"FT"},
+            {"id":"FT3","name":"沐","type":"FT"},
+            {"id":"FT4","name":"訓鋒","type":"FT"},
+            {"id":"FT5","name":"沛宜","type":"FT"},
+            {"id":"PT1","name":"耀霆","type":"PT"},
+            {"id":"PT2","name":"煥哲","type":"PT"},
+            {"id":"PT3","name":"書書","type":"PT"},
+            {"id":"PT4","name":"澤凱","type":"PT"},
+            {"id":"PT5","name":"婉庭","type":"PT"}
+        ],
+        shiftSettings: {},
+        dailyTracking: {}
+    };
+
+    // 預設人員參考排班表人員清單[cite: 1]
+    let staffList = ['緎俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
+
+    // 初始化載入
+    document.addEventListener("DOMContentLoaded", () => {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        document.getElementById('briefing-date-picker').value = `${yyyy}-${mm}-${dd}`;
+        
+        syncStaffFromEmployees();
+        loadStaffList();
+        renderStaffPills();
+        loadDayData();
+    });
+
+    // 全部清空按鈕功能
+    function clearAllFields() {
+        if (!confirm('確定要清空所有填寫內容嗎？')) return;
+        document.getElementById('shift-manager').value = '';
+        document.getElementById('station-bar').value = '';
+        document.getElementById('station-counter').value = '';
+        document.getElementById('station-kitchen').value = '';
+        document.getElementById('rev-day').value = '';
+        document.getElementById('rev-night').value = '';
+        document.getElementById('rev-total').value = '';
+        document.getElementById('attendance-summary').value = '';
+        document.getElementById('discussion-notes').value = '';
+        document.getElementById('incident-notes').value = '';
+
+        // 清空動態清單並保留乾淨欄位
+        document.getElementById('reservation-list').innerHTML = '';
+        document.getElementById('alignment-list').innerHTML = '';
+        document.getElementById('task-list').innerHTML = '';
+        document.getElementById('shortage-list').innerHTML = '';
+        document.getElementById('order-list').innerHTML = '';
+        document.getElementById('promo-list').innerHTML = '';
+
+        document.getElementById('output-section').style.display = 'none';
+    }
+
+    // 自動計算總計業績
+    function calcTotalRevenue() {
+        const dayVal = parseFloat(document.getElementById('rev-day').value) || 0;
+        const nightVal = parseFloat(document.getElementById('rev-night').value) || 0;
+        const totalInput = document.getElementById('rev-total');
+        if (dayVal > 0 || nightVal > 0) {
+            totalInput.value = dayVal + nightVal;
+        } else if (!document.getElementById('rev-day').value && !document.getElementById('rev-night').value) {
+            totalInput.value = '';
+        }
+    }
+
+    // 當日期變更時，自動載入該日資料、上一日未完成交辦與叫貨
+    function onDateChange() {
+        saveCurrentDayData();
+        loadDayData();
+    }
+
+    // 從 employees 同步到 staffList 確保涵蓋所有排班表人員[cite: 1]
+    function syncStaffFromEmployees() {
+        if (globalDataStore.employees && globalDataStore.employees.length > 0) {
+            globalDataStore.employees.forEach(emp => {
+                if (emp.name && !staffList.includes(emp.name)) {
+                    staffList.push(emp.name);
+                }
+            });
+        }
+        if (globalDataStore.stationData) {
+            Object.keys(globalDataStore.stationData).forEach(ym => {
+                const monthObj = globalDataStore.stationData[ym];
+                Object.keys(monthObj).forEach(stationKey => {
+                    const dayMap = monthObj[stationKey];
+                    Object.keys(dayMap).forEach(dayNum => {
+                        const nameStr = dayMap[dayNum];
+                        if (nameStr) {
+                            const names = nameStr.split(/[\s、,]+/);
+                            names.forEach(n => {
+                                const trimmed = n.trim();
+                                if (trimmed && !staffList.includes(trimmed)) {
+                                    staffList.push(trimmed);
+                                }
+                            });
+                        }
+                    });
+                });
+            });
+        }
+    }
+
+    function loadStaffList() {
+        updateDatalist();
+        renderStaffPills();
+    }
+
+    function updateDatalist() {
+        const datalist = document.getElementById('staff-options');
+        datalist.innerHTML = '';
+        staffList.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            datalist.appendChild(option);
+        });
+    }
+
+    // 渲染站區與主管的快速點擊選取人員膠囊
+    function renderStaffPills() {
+        const containers = ['manager', 'bar', 'counter', 'kitchen'];
+        containers.forEach(type => {
+            const container = document.getElementById(`pills-${type}`);
+            if (!container) return;
+            container.innerHTML = '';
+            staffList.forEach(name => {
+                const pill = document.createElement('span');
+                pill.className = 'staff-pill';
+                pill.innerText = name;
+                pill.onclick = () => handleStaffPillClick(type, name);
+                container.appendChild(pill);
+            });
+        });
+    }
+
+    // 點擊人員膠囊處理方式 (主管單選並可重新選擇，站區可複選/點擊切換)
+    function handleStaffPillClick(type, name) {
+        const inputId = type === 'manager' ? 'shift-manager' : `station-${type}`;
+        const input = document.getElementById(inputId);
+        if (!input) return;
+
+        if (type === 'manager') {
+            input.value = name;
+        } else {
+            let currentVal = input.value.trim();
+            let currentList = currentVal ? currentVal.split(/[\s、,]+/).map(s => s.trim()).filter(Boolean) : [];
+            
+            const index = currentList.indexOf(name);
+            if (index > -1) {
+                currentList.splice(index, 1);
+            } else {
+                currentList.push(name);
+            }
+            input.value = currentList.join('、');
+        }
+    }
+
+    // 開啟與關閉人員配置視窗
+    function openStaffModal() {
+        renderStaffManageList();
+        document.getElementById('staff-modal').style.display = 'flex';
+    }
+
+    function closeStaffModal() {
+        document.getElementById('staff-modal').style.display = 'none';
+    }
+
+    function renderStaffManageList() {
+        const container = document.getElementById('staff-manage-list');
+        container.innerHTML = '';
+        staffList.forEach((name, index) => {
+            const div = document.createElement('div');
+            div.className = 'row-group';
+            div.innerHTML = `
+                <input type="text" value="${name}" readonly style="background: #f9f9f9;">
+                <button type="button" class="remove-btn" onclick="removeStaff(${index})">×</button>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function addNewStaff() {
+        const input = document.getElementById('new-staff-name');
+        const name = input.value.trim();
+        if (!name) {
+            alert('請輸入人員姓名！');
+            return;
+        }
+        if (staffList.includes(name)) {
+            alert('此人員已存在清單中！');
+            return;
+        }
+        staffList.push(name);
+        globalDataStore.employees.push({ id: 'EMP_' + Date.now(), name: name, type: 'FT' });
+        loadStaffList();
+        input.value = '';
+        renderStaffManageList();
+    }
+
+    function removeStaff(index) {
+        if (staffList.length <= 1) {
+            alert('至少需保留一位人員！');
+            return;
+        }
+        const removedName = staffList[index];
+        staffList.splice(index, 1);
+        globalDataStore.employees = globalDataStore.employees.filter(e => e.name !== removedName);
+        loadStaffList();
+        renderStaffManageList();
+    }
+
+    // 根據所選日期自動從 stationData 填入站區與主管配置
+    function autoFillStationData(dateStr) {
+        if (!dateStr) return;
+        const parts = dateStr.split('-');
+        if (parts.length !== 3) return;
+        const yearMonth = `${parts[0]}-${parts[1]}`;
+        const dayNum = parseInt(parts[2], 10).toString();
+
+        if (globalDataStore.stationData && globalDataStore.stationData[yearMonth]) {
+            const sData = globalDataStore.stationData[yearMonth];
+            const morningBar = sData["早吧台"]?.[dayNum] || "";
+            const morningKitchen = sData["早廚"]?.[dayNum] || "";
+            const counterStaff = sData["外場"]?.[dayNum] || "";
+            const eveningBar = sData["晚吧台"]?.[dayNum] || "";
+            const eveningKitchen = sData["晚廚"]?.[dayNum] || "";
+
+            if (morningBar) document.getElementById('station-bar').value = morningBar;
+            if (counterStaff) {
+                document.getElementById('station-counter').value = counterStaff;
+                document.getElementById('shift-manager').value = counterStaff;
+            }
+            let kitchenList = [];
+            if (morningKitchen) kitchenList.push(morningKitchen);
+            if (eveningKitchen && eveningKitchen !== morningKitchen) kitchenList.push(eveningKitchen);
+            if (kitchenList.length > 0) {
+                document.getElementById('station-kitchen').value = kitchenList.join('、');
+            }
+        }
+    }
+
+    function getPreviousDateStr(dateStr) {
+        const d = new Date(dateStr);
+        d.setDate(d.getDate() - 1);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function saveCurrentDayData() {
+        const dateVal = document.getElementById('briefing-date-picker').value;
+        if (!dateVal) return;
+
+        if (!globalDataStore.dailyTracking) globalDataStore.dailyTracking = {};
+        
+        const tasks = Array.from(document.querySelectorAll('#task-list .row-group')).map(row => ({
+            assignee: row.querySelector('.task-assignee').value,
+            desc: row.querySelector('.task-desc').value,
+            done: row.querySelector('.task-done').checked
+        }));
+
+        const orders = Array.from(document.querySelectorAll('#order-list .row-group')).map(row => ({
+            item: row.querySelector('.order-item').value,
+            done: row.querySelector('.order-done').checked
+        }));
+
+        globalDataStore.dailyTracking[dateVal] = { tasks, orders };
+    }
+
+    function loadDayData() {
+        const dateVal = document.getElementById('briefing-date-picker').value;
+        if (!dateVal) return;
+
+        autoFillStationData(dateVal);
+
+        let activeTasks = [];
+        let activeOrders = [];
+
+        const prevDateStr = getPreviousDateStr(dateVal);
+        if (globalDataStore.dailyTracking && globalDataStore.dailyTracking[prevDateStr]) {
+            const prevDay = globalDataStore.dailyTracking[prevDateStr];
+            if (prevDay.tasks) {
+                prevDay.tasks.forEach(t => {
+                    if (!t.done) {
+                        activeTasks.push({ assignee: t.assignee, desc: t.desc, done: false });
+                    }
+                });
+            }
+            if (prevDay.orders) {
+                prevDay.orders.forEach(o => {
+                    if (!o.done) {
+                        activeOrders.push({ item: o.item, done: false });
+                    }
+                });
+            }
+        }
+
+        if (globalDataStore.dailyTracking && globalDataStore.dailyTracking[dateVal]) {
+            const currentDay = globalDataStore.dailyTracking[dateVal];
+            if (currentDay.tasks && currentDay.tasks.length > 0) {
+                activeTasks = currentDay.tasks;
+            }
+            if (currentDay.orders && currentDay.orders.length > 0) {
+                activeOrders = currentDay.orders;
+            }
+        }
+
+        const taskContainer = document.getElementById('task-list');
+        taskContainer.innerHTML = '';
+        activeTasks.forEach(t => {
+            if (!t.done) {
+                addTaskRow(t.assignee, t.desc, t.done);
+            }
+        });
+
+        const orderContainer = document.getElementById('order-list');
+        orderContainer.innerHTML = '';
+        activeOrders.forEach(o => {
+            if (!o.done) {
+                addOrderRow(o.item, o.done);
+            }
+        });
+    }
+
+    // 動態新增項目輔助函數 (預設無文字，具備 placeholder)
+    function addReservationRow(val = '') {
+        const container = document.getElementById('reservation-list');
+        const div = document.createElement('div');
+        div.className = 'row-group';
+        div.innerHTML = `<input type="text" class="reservation-input" value="${val}" placeholder="請輸入訂位狀況..."><button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`;
+        container.appendChild(div);
+    }
+
+    function addAlignmentRow(val = '') {
+        const container = document.getElementById('alignment-list');
+        const div = document.createElement('div');
+        div.className = 'row-group';
+        div.innerHTML = `<input type="text" value="${val}" placeholder="請輸入對齊項目..."><button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`;
+        container.appendChild(div);
+    }
+
+    function addTaskRow(assignee = '', desc = '', done = false) {
+        const container = document.getElementById('task-list');
+        const div = document.createElement('div');
+        div.className = 'row-group';
+        div.innerHTML = `
+            <input type="text" class="task-assignee" list="staff-options" value="${assignee}" style="flex: 0 0 130px;" placeholder="負責人">
+            <input type="text" class="task-desc" value="${desc}" placeholder="交辦事項內容">
+            <label class="checkbox-label"><input type="checkbox" class="task-done" ${done ? 'checked' : ''}> 已完成</label>
+            <button type="button" class="remove-btn" onclick="removeRow(this)">×</button>
+        `;
+        container.appendChild(div);
+    }
+
+    function addShortageRow(val = '') {
+        const container = document.getElementById('shortage-list');
+        const div = document.createElement('div');
+        div.className = 'row-group';
+        div.innerHTML = `<input type="text" class="shortage-item" value="${val}" placeholder="請輸入缺貨商品..."><button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`;
+        container.appendChild(div);
+    }
+
+    function addOrderRow(val = '', done = false) {
+        const container = document.getElementById('order-list');
+        const div = document.createElement('div');
+        div.className = 'row-group';
+        div.innerHTML = `
+            <input type="text" class="order-item" value="${val}" placeholder="請輸入需叫貨項目與備註">
+            <label class="checkbox-label"><input type="checkbox" class="order-done" ${done ? 'checked' : ''}> 已處理</label>
+            <button type="button" class="remove-btn" onclick="removeRow(this)">×</button>
+        `;
+        container.appendChild(div);
+    }
+
+    function addPromoRow(val = '') {
+        const container = document.getElementById('promo-list');
+        const div = document.createElement('div');
+        div.className = 'row-group';
+        div.innerHTML = `<input type="text" class="promo-input" value="${val}" placeholder="請輸入推銷品項與價格..."><button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`;
+        container.appendChild(div);
+    }
+
+    function removeRow(btn) {
+        const row = btn.closest('.row-group');
+        row.remove();
+    }
+
+    // 產生 LINE Briefing (無填寫不顯示內文，但顯示標題)
+    function generateLineBriefing() {
+        saveCurrentDayData();
+
+        const dateVal = document.getElementById('briefing-date-picker').value;
+        let dateFormatted = '';
+        if (dateVal) {
+            const dateObj = new Date(dateVal);
+            dateFormatted = `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
+        } else {
+            const today = new Date();
+            dateFormatted = `${today.getMonth() + 1}/${today.getDate()}`;
+        }
+
+        const manager = document.getElementById('shift-manager').value.trim();
+        const bar = document.getElementById('station-bar').value.trim();
+        const counter = document.getElementById('station-counter').value.trim();
+        const kitchen = document.getElementById('station-kitchen').value.trim();
+        
+        let briefing = `ÉCOLE CAFÉ ${dateFormatted} Briefing`;
+        if (manager) briefing += `\n值班主管：${manager}`;
+
+        if (bar || counter || kitchen) {
+            briefing += `\n\n站區`;
+            if (bar) briefing += `\n吧台：${bar}`;
+            if (counter) briefing += `\n櫃檯外場：${counter}`;
+            if (kitchen) briefing += `\n廚房：${kitchen}`;
+        }
+
+        // 營業額與出勤資訊區塊 (與人員配置/站區空一行)
+        const revDay = document.getElementById('rev-day').value.trim();
+        const revNight = document.getElementById('rev-night').value.trim();
+        const revTotal = document.getElementById('rev-total').value.trim();
+        const attendance = document.getElementById('attendance-summary').value.trim();
+
+        if (revDay || revNight || revTotal || attendance) {
+            briefing += `\n`; 
+            if (revDay) briefing += `\n日  ${revDay}\n`;
+            if (revNight) briefing += `夜  ${revNight}\n`;
+            if (revTotal) briefing += `總計業績  ${revTotal}\n`;
+            if (revDay || revNight || revTotal) {
+                briefing += `——————————\n`;
+            }
+            if (attendance) {
+                briefing += `本日出勤  ${attendance}\n——————————`;
+            }
+        }
+
+        // 客情訂位狀況 (無填寫不顯示內文，但顯示標題)
+        const resInputs = document.querySelectorAll('.reservation-input');
+        let resText = '';
+        resInputs.forEach(input => {
+            if(input.value.trim() !== '') resText += `${input.value} `;
+        });
+        briefing += `\n\n📍客情訂位狀況：${resText.trim()}`;
+
+        // 對齊項目 (無填寫不顯示內文，但顯示標題)
+        const alignmentRows = document.querySelectorAll('#alignment-list input');
+        let alignmentText = '';
+        alignmentRows.forEach(row => {
+            if(row.value.trim() !== '') alignmentText += `${row.value}\n`;
+        });
+        briefing += `\n\n📍對齊項目：\n${alignmentText.trim()}`;
+
+        // 主管交辦 (無填寫不顯示內文，但顯示標題)
+        const taskRows = document.querySelectorAll('#task-list .row-group');
+        let taskText = '';
+        taskRows.forEach(row => {
+            const assignee = row.querySelector('.task-assignee').value.trim();
+            const desc = row.querySelector('.task-desc').value.trim();
+            const isDone = row.querySelector('.task-done').checked;
+            if(assignee || desc) {
+                const statusTag = isDone ? ' 【已完成】' : '';
+                taskText += `• 負責人：${assignee || '未指定'}\n  事項：${desc}${statusTag}\n`;
+            }
+        });
+        briefing += `\n\n📍主管交辦：\n${taskText.trim()}`;
+
+        // 意見討論 (無填寫不顯示內文，但顯示標題)
+        const discussions = document.getElementById('discussion-notes').value.trim();
+        briefing += `\n\n📍意見討論：\n${discussions}`;
+
+        // 現場事件 (無填寫不顯示內文，但顯示標題)
+        const incidents = document.getElementById('incident-notes').value.trim();
+        briefing += `\n\n📍現場事件：\n${incidents}`;
+
+        // 缺貨商品 (無填寫不顯示內文，但顯示標題)
+        const shortageRows = document.querySelectorAll('.shortage-item');
+        let shortageText = '';
+        shortageRows.forEach(row => {
+            if(row.value.trim() !== '') shortageText += `${row.value}、`;
+        });
+        shortageText = shortageText.replace(/、$/, '');
+        briefing += `\n\n📍缺貨商品：\n${shortageText}`;
+
+        // 需叫貨項目 (無填寫不顯示內文，但顯示標題)
+        const orderRows = document.querySelectorAll('#order-list .row-group');
+        let orderText = '';
+        orderRows.forEach(row => {
+            const itemVal = row.querySelector('.order-item').value.trim();
+            const isDone = row.querySelector('.order-done').checked;
+            if(itemVal !== '') {
+                const statusTag = isDone ? ' 【已處理】' : '';
+                orderText += `• ${itemVal}${statusTag}\n`;
+            }
+        });
+        briefing += `\n\n📍需叫貨項目：\n${orderText.trim()}`;
+
+        // 推銷品項 (無填寫不顯示內文，但顯示標題)
+        const promoRows = document.querySelectorAll('.promo-input');
+        let promoText = '';
+        promoRows.forEach(row => {
+            if(row.value.trim() !== '') promoText += `${row.value}\n`;
+        });
+        briefing += `\n\n📍推銷品項：\n${promoText.trim()}`;
+
+        // 最下方自動加入固定結語
+        briefing += `\n\n-------------------------\n請各夥伴閱畢後於下方表情符號 點收，謝謝！`;
+
+        document.getElementById('briefing-text').innerText = briefing;
+        const outputSection = document.getElementById('output-section');
+        outputSection.style.display = 'block';
+        outputSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function copyBriefing() {
+        const text = document.getElementById('briefing-text').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            alert('已成功複製 LINE 交班內容！');
+        }).catch(err => {
+            console.error('複製失敗', err);
+        });
+    }
+
+    function exportJSON() {
+        saveCurrentDayData();
+        const dataToExport = {
+            ...globalDataStore,
+            currentForm: {
+                date: document.getElementById('briefing-date-picker').value,
+                manager: document.getElementById('shift-manager').value,
+                bar: document.getElementById('station-bar').value,
+                counter: document.getElementById('station-counter').value,
+                kitchen: document.getElementById('station-kitchen').value,
+                revDay: document.getElementById('rev-day').value,
+                revNight: document.getElementById('rev-night').value,
+                revTotal: document.getElementById('rev-total').value,
+                attendance: document.getElementById('attendance-summary').value,
+                reservations: Array.from(document.querySelectorAll('.reservation-input')).map(i => i.value),
+                alignments: Array.from(document.querySelectorAll('#alignment-list input')).map(i => i.value),
+                discussions: document.getElementById('discussion-notes').value,
+                incidents: document.getElementById('incident-notes').value,
+                shortages: Array.from(document.querySelectorAll('.shortage-item')).map(i => i.value),
+                promos: Array.from(document.querySelectorAll('.promo-input')).map(i => i.value)
+            }
+        };
+
+        const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ecole_cafe_backup_${document.getElementById('briefing-date-picker').value || 'data'}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function importJSON(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                
+                if (data.employees) {
+                    globalDataStore.employees = data.employees;
+                }
+                if (data.scheduleData) globalDataStore.scheduleData = data.scheduleData;
+                if (data.stationData) globalDataStore.stationData = data.stationData;
+                if (data.noteData) globalDataStore.noteData = data.noteData;
+                if (data.carryOverData) globalDataStore.carryOverData = data.carryOverData;
+                if (data.shiftSettings) globalDataStore.shiftSettings = data.shiftSettings;
+                if (data.dailyTracking) globalDataStore.dailyTracking = data.dailyTracking;
+
+                syncStaffFromEmployees();
+                loadStaffList();
+
+                if (data.currentForm) {
+                    const f = data.currentForm;
+                    if (f.date) document.getElementById('briefing-date-picker').value = f.date;
+                    if (f.manager) document.getElementById('shift-manager').value = f.manager;
+                    if (f.bar) document.getElementById('station-bar').value = f.bar;
+                    if (f.counter) document.getElementById('station-counter').value = f.counter;
+                    if (f.kitchen) document.getElementById('station-kitchen').value = f.kitchen;
+                    if (f.revDay !== undefined) document.getElementById('rev-day').value = f.revDay;
+                    if (f.revNight !== undefined) document.getElementById('rev-night').value = f.revNight;
+                    if (f.revTotal !== undefined) document.getElementById('rev-total').value = f.revTotal;
+                    if (f.attendance !== undefined) document.getElementById('attendance-summary').value = f.attendance;
+                    if (f.discussions !== undefined) document.getElementById('discussion-notes').value = f.discussions;
+                    if (f.incidents !== undefined) document.getElementById('incident-notes').value = f.incidents;
+
+                    if (f.reservations) {
+                        const container = document.getElementById('reservation-list');
+                        container.innerHTML = '';
+                        f.reservations.forEach(val => addReservationRow(val));
+                    }
+                    if (f.alignments) {
+                        const container = document.getElementById('alignment-list');
+                        container.innerHTML = '';
+                        f.alignments.forEach(val => addAlignmentRow(val));
+                    }
+                    if (f.shortages) {
+                        const container = document.getElementById('shortage-list');
+                        container.innerHTML = '';
+                        f.shortages.forEach(val => addShortageRow(val));
+                    }
+                    if (f.promos) {
+                        const container = document.getElementById('promo-list');
+                        container.innerHTML = '';
+                        f.promos.forEach(val => addPromoRow(val));
+                    }
+                } else {
+                    loadDayData();
+                }
+
+                alert('已成功讀取備份與排班設定檔！');
+            } catch (err) {
+                alert('檔案格式錯誤，無法解析 JSON。');
+                console.error(err);
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    }
+</script>
+
+</body>
+</html>
