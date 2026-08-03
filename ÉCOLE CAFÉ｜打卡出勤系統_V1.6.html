@@ -1062,7 +1062,7 @@
                 
                 const safeAlertMsg = alertMessageText.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-                // ⭐ 支援電腦與手機點擊彈窗檢視異常的 Badge
+                // ⭐ 支援手機點擊彈窗檢視異常的 Badge
                 const issueBadge = dayIssues.length === 0 ? '' : (
                     isHandled
                         ? `<span class="ml-1.5 cursor-pointer inline-block px-1 py-0.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold text-xs" title="點擊查看異常詳情\n\n已處理備註：${escapedNote}\n\n原始異常：\n${issueTitle}" onclick="alertCustom('${safeAlertMsg}')">✅</span>`
