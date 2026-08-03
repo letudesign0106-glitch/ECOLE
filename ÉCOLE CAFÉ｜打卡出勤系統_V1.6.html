@@ -168,7 +168,7 @@
                         </div>
                     </div>
                     
-                    <!-- 第二排：人事資料 (新增) -->
+                    <!-- 第二排：人事資料 -->
                     <div class="flex flex-wrap gap-4 items-center border-t border-slate-200 pt-3 justify-start md:justify-end">
                         <div>
                             <label class="block text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">入職日期</label>
@@ -263,16 +263,15 @@
         // ==========================================
         // 狀態與資料模型
         // ==========================================
-        let importedData = null; // 從排班系統匯入的原始資料
-        let currentYearMonth = ''; // YYYY-MM
+        let importedData = null; 
+        let currentYearMonth = ''; 
         let selectedEmpId = null;
         
-        // 儲存於 LocalStorage 的本地狀態
         let attendanceData = JSON.parse(localStorage.getItem('ecoleAttendance')) || {}; 
         let salarySettings = JSON.parse(localStorage.getItem('ecoleSalarySettings')) || {};
-        let empDetails = JSON.parse(localStorage.getItem('ecoleEmpDetails')) || {}; // 新增：人事基本資料
-        let scheduleOverrides = JSON.parse(localStorage.getItem('ecoleScheduleOverrides')) || {}; // 新增：行政/公出 自訂預計上班時間與工時
-        let issueNotes = JSON.parse(localStorage.getItem('ecoleIssueNotes')) || {}; // 新增：工時異常狀態處理備註
+        let empDetails = JSON.parse(localStorage.getItem('ecoleEmpDetails')) || {}; 
+        let scheduleOverrides = JSON.parse(localStorage.getItem('ecoleScheduleOverrides')) || {}; 
+        let issueNotes = JSON.parse(localStorage.getItem('ecoleIssueNotes')) || {}; 
 
         // ==========================================
         // 初始化與輔助函數
@@ -317,12 +316,11 @@
         function saveData() {
             localStorage.setItem('ecoleAttendance', JSON.stringify(attendanceData));
             localStorage.setItem('ecoleSalarySettings', JSON.stringify(salarySettings));
-            localStorage.setItem('ecoleEmpDetails', JSON.stringify(empDetails)); // 新增
-            localStorage.setItem('ecoleScheduleOverrides', JSON.stringify(scheduleOverrides)); // 新增
-            localStorage.setItem('ecoleIssueNotes', JSON.stringify(issueNotes)); // 新增
+            localStorage.setItem('ecoleEmpDetails', JSON.stringify(empDetails)); 
+            localStorage.setItem('ecoleScheduleOverrides', JSON.stringify(scheduleOverrides)); 
+            localStorage.setItem('ecoleIssueNotes', JSON.stringify(issueNotes)); 
         }
 
-        // 新增：年資計算函數
         function calculateSeniority(joinDateStr) {
             if(!joinDateStr) return '-';
             const joinDate = new Date(joinDateStr);
@@ -338,7 +336,6 @@
             return `${years} 年 ${months} 個月`;
         }
 
-        // 新增：更新人事基本資料
         function updateEmpDetails() {
             if(!selectedEmpId) return;
             const joinDate = document.getElementById('joinDateInput').value;
@@ -392,12 +389,10 @@
             return parsedHours;
         }
 
-        // 新增：判斷班別是否為「行政」或「公出」（這兩種班別無固定時段，需人工自訂預計上班時間與工時）
         function isAdminOrFieldShift(shiftStr) {
             return !!shiftStr && (shiftStr.includes('行政') || shiftStr.includes('公出'));
         }
 
-        // 新增：取得某人員、某日的「預計工時」。
         function getScheduledHoursForDay(shiftStr, empId, day, yearMonth) {
             if (isAdminOrFieldShift(shiftStr)) {
                 const override = scheduleOverrides[yearMonth]?.[empId]?.[day];
@@ -407,7 +402,6 @@
             return calculateScheduledHours(shiftStr);
         }
 
-        // 新增：更新「行政」「公出」班別的自訂預計上班時間／工時
         function updateScheduleOverride(empId, day, field, value) {
             if (!scheduleOverrides[currentYearMonth]) scheduleOverrides[currentYearMonth] = {};
             if (!scheduleOverrides[currentYearMonth][empId]) scheduleOverrides[currentYearMonth][empId] = {};
@@ -420,7 +414,6 @@
             renderEmpList();
         }
 
-        // 新增：更新「工時異常」的處理備註
         function updateIssueNote(empId, day, value) {
             if (!issueNotes[currentYearMonth]) issueNotes[currentYearMonth] = {};
             issueNotes[currentYearMonth][empId] = issueNotes[currentYearMonth][empId] || {};
@@ -443,7 +436,6 @@
             return end - start;
         }
 
-        // 新增：將 "HH:MM" 字串轉為小數時數，供遲到計算使用
         function timeStringToDecimalHours(timeStr) {
             if (!timeStr) return null;
             const parts = timeStr.split(':').map(Number);
@@ -451,18 +443,16 @@
             return parts[0] + parts[1] / 60;
         }
 
-        // 新增：計算遲到分鐘數。遲到 5 分鐘（含）以內不算遲到；超過 5 分鐘則以實際差距全額認定
         function calculateLateMinutes(scheduledStartDecimalHour, actualInTimeStr) {
             if (scheduledStartDecimalHour === null || scheduledStartDecimalHour === undefined) return 0;
             const actualDecimal = timeStringToDecimalHours(actualInTimeStr);
             if (actualDecimal === null) return 0;
 
             const diffMinutes = Math.round((actualDecimal - scheduledStartDecimalHour) * 60);
-            if (diffMinutes <= 5) return 0; // 5分鐘寬限期
+            if (diffMinutes <= 5) return 0; 
             return diffMinutes;
         }
 
-        // 新增：取得某人員、某日各段班別的「預定上班時間」（小數時數）
         function getScheduledStartTimes(shiftStr, empId, day, yearMonth) {
             if (isAdminOrFieldShift(shiftStr)) {
                 const ov = scheduleOverrides[yearMonth]?.[empId]?.[day];
@@ -473,7 +463,6 @@
             return [ranges[0] ? ranges[0].start : null, ranges[1] ? ranges[1].start : null];
         }
 
-        // 新增：計算某日的遲到資訊
         function getLateInfo(shiftStr, empId, day, yearMonth, in1, in2) {
             const [start1, start2] = getScheduledStartTimes(shiftStr, empId, day, yearMonth);
             const lateMin1 = calculateLateMinutes(start1, in1);
@@ -907,7 +896,7 @@
                         if (unmatchedNames.size > 0) {
                             msg += `\n📋 以下人員不在本月排班表人員名單中，其打卡紀錄未匯入：${[...unmatchedNames].join('、')}`;
                         }
-                        msg += `\n\n💡 出勤表中標示黃色 ⚠️ 的日期代表有異常（如打卡超過兩段、實際工時低於預計工時、缺少上/下班卡、原有排班卻查無打卡紀錄、或上班遲到超過5分鐘），請至左側人員清單與右側出勤表查看標示，並可於異常日期填寫處理備註（填寫後標示會轉為灰色✅已處理）。`;
+                        msg += `\n\n💡 出勤表中標示黃色 ⚠️ 的日期代表有異常（如打卡超過兩段、實際工時低於預計工時、缺少上/下班卡、原有排班卻查無打卡紀錄、或上班遲到超過5分鐘），手機或電腦上點擊 ⚠️ 或 ✅ 圖標即可彈窗查看完整異常與備註！`;
                         alertCustom(msg);
                     } else {
                         let msg = `⚠️ 未發現符合 ${currentYearMonth} 且姓名相符的打卡紀錄。\n請確認：\n1. 匯入檔案月份是否正確\n2. 檔案內員工姓名是否與系統設定一致`;
@@ -947,7 +936,7 @@
 
                 const stats = calcEmpStats(emp, currentYearMonth);
                 const issueBadge = stats.issueDaysCount > 0
-                    ? `<span class="inline-flex items-center gap-0.5 text-[10px] font-bold ${isActive ? 'text-amber-300' : 'text-rose-600'} ml-1.5" title="本月有 ${stats.issueDaysCount} 天出勤異常尚未處理，請至右側明細查看標示並填寫處理備註">⚠️ ${stats.issueDaysCount}</span>`
+                    ? `<span class="inline-flex items-center gap-0.5 text-[10px] font-bold ${isActive ? 'text-amber-300' : 'text-rose-600'} ml-1.5" title="本月有 ${stats.issueDaysCount} 天出勤異常尚未處理">⚠️ ${stats.issueDaysCount}</span>`
                     : (stats.resolvedIssueDaysCount > 0
                         ? `<span class="inline-flex items-center gap-0.5 text-[10px] font-bold ${isActive ? 'text-slate-300' : 'text-slate-400'} ml-1.5" title="本月有 ${stats.resolvedIssueDaysCount} 天出勤異常已填寫處理備註">✅ ${stats.resolvedIssueDaysCount}</span>`
                         : '');
@@ -1066,21 +1055,27 @@
                 if(scheduledShift === '年假') displayShift = '<span class="text-sky-600 font-bold">年假</span>';
 
                 const issueTitle = dayIssues.join('\n').replace(/"/g, '&quot;');
+                const escapedNote = noteText.replace(/"/g, '&quot;');
+                const alertMessageText = isHandled 
+                    ? `【已處理異常備註】\n${noteText}\n\n【原始異常原因】\n${dayIssues.join('\n')}`
+                    : `【出勤異常原因】\n${dayIssues.join('\n')}`;
+                
+                const safeAlertMsg = alertMessageText.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                // ⭐ 支援電腦與手機點擊彈窗檢視異常的 Badge
                 const issueBadge = dayIssues.length === 0 ? '' : (
                     isHandled
-                        ? `<span class="ml-1 cursor-help text-slate-500" title="✅ 已處理備註：${noteText.replace(/"/g, '&quot;')}\n\n原始異常：\n${issueTitle}">✅</span>`
-                        : `<span class="ml-1 cursor-help text-amber-600" title="${issueTitle}">⚠️</span>`
+                        ? `<span class="ml-1.5 cursor-pointer inline-block px-1 py-0.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold text-xs" title="點擊查看異常詳情\n\n已處理備註：${escapedNote}\n\n原始異常：\n${issueTitle}" onclick="alertCustom('${safeAlertMsg}')">✅</span>`
+                        : `<span class="ml-1.5 cursor-pointer inline-block px-1.5 py-0.5 rounded bg-amber-200 hover:bg-amber-300 text-amber-800 font-bold text-xs animate-pulse" title="點擊查看異常詳情\n\n${issueTitle}" onclick="alertCustom('${safeAlertMsg}')">⚠️ 異常</span>`
                 );
 
-                // ⭐ 調整 1：將遲到字樣放大至 text-[11px] font-bold
                 const lateNote1 = lateInfo.lateMin1 > 0 ? `<div class="text-[11px] text-rose-600 font-bold text-center leading-tight">遲到${lateInfo.lateMin1}分</div>` : '';
                 const lateNote2 = lateInfo.lateMin2 > 0 ? `<div class="text-[11px] text-rose-600 font-bold text-center leading-tight">遲到${lateInfo.lateMin2}分</div>` : '';
 
-                // ⭐ 調整 2：將處理備註輸入框字體放大至 text-xs
                 const noteInput = dayIssues.length > 0 ? `
-                        <input type="text" placeholder="填寫處理備註" title="輸入處理備註後，此日期異常標示會由黃色⚠️轉為灰色✅（已處理），滑鼠移到圖示可查看備註內容"
+                        <input type="text" placeholder="填寫處理備註" title="輸入處理備註後，此日期異常標示會由黃色⚠️轉為灰色✅（已處理）"
                                class="mt-1 w-full text-xs text-center border border-slate-300 rounded px-1.5 py-1 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500 bg-white text-slate-700 font-medium"
-                               value="${noteText.replace(/"/g, '&quot;')}"
+                               value="${escapedNote}"
                                onchange="updateIssueNote('${emp.id}', ${i}, this.value)">
                 ` : '';
 
@@ -1119,7 +1114,7 @@
                     </td>
                     
                     <td class="border-l-2 border-slate-200 font-bold text-slate-700 bg-slate-50/50 align-top">
-                        ${actualHours > 0 ? actualHours.toFixed(1) + 'h' : '-'}${issueBadge}${noteInput}
+                        ${actualHours > 0 ? actualHours.toFixed(1) + 'h' : '-'}<br>${issueBadge}${noteInput}
                     </td>
                     <td class="font-bold bg-slate-50/50 ${overtimeHours > 0 ? 'text-teal-600' : 'text-slate-400'}">
                         ${overtimeHours > 0 ? '+' + overtimeHours.toFixed(1) + 'h' : '-'}
@@ -1162,7 +1157,6 @@
             }
         }
 
-        // ⭐ 調整 3：在備份 JSON 資料中一併納入員工資料 (importedData)
         function exportBackupData() {
             const data = { 
                 attendanceData, 
@@ -1170,7 +1164,7 @@
                 scheduleOverrides, 
                 issueNotes, 
                 empDetails,
-                importedData // 完整包含員工清單與排班結構
+                importedData 
             };
             const fileName = `EcoleCafe_AttendanceBackup_${currentYearMonth}.json`;
             const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
@@ -1180,7 +1174,6 @@
             link.click();
         }
 
-        // ⭐ 調整 4：還原備份 JSON 時一併讀回員工資料 (importedData)
         function handleImportBackup(event) {
             const file = event.target.files[0];
             if(!file) return;
@@ -1210,7 +1203,7 @@
         function exportCSV() {
             if(!importedData) { alertCustom("無資料可匯出"); return; }
             
-            let csvContent = "\uFEFF"; // BOM for Excel UTF-8
+            let csvContent = "\uFEFF"; 
             csvContent += "年月,員工姓名,員工類型,計薪方式,底薪/時薪,日期,排定班別,預計工時,實際上班1,實際下班1,實際上班2,實際下班2,實際工時,加班時數\n";
             
             const [year, month] = currentYearMonth.split('-').map(Number);
