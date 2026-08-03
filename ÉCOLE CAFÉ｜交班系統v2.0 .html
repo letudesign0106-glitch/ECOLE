@@ -641,7 +641,7 @@
     </div>
 </div>
 
-<!-- 【 核心：Firebase SDKs 雲端整合區塊 】 -->
+<!-- 【 核心：Firebase SDKs 雲端整合區塊（共用資料庫模式） 】 -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -663,6 +663,9 @@
     const db = getFirestore(app);
     const provider = new GoogleAuthProvider();
 
+    // 固定共用備份的文件 ID（所有登入帳號皆讀寫同一份）
+    const SHARED_DOC_ID = "shared_ecole_cafe_backup";
+
     // 監聽使用者登入狀態
     onAuthStateChanged(auth, (user) => {
         window.currentUser = user;
@@ -672,8 +675,10 @@
         if (user) {
             loginBtn.innerText = `${user.displayName || '已登入'} (登出)`;
             restoreBtn.style.display = 'inline-block';
-            // 登入成功後，主動嘗試觸發一次資料同步
-            if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
+            // 登入成功後自動同步一次共用雲端資料
+            if (typeof window.restoreFromCloud === 'function') {
+                window.restoreFromCloud(true); // 帶入靜默參數避免跳出過多提示
+            }
         } else {
             loginBtn.innerText = 'Google 登入';
             restoreBtn.style.display = 'none';
@@ -692,7 +697,7 @@
         } else {
             try {
                 await signInWithPopup(auth, provider);
-                alert('Google 登入成功！未來您的資料將會自動備份至雲端。');
+                alert('Google 登入成功！現在您與所有夥伴將共用同一個雲端交班資料庫。');
             } catch (error) {
                 console.error(error);
                 alert('登入失敗，請檢查 API Key 或是網路狀態：' + error.message);
@@ -700,52 +705,50 @@
         }
     }
 
-    // 自動上傳至 Firebase 雲端功能 (防抖動防暴衝機制)
+    // 自動上傳至 Firebase 共用雲端功能 (防抖動機制)
     window.autoSaveTimer = null;
     window.triggerAutoSave = function() {
-        if (!window.currentUser) return; // 若未登入則跳過雲端儲存
+        if (!window.currentUser) return; // 需登入才能上傳共用備份
         const statusSpan = document.getElementById('cloud-status');
-        if (statusSpan) statusSpan.innerText = '雲端儲存中...';
+        if (statusSpan) statusSpan.innerText = '共用雲端同步中...';
 
         clearTimeout(window.autoSaveTimer);
         window.autoSaveTimer = setTimeout(async () => {
             try {
-                // 先將目前畫面資料存入對應的日期快取
                 if (typeof saveCurrentDayData === 'function') {
                     saveCurrentDayData(window.currentDateVal); 
                 }
                 
-                // 準備上傳包
                 const dataToUpload = {
                     ...window.globalDataStore,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
+                    updatedBy: window.currentUser.email || window.currentUser.displayName
                 };
                 
-                // 執行 Firebase 寫入
-                await setDoc(doc(db, "backups", window.currentUser.uid), dataToUpload);
+                // 寫入共用文件路徑 backups / shared_ecole_cafe_backup
+                await setDoc(doc(db, "backups", SHARED_DOC_ID), dataToUpload);
                 
-                // UI 提示已儲存
                 if (statusSpan) {
-                    statusSpan.innerText = '☁️ 已同步至雲端';
+                    statusSpan.innerText = '☁️ 已同步至共用雲端';
                     setTimeout(() => {
-                        if (statusSpan.innerText === '☁️ 已同步至雲端') statusSpan.innerText = '';
+                        if (statusSpan.innerText === '☁️ 已同步至共用雲端') statusSpan.innerText = '';
                     }, 3000);
                 }
             } catch (error) {
-                console.error("雲端儲存錯誤:", error);
-                if (statusSpan) statusSpan.innerText = '⚠️ 雲端同步失敗';
+                console.error("共用雲端儲存錯誤:", error);
+                if (statusSpan) statusSpan.innerText = '⚠️ 同步失敗';
             }
-        }, 1500); // 延遲 1.5 秒執行，避免頻繁寫入資料庫
+        }, 1500);
     }
 
-    // 從 Firebase 雲端手動還原功能
-    window.restoreFromCloud = async function() {
+    // 從 Firebase 共用雲端讀取還原功能
+    window.restoreFromCloud = async function(isSilent = false) {
         if (!window.currentUser) {
-            alert('請先進行 Google 登入！');
+            if (!isSilent) alert('請先進行 Google 登入！');
             return;
         }
         try {
-            const docRef = doc(db, "backups", window.currentUser.uid);
+            const docRef = doc(db, "backups", SHARED_DOC_ID);
             const docSnap = await getDoc(docRef);
 
             if (docSnap.exists()) {
@@ -760,15 +763,17 @@
 
                 syncStaffFromEmployees();
                 loadStaffList();
-                loadDayData(); // 重新整理畫面載入最新資料
+                loadDayData();
 
-                alert('已成功從雲端還原您的交班資料！');
+                if (!isSilent) {
+                    alert('已成功從共用雲端還原最新的交班資料！');
+                }
             } else {
-                alert('找不到您的雲端備份資料，可能是尚未備份過。');
+                if (!isSilent) alert('共用雲端目前尚無備份資料。');
             }
         } catch (error) {
             console.error(error);
-            alert('雲端還原失敗：' + error.message);
+            if (!isSilent) alert('雲端還原失敗：' + error.message);
         }
     }
 </script>
@@ -817,7 +822,7 @@
         renderStaffPills();
         loadDayData();
 
-        // 綁定表單變更自動儲存 (會同時寫入快取並觸發 Firebase 雲端上傳)
+        // 綁定表單變更自動儲存
         document.getElementById('handover-form').addEventListener('input', () => {
             if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
         });
@@ -828,7 +833,7 @@
 
     // 全部清空按鈕功能
     function clearAllFields() {
-        if (!confirm('確定要清空所有填寫內容嗎？此動作亦會同步至雲端')) return;
+        if (!confirm('確定要清空所有填寫內容嗎？此動作將同步更新共用雲端')) return;
         document.getElementById('shift-manager').value = '';
         document.getElementById('station-bar').value = '';
         document.getElementById('station-counter').value = '';
@@ -911,14 +916,10 @@
         const pickerVal = document.getElementById('briefing-date-picker').value;
         if (!pickerVal || pickerVal === window.currentDateVal) return;
 
-        // 取消任何還沒執行的自動儲存，並立刻強制同步儲存舊日期的內容
         if (window.autoSaveTimer) clearTimeout(window.autoSaveTimer);
         saveCurrentDayData(window.currentDateVal); 
         
-        // 更新目前追蹤的日期
         window.currentDateVal = pickerVal;
-        
-        // 載入新日期的資料
         loadDayData();
     }
 
@@ -1069,7 +1070,7 @@
         return `${yyyy}-${mm}-${dd}`;
     }
 
-    // 儲存畫面資料到指定的日期屬性中 (預設為當前追蹤日期 currentDateVal)
+    // 儲存畫面資料到指定的日期屬性中
     window.saveCurrentDayData = function(dateToSave = window.currentDateVal) {
         if (!dateToSave) return;
         if (!window.globalDataStore.dailyTracking) window.globalDataStore.dailyTracking = {};
@@ -1127,7 +1128,6 @@
         if (!dateVal) return;
 
         if (window.globalDataStore.dailyTracking && window.globalDataStore.dailyTracking[dateVal]) {
-            // 若該日已有紀錄，直接讀取
             const dayData = window.globalDataStore.dailyTracking[dateVal];
             document.getElementById('shift-manager').value = dayData.manager || '';
             document.getElementById('station-bar').value = dayData.bar || '';
@@ -1178,7 +1178,6 @@
             promoContainer.innerHTML = '';
             (dayData.promos || []).forEach(val => addPromoRow(val));
         } else {
-            // 全新日期：完全清空各項內容，確保與前一天斷開連結
             document.getElementById('shift-manager').value = '';
             document.getElementById('station-bar').value = '';
             document.getElementById('station-counter').value = '';
@@ -1198,12 +1197,10 @@
             document.getElementById('order-list').innerHTML = '';
             document.getElementById('promo-list').innerHTML = '';
 
-            // 規則：只有對齊項目、主管交辦(未完成)、意見討論、缺貨商品、需叫貨項目(未完成)、推銷品項會延續拷貝到下一日
             const prevDateStr = getPreviousDateStr(dateVal);
             if (window.globalDataStore.dailyTracking && window.globalDataStore.dailyTracking[prevDateStr]) {
                 const prevDay = window.globalDataStore.dailyTracking[prevDateStr];
 
-                // 1. 對齊項目
                 if (prevDay.alignments) {
                     prevDay.alignments.forEach(item => {
                         const val = typeof item === 'string' ? item : item.val;
@@ -1213,26 +1210,22 @@
                     });
                 }
 
-                // 2. 主管交辦 (排除已完成)
                 if (prevDay.tasks) {
                     prevDay.tasks.forEach(t => {
                         if (!t.done) addTaskRow(t.assignee, t.desc, false);
                     });
                 }
                 
-                // 3. 意見討論
                 if (prevDay.discussions) {
                     document.getElementById('discussion-notes').value = prevDay.discussions;
                 }
 
-                // 4. 缺貨商品
                 if (prevDay.shortages) {
                     prevDay.shortages.forEach(val => {
                         if (val && val.trim() !== '') addShortageRow(val);
                     });
                 }
 
-                // 5. 需叫貨項目 (排除已處理)
                 if (prevDay.orders) {
                     prevDay.orders.forEach(o => {
                         const itemVal = typeof o === 'string' ? o : o.item;
@@ -1243,7 +1236,6 @@
                     });
                 }
 
-                // 6. 推銷品項
                 if (prevDay.promos) {
                     prevDay.promos.forEach(val => {
                         if (val && val.trim() !== '') addPromoRow(val);
@@ -1363,7 +1355,7 @@
     // 產生 LINE Briefing
     function generateLineBriefing() {
         if (typeof saveCurrentDayData === 'function') {
-            saveCurrentDayData(window.currentDateVal); // 確保產生前已儲存當日
+            saveCurrentDayData(window.currentDateVal); 
         }
 
         const dateVal = window.currentDateVal;
@@ -1424,7 +1416,6 @@
         });
         briefing += `\n\n📍客情訂位狀況：${resText.trim()}`;
 
-        // 對齊項目 (標頭與文字自動空一格)
         const alignmentRows = document.querySelectorAll('#alignment-list .row-group');
         let alignmentText = '';
         alignmentRows.forEach(row => {
@@ -1591,7 +1582,7 @@
                 loadStaffList();
 
                 if (data.currentForm && data.currentForm.date) {
-                    window.currentDateVal = data.currentForm.date; // 重要：更新追蹤的日期
+                    window.currentDateVal = data.currentForm.date;
                     document.getElementById('briefing-date-picker').value = window.currentDateVal;
                 }
                 loadDayData();
