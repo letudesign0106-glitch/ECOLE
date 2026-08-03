@@ -1040,6 +1040,7 @@
         return `${yyyy}-${mm}-${dd}`;
     }
 
+    // 完整儲存當前日期的表單資料 (深拷貝建立獨立紀錄，避免互相污染)
     function saveCurrentDayData() {
         const dateVal = document.getElementById('briefing-date-picker').value;
         if (!dateVal) return;
@@ -1082,6 +1083,7 @@
         }));
         const promos = Array.from(document.querySelectorAll('.promo-input')).map(i => i.value);
 
+        // 獨立儲存物件
         globalDataStore.dailyTracking[dateVal] = {
             manager, bar, counter, kitchen,
             revDay, revNight, revTotal, revMonthTarget, attendance,
@@ -1091,6 +1093,7 @@
         };
     }
 
+    // 載入指定日期的資料；若無資料則獨立初始化，並按規定將特定項目深拷貝帶入隔天
     function loadDayData() {
         const dateVal = document.getElementById('briefing-date-picker').value;
         if (!dateVal) return;
@@ -1146,7 +1149,7 @@
             promoContainer.innerHTML = '';
             (dayData.promos || []).forEach(val => addPromoRow(val));
         } else {
-            // 全新日期：完全清空主管、站區、營業額、出勤、訂位狀況
+            // 全新日期：完全清空各項內容確保獨立
             document.getElementById('shift-manager').value = '';
             document.getElementById('station-bar').value = '';
             document.getElementById('station-counter').value = '';
@@ -1166,11 +1169,12 @@
             document.getElementById('order-list').innerHTML = '';
             document.getElementById('promo-list').innerHTML = '';
 
-            // 規則：只有對齊項目、主管交辦（未完成者）、推銷品項會自動延續到隔天
+            // 規則：只有對齊項目、主管交辦（未完成）、意見討論、缺貨商品、需叫貨項目（未處理）、推銷品項會延續到下一日
             const prevDateStr = getPreviousDateStr(dateVal);
             if (globalDataStore.dailyTracking && globalDataStore.dailyTracking[prevDateStr]) {
                 const prevDay = globalDataStore.dailyTracking[prevDateStr];
 
+                // 1. 對齊項目 (深拷貝，isNew 設為 false 顯示為歷史項目 🔘)
                 if (prevDay.alignments) {
                     prevDay.alignments.forEach(item => {
                         const val = typeof item === 'string' ? item : item.val;
@@ -1180,6 +1184,7 @@
                     });
                 }
 
+                // 2. 主管交辦 (排除已完成，深拷貝)
                 if (prevDay.tasks) {
                     prevDay.tasks.forEach(t => {
                         if (!t.done) {
@@ -1188,6 +1193,32 @@
                     });
                 }
 
+                // 3. 意見討論 (深拷貝文字)
+                if (prevDay.discussions) {
+                    document.getElementById('discussion-notes').value = prevDay.discussions;
+                }
+
+                // 4. 缺貨商品 (深拷貝)
+                if (prevDay.shortages) {
+                    prevDay.shortages.forEach(val => {
+                        if (val && val.trim() !== '') {
+                            addShortageRow(val);
+                        }
+                    });
+                }
+
+                // 5. 需叫貨項目 (排除已處理，深拷貝)
+                if (prevDay.orders) {
+                    prevDay.orders.forEach(o => {
+                        const itemVal = typeof o === 'string' ? o : o.item;
+                        const isDone = typeof o === 'string' ? false : o.done;
+                        if (!isDone && itemVal && itemVal.trim() !== '') {
+                            addOrderRow(itemVal, false);
+                        }
+                    });
+                }
+
+                // 6. 推銷品項 (深拷貝)
                 if (prevDay.promos) {
                     prevDay.promos.forEach(val => {
                         if (val && val.trim() !== '') {
@@ -1459,7 +1490,6 @@
         const dateVal = document.getElementById('briefing-date-picker').value;
         const ym = dateVal ? dateVal.substring(0, 7) : '';
 
-        // 篩選出當月份的所有每日追蹤資料
         let monthTracking = {};
         if (ym && globalDataStore.dailyTracking) {
             Object.keys(globalDataStore.dailyTracking).forEach(dStr => {
