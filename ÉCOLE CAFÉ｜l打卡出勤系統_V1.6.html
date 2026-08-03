@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ÉCOLE CAFÉ - 出勤與薪資系統</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#ffffff">
+    
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 引入 PDF 產生套件 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- 引入 Excel/CSV 解析套件 (SheetJS) 處理打卡紀錄 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, 'LiHei Pro', '微軟正黑體', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        
+        /* 隱藏捲軸但保留功能 */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* 表格樣式 */
+        table { border-collapse: collapse; min-width: 100%; }
+        th, td { border: 1px solid #e2e8f0; text-align: center; vertical-align: middle; padding: 8px 4px; font-size: 0.85rem; }
+        thead th { position: sticky; top: 0; background-color: #f1f5f9; z-index: 10; font-weight: bold; color: #475569; }
+        
+        /* 狀態顏色 (莫蘭迪色系) */
+        .bg-late { background-color: #fef08a; } 
+        .bg-ot { background-color: #d1fae5; } /* 柔和綠 */
+        .bg-absent { background-color: #ffe4e6; } /* 柔和粉 */
+        .text-weekend { color: #e11d48; font-weight: bold; }
+
+        dialog::backdrop { background-color: rgba(15, 23, 42, 0.4); backdrop-filter: blur(3px); }
+        
+        /* 自訂 input time 樣式 */
+        input[type="time"]::-webkit-calendar-picker-indicator { cursor: pointer; padding: 2px; }
+        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        /* 雙輸入框縮小樣式 */
+        .time-input-sm { padding: 4px !important; font-size: 0.8rem !important; height: 28px; }
+
+        /* 動畫 */
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* PDF 渲染用隱藏區塊 */
+        #pdfRenderContainer { position: absolute; left: -10000px; top: 0; width: 900px; background-color: white; padding: 40px; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden relative">
+
+    <!-- 載入中遮罩 -->
+    <div id="loadingOverlay" class="absolute inset-0 bg-white bg-opacity-90 z-50 flex flex-col items-center justify-center hidden">
+        <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-slate-800 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        <div class="font-bold tracking-widest text-slate-700" id="loadingText">處理中...</div>
+    </div>
+
+    <header class="bg-white border-b border-slate-200 p-4 z-40 flex flex-wrap justify-between items-center gap-4 shadow-sm flex-shrink-0">
+        <div>
+            <h1 class="text-xl font-bold tracking-widest text-slate-800 flex items-center gap-2">
+                ÉCOLE CAFÉ <span class="text-sm font-normal text-slate-400 ml-2">ATTENDANCE & PAYROLL</span>
+            </h1>
+            <div class="text-sm text-slate-500 mt-2 flex gap-4 items-center">
+                <span>選擇月份：</span>
+                <input type="month" id="monthSelector" class="border border-slate-300 rounded-lg px-2 py-1.5 text-slate-700 outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 font-bold bg-slate-50">
+            </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2 items-center">
+            <!-- 隱藏的檔案輸入框 -->
+            <input type="file" id="importScheduleFile" accept=".json" class="hidden" onchange="handleImportSchedule(event)">
+            <!-- 支援 .csv 與 .xlsx/.xls 格式 -->
+            <input type="file" id="importClockFile" accept=".csv, .xlsx, .xls" class="hidden" onchange="handleImportClock(event)">
+            <input type="file" id="importBackupFile" accept=".json" class="hidden" onchange="handleImportBackup(event)">
+            
+            <button onclick="document.getElementById('importScheduleFile').click()" class="border border-transparent bg-slate-700 text-white hover:bg-slate-800 px-4 py-2.5 rounded-lg text-xs transition shadow-sm font-medium">
+                1. 匯入排班表
+            </button>
+            <button onclick="document.getElementById('importClockFile').click()" class="border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 px-4 py-2.5 rounded-lg text-xs transition shadow-sm font-medium">
+                2. 匯入打卡資料
+            </button>
+            
+            <div class="w-px h-6 bg-slate-200 mx-1 hidden sm:block"></div>
+            
+            <button onclick="document.getElementById('importBackupFile').click()" class="border border-slate-200 text-slate-600 bg-slate-50 hover:bg-slate-100 px-4 py-2.5 rounded-lg text-xs transition shadow-sm font-medium">
+                還原出勤
+            </button>
+            <button onclick="exportBackupData()" class="border border-slate-200 text-slate-600 bg-slate-50 hover:bg-slate-100 px-4 py-2.5 rounded-lg text-xs transition shadow-sm font-medium">
+                備份出勤
+            </button>
+            
+            <div class="w-px h-6 bg-slate-200 mx-1 hidden sm:block"></div>
+
+            <button onclick="exportCSV()" class="border border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-100 px-4 py-2.5 rounded-lg text-xs transition shadow-sm font-bold">
+                匯出 CSV
+            </button>
+            <button onclick="openPDFDialog()" class="border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 px-4 py-2.5 rounded-lg text-xs transition shadow-sm font-bold">
+                匯出 PDF
+            </button>
+            
+            <button onclick="clearData()" class="border border-transparent text-rose-500 hover:bg-rose-50 px-3 py-2.5 rounded-lg text-xs transition ml-2 font-medium">
+                清空
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-hidden flex flex-col md:flex-row">
+        
+        <!-- 左側：員工列表與摘要 -->
+        <aside class="w-full md:w-1/4 bg-white border-r border-slate-200 flex flex-col h-1/3 md:h-full flex-shrink-0">
+            <div class="p-4 border-b border-slate-100 bg-slate-50 font-bold text-sm text-slate-600 flex justify-between items-center shadow-inner">
+                <span>人員出勤摘要</span>
+                <span id="totalEmpCount" class="text-xs bg-slate-200 px-2.5 py-1 rounded-full text-slate-700">0 人</span>
+            </div>
+            <div id="empListContainer" class="flex-1 overflow-y-auto p-3 space-y-2">
+                <div class="text-center text-slate-400 mt-10 text-sm">請先匯入排班表以載入人員名單</div>
+            </div>
+        </aside>
+
+        <!-- 右側：個人詳細出勤紀錄與薪資設定 -->
+        <section class="flex-1 flex flex-col bg-slate-50 h-2/3 md:h-full relative fade-in">
+            <!-- 遮罩：未選擇人員時顯示 -->
+            <div id="noSelectionOverlay" class="absolute inset-0 bg-slate-50 flex items-center justify-center z-20">
+                <div class="text-slate-400 text-center">
+                    <svg class="w-16 h-16 mx-auto mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    <p class="font-bold tracking-widest text-lg">請從左側選擇人員</p>
+                    <p class="text-sm mt-2">檢視詳細出勤與計算薪資</p>
+                </div>
+            </div>
+
+            <!-- 個人抬頭與薪資設定 -->
+            <div class="p-5 border-b border-slate-200 bg-white flex flex-wrap justify-between items-end gap-4 shadow-sm z-10 flex-shrink-0">
+                <div class="flex items-center gap-4">
+                    <div id="detailEmpAvatar" class="w-14 h-14 bg-slate-200 rounded-full flex items-center justify-center text-2xl font-bold text-slate-600 shadow-inner"></div>
+                    <div>
+                        <h2 id="detailEmpName" class="text-2xl font-bold text-slate-800 leading-none mb-1.5">-</h2>
+                        <span id="detailEmpType" class="text-xs font-bold px-2 py-0.5 rounded-md border border-slate-300 text-slate-500">-</span>
+                    </div>
+                </div>
+                
+                <div class="w-full md:w-auto flex flex-col gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-sm flex-1 md:flex-none">
+                    <!-- 第一排：計薪設定 -->
+                    <div class="flex flex-wrap gap-4 items-center justify-start md:justify-end">
+                        <div>
+                            <label class="block text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">計薪方式</label>
+                            <select id="salaryMode" class="text-sm border border-slate-300 rounded-lg px-2 py-1.5 outline-none bg-white focus:ring-1 focus:ring-slate-400" onchange="updateSalarySettings()">
+                                <option value="hourly">時薪 (PT)</option>
+                                <option value="monthly">月薪 (FT)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider" id="baseRateLabel">基本時薪</label>
+                            <div class="flex items-center gap-1">
+                                <span class="text-sm text-slate-400 font-bold">$</span>
+                                <input type="number" id="baseRateInput" class="text-sm border border-slate-300 rounded-lg px-2 py-1.5 outline-none w-20 font-bold focus:ring-1 focus:ring-slate-400" onchange="updateSalarySettings()">
+                            </div>
+                        </div>
+                        <div class="hidden md:block text-right min-w-[110px] pl-2 border-l border-slate-300">
+                            <label class="block text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">總計薪資(估算)</label>
+                            <div id="totalSalaryDisplay" class="text-xl font-extrabold text-slate-800 tracking-wide">$0</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 第二排：人事資料 (新增) -->
+                    <div class="flex flex-wrap gap-4 items-center border-t border-slate-200 pt-3 justify-start md:justify-end">
+                        <div>
+                            <label class="block text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">入職日期</label>
+                            <input type="date" id="joinDateInput" class="text-sm border border-slate-300 rounded-lg px-2 py-1.5 outline-none bg-white text-slate-600 focus:ring-1 focus:ring-slate-400" onchange="updateEmpDetails()">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">生日</label>
+                            <input type="date" id="birthdayInput" class="text-sm border border-slate-300 rounded-lg px-2 py-1.5 outline-none bg-white text-slate-600 focus:ring-1 focus:ring-slate-400" onchange="updateEmpDetails()">
+                        </div>
+                        <div class="min-w-[60px]">
+                            <label class="block text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">年資</label>
+                            <div id="seniorityDisplay" class="text-sm font-bold text-slate-700 py-1.5 px-1 whitespace-nowrap">-</div>
+                        </div>
+                        <div class="w-px h-6 bg-slate-200 mx-1 hidden sm:block"></div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">年假總額</label>
+                            <div class="flex items-center gap-1">
+                                <input type="number" id="annualLeaveTotalInput" class="text-sm border border-slate-300 rounded-lg px-2 py-1.5 outline-none w-14 text-center font-bold text-slate-700 focus:ring-1 focus:ring-slate-400" onchange="updateEmpDetails()" min="0">
+                                <span class="text-[10px] text-slate-500 font-bold">天</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">本月已排年假</label>
+                            <div id="usedAnnualLeaveDisplay" class="text-sm font-bold text-rose-600 py-1.5 px-1 whitespace-nowrap">0 天</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-auto bg-slate-50 p-2 md:p-5">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto hide-scrollbar">
+                        <table id="attendanceTable" class="w-full text-sm">
+                            <thead>
+                                <tr>
+                                    <th class="w-16">日期</th>
+                                    <th class="w-24">排定班別</th>
+                                    <th class="w-16">預計</th>
+                                    <th class="w-36 border-l-2 border-slate-200">實際上班 <span class="block text-[10px] text-slate-400 font-normal mt-0.5">(分段1 / 分段2)</span></th>
+                                    <th class="w-36">實際下班 <span class="block text-[10px] text-slate-400 font-normal mt-0.5">(分段1 / 分段2)</span></th>
+                                    <th class="w-16 border-l-2 border-slate-200 bg-slate-50">實際<br>工時</th>
+                                    <th class="w-16 bg-slate-50">加班<br>時數</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceBody">
+                                <!-- 日期資料將動態產生 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- 手機版顯示總薪資 -->
+                <div class="md:hidden mt-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex justify-between items-center">
+                    <span class="font-bold text-slate-500 text-sm">總計薪資(估算)</span>
+                    <span id="totalSalaryDisplayMobile" class="text-2xl font-extrabold text-slate-800">$0</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 匯出 PDF 設定對話框 -->
+    <dialog id="pdfExportDialog" class="rounded-xl shadow-2xl p-0 w-11/12 max-w-sm border border-slate-200">
+        <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
+            <h3 class="font-bold text-slate-700 tracking-wide">📄 匯出 PDF 報表</h3>
+            <button onclick="document.getElementById('pdfExportDialog').close()" class="text-slate-400 hover:text-slate-800 text-xl leading-none">&times;</button>
+        </div>
+        <div class="p-6 bg-white flex flex-col gap-4 text-sm rounded-b-xl">
+            <p class="text-slate-500 leading-relaxed">系統將產生包含「總表」與各員工「明細」的完整 PDF 報表。</p>
+            <label class="flex items-start gap-3 cursor-pointer p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition">
+                <input type="checkbox" id="pdfIncludeSalary" checked class="w-5 h-5 mt-0.5 cursor-pointer accent-slate-800 rounded">
+                <span class="font-bold text-slate-700">在報表中顯示「薪資(估算)」與「時薪/底薪」相關資訊</span>
+            </label>
+            <div class="flex justify-end gap-3 mt-4">
+                <button onclick="document.getElementById('pdfExportDialog').close()" class="border border-slate-300 text-slate-600 px-5 py-2.5 rounded-lg hover:bg-slate-50 font-medium transition">取消</button>
+                <button onclick="executeExportPDF()" class="bg-slate-800 text-white px-5 py-2.5 rounded-lg hover:bg-slate-900 shadow-md font-medium transition">確認匯出</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- 提示訊息對話框 -->
+    <dialog id="alertDialog" class="rounded-xl shadow-2xl p-0 w-11/12 max-w-sm border border-slate-200">
+        <div class="p-6 bg-white flex flex-col gap-5 text-center rounded-xl">
+            <p class="text-slate-700 text-sm leading-relaxed whitespace-pre-line font-medium" id="alertMsg"></p>
+            <button onclick="document.getElementById('alertDialog').close()" class="bg-slate-800 text-white px-6 py-2.5 rounded-lg text-sm hover:bg-slate-900 mx-auto w-2/3 shadow-md transition">確定</button>
+        </div>
+    </dialog>
+
+    <!-- PDF 渲染隱藏區塊 -->
+    <div id="pdfRenderContainer"></div>
+
+    <script>
+        // ==========================================
+        // 狀態與資料模型
+        // ==========================================
+        let importedData = null; // 從排班系統匯入的原始資料
+        let currentYearMonth = ''; // YYYY-MM
+        let selectedEmpId = null;
+        
+        // 儲存於 LocalStorage 的本地狀態
+        let attendanceData = JSON.parse(localStorage.getItem('ecoleAttendance')) || {}; 
+        let salarySettings = JSON.parse(localStorage.getItem('ecoleSalarySettings')) || {};
+        let empDetails = JSON.parse(localStorage.getItem('ecoleEmpDetails')) || {}; // 新增：人事基本資料
+        let scheduleOverrides = JSON.parse(localStorage.getItem('ecoleScheduleOverrides')) || {}; // 新增：行政/公出 自訂預計上班時間與工時
+        let issueNotes = JSON.parse(localStorage.getItem('ecoleIssueNotes')) || {}; // 新增：工時異常狀態處理備註
+
+        // ==========================================
+        // 初始化與輔助函數
+        // ==========================================
+        function init() {
+            const today = new Date();
+            currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            const monthInput = document.getElementById('monthSelector');
+            monthInput.value = currentYearMonth;
+            
+            monthInput.addEventListener('change', (e) => {
+                currentYearMonth = e.target.value;
+                if(importedData) {
+                    renderEmpList();
+                    if(selectedEmpId) renderAttendanceDetail(selectedEmpId);
+                }
+            });
+
+            const cachedSchedule = localStorage.getItem('ecoleImportedSchedule');
+            if(cachedSchedule) {
+                try {
+                    importedData = JSON.parse(cachedSchedule);
+                    renderEmpList();
+                } catch(e) { console.error("快取讀取失敗"); }
+            }
+        }
+
+        function alertCustom(msg) {
+            document.getElementById('alertMsg').innerText = msg;
+            document.getElementById('alertDialog').showModal();
+        }
+
+        function showLoading(text) {
+            document.getElementById('loadingText').innerText = text;
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        function saveData() {
+            localStorage.setItem('ecoleAttendance', JSON.stringify(attendanceData));
+            localStorage.setItem('ecoleSalarySettings', JSON.stringify(salarySettings));
+            localStorage.setItem('ecoleEmpDetails', JSON.stringify(empDetails)); // 新增
+            localStorage.setItem('ecoleScheduleOverrides', JSON.stringify(scheduleOverrides)); // 新增
+            localStorage.setItem('ecoleIssueNotes', JSON.stringify(issueNotes)); // 新增
+        }
+
+        // 新增：年資計算函數
+        function calculateSeniority(joinDateStr) {
+            if(!joinDateStr) return '-';
+            const joinDate = new Date(joinDateStr);
+            const today = new Date();
+            let years = today.getFullYear() - joinDate.getFullYear();
+            let months = today.getMonth() - joinDate.getMonth();
+            if (months < 0 || (months === 0 && today.getDate() < joinDate.getDate())) {
+                years--;
+                months += 12;
+            }
+            if (years < 0) return '尚未到職';
+            if (years === 0) return `${months} 個月`;
+            return `${years} 年 ${months} 個月`;
+        }
+
+        // 新增：更新人事基本資料
+        function updateEmpDetails() {
+            if(!selectedEmpId) return;
+            const joinDate = document.getElementById('joinDateInput').value;
+            const birthday = document.getElementById('birthdayInput').value;
+            const leaveTotal = parseFloat(document.getElementById('annualLeaveTotalInput').value) || 0;
+            
+            empDetails[selectedEmpId] = { joinDate, birthday, annualLeaveTotal: leaveTotal };
+            saveData();
+            document.getElementById('seniorityDisplay').innerText = calculateSeniority(joinDate);
+        }
+
+        function parseTimeRanges(shiftStr) {
+            let ranges = [];
+            let searchStr = shiftStr;
+            const parts = shiftStr.split('\n');
+            if (parts.length > 1) searchStr = parts[1];
+
+            const regex = /(\d{1,2})(?::?(\d{2}))?\s*[-~|/]\s*(\d{1,2})(?::?(\d{2}))?/g;
+            let match;
+            let found = false;
+
+            while ((match = regex.exec(searchStr)) !== null) {
+                found = true;
+                let startH = parseInt(match[1], 10);
+                let startM = parseInt(match[2] || 0, 10);
+                let endH = parseInt(match[3], 10);
+                let endM = parseInt(match[4] || 0, 10);
+                
+                let start = startH + startM / 60;
+                let end = endH + endM / 60;
+                if (end < start) end += 24; 
+                ranges.push({start, end});
+            }
+            
+            if (!found && importedData && importedData.shiftSettings) {
+                const code = shiftStr.split('\n')[0].trim();
+                const settingTime = importedData.shiftSettings[code];
+                if(settingTime) return parseTimeRanges(settingTime);
+            }
+            return ranges;
+        }
+
+        function calculateScheduledHours(shiftStr) {
+            if (!shiftStr || ['✖', '❌', '年假', '行政', '公出'].some(x => shiftStr.includes(x)) || shiftStr.startsWith('X_')) return 0;
+
+            let parsedHours = 0;
+            const ranges = parseTimeRanges(shiftStr);
+            ranges.forEach(r => { parsedHours += (r.end - r.start); });
+            
+            if (ranges.length === 1 && parsedHours > 6) parsedHours -= 0.5;
+            return parsedHours;
+        }
+
+        // 新增：判斷班別是否為「行政」或「公出」（這兩種班別無固定時段，需人工自訂預計上班時間與工時）
+        function isAdminOrFieldShift(shiftStr) {
+            return !!shiftStr && (shiftStr.includes('行政') || shiftStr.includes('公出'));
+        }
+
+        // 新增：取得某人員、某日的「預計工時」。
+        function getScheduledHoursForDay(shiftStr, empId, day, yearMonth) {
+            if (isAdminOrFieldShift(shiftStr)) {
+                const override = scheduleOverrides[yearMonth]?.[empId]?.[day];
+                const hrs = parseFloat(override?.hours);
+                return isNaN(hrs) ? 0 : hrs;
+            }
+            return calculateScheduledHours(shiftStr);
+        }
+
+        // 新增：更新「行政」「公出」班別的自訂預計上班時間／工時
+        function updateScheduleOverride(empId, day, field, value) {
+            if (!scheduleOverrides[currentYearMonth]) scheduleOverrides[currentYearMonth] = {};
+            if (!scheduleOverrides[currentYearMonth][empId]) scheduleOverrides[currentYearMonth][empId] = {};
+            if (!scheduleOverrides[currentYearMonth][empId][day]) scheduleOverrides[currentYearMonth][empId][day] = {};
+
+            scheduleOverrides[currentYearMonth][empId][day][field] = value;
+            saveData();
+
+            renderAttendanceDetail(empId);
+            renderEmpList();
+        }
+
+        // 新增：更新「工時異常」的處理備註
+        function updateIssueNote(empId, day, value) {
+            if (!issueNotes[currentYearMonth]) issueNotes[currentYearMonth] = {};
+            issueNotes[currentYearMonth][empId] = issueNotes[currentYearMonth][empId] || {};
+            issueNotes[currentYearMonth][empId][day] = value;
+            saveData();
+
+            renderAttendanceDetail(empId);
+            renderEmpList();
+        }
+
+        function calculateDiffHours(timeIn, timeOut) {
+            if (!timeIn || !timeOut) return 0;
+            const [inH, inM] = timeIn.split(':').map(Number);
+            const [outH, outM] = timeOut.split(':').map(Number);
+            
+            let start = inH + (inM / 60);
+            let end = outH + (outM / 60);
+            
+            if (end < start) end += 24; 
+            return end - start;
+        }
+
+        // 新增：將 "HH:MM" 字串轉為小數時數，供遲到計算使用
+        function timeStringToDecimalHours(timeStr) {
+            if (!timeStr) return null;
+            const parts = timeStr.split(':').map(Number);
+            if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return null;
+            return parts[0] + parts[1] / 60;
+        }
+
+        // 新增：計算遲到分鐘數。遲到 5 分鐘（含）以內不算遲到；超過 5 分鐘則以實際差距全額認定
+        function calculateLateMinutes(scheduledStartDecimalHour, actualInTimeStr) {
+            if (scheduledStartDecimalHour === null || scheduledStartDecimalHour === undefined) return 0;
+            const actualDecimal = timeStringToDecimalHours(actualInTimeStr);
+            if (actualDecimal === null) return 0;
+
+            const diffMinutes = Math.round((actualDecimal - scheduledStartDecimalHour) * 60);
+            if (diffMinutes <= 5) return 0; // 5分鐘寬限期
+            return diffMinutes;
+        }
+
+        // 新增：取得某人員、某日各段班別的「預定上班時間」（小數時數）
+        function getScheduledStartTimes(shiftStr, empId, day, yearMonth) {
+            if (isAdminOrFieldShift(shiftStr)) {
+                const ov = scheduleOverrides[yearMonth]?.[empId]?.[day];
+                const start1 = ov && ov.startTime ? timeStringToDecimalHours(ov.startTime) : null;
+                return [start1, null];
+            }
+            const ranges = parseTimeRanges(shiftStr);
+            return [ranges[0] ? ranges[0].start : null, ranges[1] ? ranges[1].start : null];
+        }
+
+        // 新增：計算某日的遲到資訊
+        function getLateInfo(shiftStr, empId, day, yearMonth, in1, in2) {
+            const [start1, start2] = getScheduledStartTimes(shiftStr, empId, day, yearMonth);
+            const lateMin1 = calculateLateMinutes(start1, in1);
+            const lateMin2 = calculateLateMinutes(start2, in2);
+            return { lateMin1, lateMin2, totalLateMinutes: lateMin1 + lateMin2 };
+        }
+
+        function isNonWorkingShiftCode(shiftStr) {
+            if (!shiftStr) return true;
+            if (shiftStr.startsWith('X_')) return true;
+            return ['✖', '❌', '年假'].some(x => shiftStr.includes(x));
+        }
+
+        function isFutureDate(year, month, day) {
+            const d = new Date(year, month - 1, day);
+            const today = new Date();
+            d.setHours(0, 0, 0, 0);
+            today.setHours(0, 0, 0, 0);
+            return d.getTime() > today.getTime();
+        }
+
+        function getDayIssues(shiftStr, attRecord, scheduledHours, actualHours, isFutureDay, lateInfo) {
+            const issues = [];
+            const in1 = attRecord.in1 || attRecord.in || '';
+            const out1 = attRecord.out1 || attRecord.out || '';
+            const in2 = attRecord.in2 || '';
+            const out2 = attRecord.out2 || '';
+            const hasAnyPunch = !!(in1 || out1 || in2 || out2);
+
+            if (attRecord.mergedSegments) {
+                issues.push('當日打卡紀錄超過兩段，系統已自動合併第二段（取最早上班、最晚下班），請覆核實際工時');
+            }
+            if (in1 && !out1) issues.push('第一段只有上班卡，缺少下班卡');
+            if (!in1 && out1) issues.push('第一段只有下班卡，缺少上班卡');
+            if (in2 && !out2) issues.push('第二段只有上班卡，缺少下班卡');
+            if (!in2 && out2) issues.push('第二段只有下班卡，缺少上班卡');
+
+            if (scheduledHours > 0 && actualHours > 0 && actualHours < scheduledHours) {
+                issues.push(`實際工時（${actualHours.toFixed(1)}h）低於預計工時（${scheduledHours.toFixed(1)}h）`);
+            }
+
+            if (!hasAnyPunch && !isNonWorkingShiftCode(shiftStr) && !isAdminOrFieldShift(shiftStr) && !isFutureDay) {
+                issues.push('原有排班但查無打卡紀錄（曠職或漏打卡，請確認）');
+            }
+
+            if (lateInfo && lateInfo.totalLateMinutes > 0) {
+                const parts = [];
+                if (lateInfo.lateMin1 > 0) parts.push(`第一段遲到 ${lateInfo.lateMin1} 分鐘`);
+                if (lateInfo.lateMin2 > 0) parts.push(`第二段遲到 ${lateInfo.lateMin2} 分鐘`);
+                issues.push(`上班打卡遲到：${parts.join('、')}（已扣除 5 分鐘寬限時間）`);
+            }
+
+            return issues;
+        }
+
+        function calcEmpStats(emp, yearMonth) {
+            let totalActualHrs = 0;
+            let totalOvertimeHrs = 0;
+            let daysWorked = 0;
+            let issueDaysCount = 0;
+            let resolvedIssueDaysCount = 0;
+            
+            const [year, month] = yearMonth.split('-').map(Number);
+            const daysInMonth = new Date(year, month, 0).getDate();
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const scheduledShift = importedData.scheduleData?.[yearMonth]?.[emp.id]?.[i] || '';
+                const scheduledHours = getScheduledHoursForDay(scheduledShift, emp.id, i, yearMonth);
+                const att = attendanceData[yearMonth]?.[emp.id]?.[i] || {};
+
+                let in1 = att.in1 || att.in || '';
+                let out1 = att.out1 || att.out || '';
+                let in2 = att.in2 || '';
+                let out2 = att.out2 || '';
+
+                let h1 = calculateDiffHours(in1, out1);
+                let h2 = calculateDiffHours(in2, out2);
+                let actualHours = h1 + h2;
+
+                if (actualHours > 0) daysWorked++;
+
+                if (h2 === 0 && h1 > 6) {
+                    actualHours -= 0.5;
+                } else if (h2 > 0) {
+                    if (h1 > 6) actualHours -= 0.5;
+                    if (h2 > 6) actualHours -= 0.5;
+                }
+
+                let overtimeHours = 0;
+                if (scheduledHours > 0 && actualHours > scheduledHours) {
+                    overtimeHours = actualHours - scheduledHours;
+                } else if (scheduledHours === 0 && actualHours > 0) {
+                    overtimeHours = actualHours;
+                }
+
+                const lateInfo = getLateInfo(scheduledShift, emp.id, i, yearMonth, in1, in2);
+                const dayIssues = getDayIssues(scheduledShift, att, scheduledHours, actualHours, isFutureDate(year, month, i), lateInfo);
+                if (dayIssues.length > 0) {
+                    const note = issueNotes[yearMonth]?.[emp.id]?.[i] || '';
+                    if (note.trim()) resolvedIssueDaysCount++;
+                    else issueDaysCount++;
+                }
+
+                totalActualHrs += actualHours;
+                totalOvertimeHrs += overtimeHours;
+            }
+
+            let finalSalary = 0;
+            const settings = salarySettings[emp.id] || { mode: 'hourly', baseRate: emp.type === 'FT' ? 32000 : 183 };
+            const baseRate = parseFloat(settings.baseRate) || 0;
+
+            if (settings.mode === 'hourly') {
+                const regularHours = Math.max(0, totalActualHrs - totalOvertimeHrs);
+                finalSalary = (regularHours * baseRate) + (totalOvertimeHrs * baseRate * 1.34);
+            } else {
+                const hourlyRateBase = baseRate / 240;
+                finalSalary = baseRate + (totalOvertimeHrs * hourlyRateBase * 1.34);
+            }
+
+            return { totalActualHrs, totalOvertimeHrs, daysWorked, finalSalary, settings, issueDaysCount, resolvedIssueDaysCount };
+        }
+
+        function handleImportSchedule(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if(data.scheduleData && data.employees) {
+                        importedData = data;
+                        localStorage.setItem('ecoleImportedSchedule', JSON.stringify(data));
+                        
+                        data.employees.forEach(emp => {
+                            if(!salarySettings[emp.id]) {
+                                salarySettings[emp.id] = { mode: emp.type === 'FT' ? 'monthly' : 'hourly', baseRate: emp.type === 'FT' ? 32000 : 183 };
+                            }
+                        });
+                        saveData();
+                        
+                        const months = Object.keys(data.scheduleData).sort().reverse();
+                        if(months.length > 0) {
+                            currentYearMonth = months[0];
+                            document.getElementById('monthSelector').value = currentYearMonth;
+                        }
+                        renderEmpList();
+                        alertCustom('排班表匯入成功！人員與設定已更新。');
+                    } else {
+                        alertCustom('檔案格式錯誤，請匯入從「排班系統」匯出的 JSON 備份檔。');
+                    }
+                } catch(err) { alertCustom('檔案讀取失敗，可能是損毀的 JSON 檔。'); }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function parseICHEFBlockRows(rows) {
+            const dayRecords = {};
+            let currentEmpName = null;
+            let pending = null;
+
+            const dtRegex = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}):\d{2}/;
+
+            function pushPunch(name, date, rec) {
+                if (!name) return;
+                if (!dayRecords[name]) dayRecords[name] = {};
+                if (!dayRecords[name][date]) dayRecords[name][date] = [];
+                dayRecords[name][date].push(rec);
+            }
+
+            function finalizePending() {
+                if (pending && currentEmpName) {
+                    pushPunch(currentEmpName, pending.date, { in: pending.time, out: '' });
+                }
+                pending = null;
+            }
+
+            rows.forEach(row => {
+                const a = (row[0] !== undefined && row[0] !== null) ? String(row[0]).trim() : '';
+                const b = (row[1] !== undefined && row[1] !== null) ? String(row[1]).trim() : '';
+                const c = (row[2] !== undefined && row[2] !== null) ? String(row[2]).trim() : '';
+
+                if (!a && !b && !c) return;
+
+                if (a === '上班' || a === '下班') {
+                    const m = b.match(dtRegex);
+                    if (!m) return;
+                    const date = m[1];
+                    const time = m[2];
+                    if (a === '上班') {
+                        finalizePending();
+                        pending = { date, time };
+                    } else {
+                        if (pending && pending.date === date) {
+                            pushPunch(currentEmpName, date, { in: pending.time, out: time });
+                            pending = null;
+                        } else {
+                            finalizePending();
+                            pushPunch(currentEmpName, date, { in: '', out: time });
+                        }
+                    }
+                    return;
+                }
+
+                if (a === '無上班記錄' || a === '無下班記錄') return;
+                if (a.startsWith('總時數')) { finalizePending(); return; }
+
+                finalizePending();
+                currentEmpName = a;
+            });
+            finalizePending();
+
+            return dayRecords;
+        }
+
+        async function handleImportClock(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            if(!importedData) { alertCustom("請先匯入「排班表」建立人員清單。"); event.target.value = ''; return; }
+
+            showLoading("正在解析 iCHEF 打卡資料...");
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array', cellDates: true});
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+
+                    const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
+
+                    const isICHEFBlockFormat = rawRows.some(r => {
+                        const cell = (r[0] !== undefined && r[0] !== null) ? String(r[0]).trim() : '';
+                        return cell === '上班' || cell === '下班';
+                    });
+
+                    let matchCount = 0;
+                    let mergedDaysCount = 0;
+                    const unmatchedNames = new Set();
+
+                    if (isICHEFBlockFormat) {
+                        const dayRecords = parseICHEFBlockRows(rawRows);
+
+                        for (const empName in dayRecords) {
+                            const emp = importedData.employees.find(e =>
+                                e.name === empName || empName.includes(e.name) || e.name.includes(empName));
+
+                            if (!emp) { unmatchedNames.add(empName); continue; }
+
+                            const datesForEmp = dayRecords[empName];
+                            for (const dateStr in datesForEmp) {
+                                if (!dateStr.startsWith(currentYearMonth)) continue;
+                                const day = parseInt(dateStr.split('-')[2], 10);
+
+                                let recs = datesForEmp[dateStr].filter(r => r.in || r.out);
+                                if (recs.length === 0) continue;
+
+                                let seg;
+                                if (recs.length <= 2) {
+                                    seg = {
+                                        in1: recs[0]?.in || '', out1: recs[0]?.out || '',
+                                        in2: recs[1]?.in || '', out2: recs[1]?.out || ''
+                                    };
+                                } else {
+                                    const rest = recs.slice(1);
+                                    const in2 = (rest.find(r => r.in) || {}).in || '';
+                                    const out2 = ([...rest].reverse().find(r => r.out) || {}).out || '';
+                                    seg = { in1: recs[0].in || '', out1: recs[0].out || '', in2, out2, merged: true };
+                                    mergedDaysCount++;
+                                }
+
+                                if (!attendanceData[currentYearMonth]) attendanceData[currentYearMonth] = {};
+                                if (!attendanceData[currentYearMonth][emp.id]) attendanceData[currentYearMonth][emp.id] = {};
+                                if (!attendanceData[currentYearMonth][emp.id][day]) attendanceData[currentYearMonth][emp.id][day] = {};
+
+                                if (seg.in1) attendanceData[currentYearMonth][emp.id][day].in1 = seg.in1;
+                                if (seg.out1) attendanceData[currentYearMonth][emp.id][day].out1 = seg.out1;
+                                if (seg.in2) attendanceData[currentYearMonth][emp.id][day].in2 = seg.in2;
+                                if (seg.out2) attendanceData[currentYearMonth][emp.id][day].out2 = seg.out2;
+                                if (seg.merged) { attendanceData[currentYearMonth][emp.id][day].mergedSegments = true; }
+                                else { delete attendanceData[currentYearMonth][emp.id][day].mergedSegments; }
+
+                                matchCount++;
+                            }
+                        }
+                    } else {
+                        const records = XLSX.utils.sheet_to_json(worksheet, { raw: false, dateNF: 'yyyy-mm-dd' });
+                        if(!Array.isArray(records) || records.length === 0) throw new Error("無有效資料列");
+
+                        const findKey = (row, possibleKeys) => {
+                            const keys = Object.keys(row);
+                            for(let pk of possibleKeys) {
+                                const found = keys.find(k => k.trim().toLowerCase().includes(pk.toLowerCase()));
+                                if(found) return found;
+                            }
+                            return null;
+                        };
+
+                        const nameKeys = ['姓名', '員工', 'name', '人員', '員工姓名', '打卡人'];
+                        const dateKeys = ['日期', 'date', '打卡日期', '營業日'];
+                        const inKeys = ['上班', '簽到', 'in', 'clock in', 'clockin', '上班打卡', '上班時間'];
+                        const outKeys = ['下班', '簽退', 'out', 'clock out', 'clockout', '下班打卡', '下班時間'];
+
+                        let groupedRecords = {};
+
+                        records.forEach(row => {
+                            const nameKey = findKey(row, nameKeys);
+                            const dateKey = findKey(row, dateKeys);
+                            const inKey = findKey(row, inKeys);
+                            const outKey = findKey(row, outKeys);
+
+                            if(!nameKey || !dateKey) return;
+
+                            let empName = String(row[nameKey]).trim();
+                            let recordDateRaw = String(row[dateKey]).trim();
+                            let clockIn = inKey && row[inKey] ? String(row[inKey]).trim() : '';
+                            let clockOut = outKey && row[outKey] ? String(row[outKey]).trim() : '';
+
+                            let recordDate = '';
+                            let dateObj = new Date(recordDateRaw);
+
+                            if (!isNaN(recordDateRaw) && Number(recordDateRaw) > 30000) {
+                                 dateObj = new Date(Math.round((Number(recordDateRaw) - 25569)*86400*1000));
+                            }
+
+                            if(!isNaN(dateObj) && dateObj.getFullYear() > 2000) {
+                                let y = dateObj.getFullYear();
+                                let m = String(dateObj.getMonth() + 1).padStart(2, '0');
+                                let d = String(dateObj.getDate()).padStart(2, '0');
+                                recordDate = `${y}-${m}-${d}`;
+                            } else {
+                                recordDate = recordDateRaw.replace(/\//g, '-').split(' ')[0];
+                                let dateParts = recordDate.split('-');
+                                if(dateParts.length >= 3) {
+                                    let y = dateParts[0];
+                                    let m = dateParts[1].padStart(2, '0');
+                                    let d = dateParts[2].padStart(2, '0');
+                                    recordDate = `${y}-${m}-${d}`;
+                                }
+                            }
+
+                            const formatTime = (t) => {
+                                if(t === undefined || t === null || t === '') return '';
+                                const str = String(t).trim();
+
+                                if (!isNaN(str) && Number(str) > 0 && Number(str) < 1) {
+                                    const totalMins = Math.round(Number(str) * 24 * 60);
+                                    let h = Math.floor(totalMins / 60);
+                                    let m = totalMins % 60;
+                                    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+                                }
+
+                                const match = str.match(/(\d{1,2}):(\d{2})/);
+                                if(match) {
+                                    let h = parseInt(match[1], 10);
+                                    let m = match[2];
+                                    if (str.toLowerCase().includes('pm') && h < 12) h += 12;
+                                    if (str.toLowerCase().includes('am') && h === 12) h = 0;
+                                    return `${h.toString().padStart(2, '0')}:${m}`;
+                                }
+                                return str;
+                            };
+
+                            clockIn = formatTime(clockIn);
+                            clockOut = formatTime(clockOut);
+
+                            const emp = importedData.employees.find(e =>
+                                e.name === empName ||
+                                empName.includes(e.name) ||
+                                e.name.includes(empName)
+                            );
+
+                            if(emp && recordDate.startsWith(currentYearMonth)) {
+                                const day = parseInt(recordDate.split('-')[2], 10);
+
+                                if(!groupedRecords[emp.id]) groupedRecords[emp.id] = {};
+                                if(!groupedRecords[emp.id][day]) groupedRecords[emp.id][day] = [];
+
+                                groupedRecords[emp.id][day].push({ in: clockIn, out: clockOut });
+                            } else if (emp === undefined) {
+                                unmatchedNames.add(empName);
+                            }
+                        });
+
+                        for(let empId in groupedRecords) {
+                            for(let day in groupedRecords[empId]) {
+                                if (!attendanceData[currentYearMonth]) attendanceData[currentYearMonth] = {};
+                                if (!attendanceData[currentYearMonth][empId]) attendanceData[currentYearMonth][empId] = {};
+                                if (!attendanceData[currentYearMonth][empId][day]) attendanceData[currentYearMonth][empId][day] = {};
+
+                                let dailyRecs = groupedRecords[empId][day];
+                                dailyRecs = dailyRecs.filter(r => r.in !== '' || r.out !== '');
+                                if (dailyRecs.length === 0) continue;
+
+                                dailyRecs.sort((a, b) => a.in.localeCompare(b.in));
+
+                                if(dailyRecs[0]) {
+                                    if(dailyRecs[0].in) attendanceData[currentYearMonth][empId][day].in1 = dailyRecs[0].in;
+                                    if(dailyRecs[0].out) attendanceData[currentYearMonth][empId][day].out1 = dailyRecs[0].out;
+                                    matchCount++;
+                                }
+                                if(dailyRecs.length === 2) {
+                                    if(dailyRecs[1].in) attendanceData[currentYearMonth][empId][day].in2 = dailyRecs[1].in;
+                                    if(dailyRecs[1].out) attendanceData[currentYearMonth][empId][day].out2 = dailyRecs[1].out;
+                                    delete attendanceData[currentYearMonth][empId][day].mergedSegments;
+                                } else if (dailyRecs.length > 2) {
+                                    const rest = dailyRecs.slice(1);
+                                    const in2 = (rest.find(r => r.in) || {}).in || '';
+                                    const out2 = ([...rest].reverse().find(r => r.out) || {}).out || '';
+                                    if(in2) attendanceData[currentYearMonth][empId][day].in2 = in2;
+                                    if(out2) attendanceData[currentYearMonth][empId][day].out2 = out2;
+                                    attendanceData[currentYearMonth][empId][day].mergedSegments = true;
+                                    mergedDaysCount++;
+                                } else {
+                                    delete attendanceData[currentYearMonth][empId][day].mergedSegments;
+                                }
+                            }
+                        }
+                    }
+
+                    saveData();
+                    if(selectedEmpId) renderAttendanceDetail(selectedEmpId);
+                    renderEmpList();
+
+                    if(matchCount > 0) {
+                        let msg = `✅ 成功解析並匯入 ${matchCount} 筆符合 ${currentYearMonth} 的打卡紀錄！`;
+                        if (mergedDaysCount > 0) {
+                            msg += `\n⚠️ 其中 ${mergedDaysCount} 筆為同日 3 段以上打卡，系統已自動合併為第二段（取最早上班、最晚下班），建議人工複核工時。`;
+                        }
+                        if (unmatchedNames.size > 0) {
+                            msg += `\n📋 以下人員不在本月排班表人員名單中，其打卡紀錄未匯入：${[...unmatchedNames].join('、')}`;
+                        }
+                        msg += `\n\n💡 出勤表中標示黃色 ⚠️ 的日期代表有異常（如打卡超過兩段、實際工時低於預計工時、缺少上/下班卡、原有排班卻查無打卡紀錄、或上班遲到超過5分鐘），請至左側人員清單與右側出勤表查看標示，並可於異常日期填寫處理備註（填寫後標示會轉為灰色✅已處理）。`;
+                        alertCustom(msg);
+                    } else {
+                        let msg = `⚠️ 未發現符合 ${currentYearMonth} 且姓名相符的打卡紀錄。\n請確認：\n1. 匯入檔案月份是否正確\n2. 檔案內員工姓名是否與系統設定一致`;
+                        if (unmatchedNames.size > 0) {
+                            msg += `\n\n檔案中出現但不在排班表的人員：${[...unmatchedNames].join('、')}`;
+                        }
+                        alertCustom(msg);
+                    }
+                } catch(err) {
+                    console.error(err);
+                    alertCustom('打卡檔案解析失敗，請確認是否為標準的 Excel (.xlsx) 或 CSV 格式。');
+                } finally {
+                    hideLoading();
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+
+        function renderEmpList() {
+            if(!importedData || !importedData.employees) return;
+            
+            const container = document.getElementById('empListContainer');
+            document.getElementById('totalEmpCount').innerText = `${importedData.employees.length} 人`;
+            
+            let html = '';
+            const sortedEmps = [...importedData.employees].sort((a,b) => {
+                if(a.type === b.type) return 0;
+                return a.type === 'FT' ? -1 : 1;
+            });
+
+            sortedEmps.forEach(emp => {
+                const isActive = emp.id === selectedEmpId;
+                const activeClass = isActive ? 'bg-slate-800 text-white shadow-md transform scale-[1.02] ring-2 ring-slate-800 ring-offset-1' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300';
+                const typeColor = emp.type === 'FT' ? (isActive ? 'text-slate-300' : 'text-sky-600') : (isActive ? 'text-slate-400' : 'text-amber-600');
+                const initial = emp.name.charAt(0);
+
+                const stats = calcEmpStats(emp, currentYearMonth);
+                const issueBadge = stats.issueDaysCount > 0
+                    ? `<span class="inline-flex items-center gap-0.5 text-[10px] font-bold ${isActive ? 'text-amber-300' : 'text-rose-600'} ml-1.5" title="本月有 ${stats.issueDaysCount} 天出勤異常尚未處理，請至右側明細查看標示並填寫處理備註">⚠️ ${stats.issueDaysCount}</span>`
+                    : (stats.resolvedIssueDaysCount > 0
+                        ? `<span class="inline-flex items-center gap-0.5 text-[10px] font-bold ${isActive ? 'text-slate-300' : 'text-slate-400'} ml-1.5" title="本月有 ${stats.resolvedIssueDaysCount} 天出勤異常已填寫處理備註">✅ ${stats.resolvedIssueDaysCount}</span>`
+                        : '');
+
+                html += `
+                <div onclick="selectEmployee('${emp.id}')" class="cursor-pointer border rounded-xl p-3 transition-all duration-200 flex items-center justify-between ${activeClass}">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-inner ${isActive ? 'bg-white text-slate-800' : 'bg-slate-100 text-slate-600'}">${initial}</div>
+                        <div>
+                            <div class="font-bold text-sm leading-tight tracking-wide">${emp.name}${issueBadge}</div>
+                            <div class="text-[10px] font-bold mt-0.5 ${typeColor}">${emp.type}</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm font-extrabold ${isActive ? 'text-white' : 'text-slate-700'}">${stats.totalActualHrs.toFixed(1)}h</div>
+                        <div class="text-[10px] ${isActive ? 'text-slate-300' : 'text-slate-400'}">${stats.daysWorked} 天出勤</div>
+                    </div>
+                </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function selectEmployee(empId) {
+            selectedEmpId = empId;
+            document.getElementById('noSelectionOverlay').style.display = 'none';
+            renderEmpList();
+            renderAttendanceDetail(empId);
+        }
+
+        function updateSalarySettings() {
+            if(!selectedEmpId) return;
+            const mode = document.getElementById('salaryMode').value;
+            const rate = parseFloat(document.getElementById('baseRateInput').value) || 0;
+            
+            salarySettings[selectedEmpId] = { mode, baseRate: rate };
+            saveData();
+            document.getElementById('baseRateLabel').innerText = mode === 'hourly' ? '基本時薪' : '月本薪 (底薪)';
+            renderAttendanceDetail(selectedEmpId); 
+        }
+
+        function renderAttendanceDetail(empId) {
+            const emp = importedData.employees.find(e => e.id === empId);
+            if(!emp) return;
+
+            document.getElementById('detailEmpName').innerText = emp.name;
+            document.getElementById('detailEmpType').innerText = emp.type;
+            document.getElementById('detailEmpAvatar').innerText = emp.name.charAt(0);
+            
+            const stats = calcEmpStats(emp, currentYearMonth);
+            
+            document.getElementById('salaryMode').value = stats.settings.mode;
+            document.getElementById('baseRateInput').value = stats.settings.baseRate;
+            document.getElementById('baseRateLabel').innerText = stats.settings.mode === 'hourly' ? '基本時薪' : '月本薪 (底薪)';
+
+            const details = empDetails[emp.id] || { joinDate: '', birthday: '', annualLeaveTotal: 0 };
+            document.getElementById('joinDateInput').value = details.joinDate || '';
+            document.getElementById('birthdayInput').value = details.birthday || '';
+            document.getElementById('annualLeaveTotalInput').value = details.annualLeaveTotal || 0;
+            document.getElementById('seniorityDisplay').innerText = calculateSeniority(details.joinDate);
+
+            const [year, month] = currentYearMonth.split('-').map(Number);
+            const daysInMonth = new Date(year, month, 0).getDate();
+            const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
+            const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+
+            let tbodyHTML = '';
+            let usedLeaveDays = 0;
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dayIndex = (firstDayOfWeek + i - 1) % 7;
+                const isWeekend = dayIndex === 0 || dayIndex === 6;
+                const dayLabel = `${i.toString().padStart(2, '0')} (${weekDays[dayIndex]})`;
+                const dateClass = isWeekend ? 'text-weekend' : 'text-slate-600';
+
+                const scheduledShift = importedData.scheduleData?.[currentYearMonth]?.[emp.id]?.[i] || '';
+                if (scheduledShift === '年假') usedLeaveDays++;
+                const isAdminOut = isAdminOrFieldShift(scheduledShift);
+                const override = scheduleOverrides[currentYearMonth]?.[emp.id]?.[i] || {};
+                const scheduledHours = getScheduledHoursForDay(scheduledShift, emp.id, i, currentYearMonth);
+                const attRecord = attendanceData[currentYearMonth]?.[emp.id]?.[i] || {};
+                
+                let in1 = attRecord.in1 || attRecord.in || '';
+                let out1 = attRecord.out1 || attRecord.out || '';
+                let in2 = attRecord.in2 || '';
+                let out2 = attRecord.out2 || '';
+
+                let h1 = calculateDiffHours(in1, out1);
+                let h2 = calculateDiffHours(in2, out2);
+                let actualHours = h1 + h2;
+                
+                if (h2 === 0 && h1 > 6) actualHours -= 0.5; 
+                else if (h2 > 0) {
+                    if (h1 > 6) actualHours -= 0.5;
+                    if (h2 > 6) actualHours -= 0.5;
+                }
+
+                let overtimeHours = 0;
+                if (scheduledHours > 0 && actualHours > scheduledHours) overtimeHours = actualHours - scheduledHours;
+                else if (scheduledHours === 0 && actualHours > 0) overtimeHours = actualHours;
+
+                const lateInfo = getLateInfo(scheduledShift, emp.id, i, currentYearMonth, in1, in2);
+                const dayIssues = getDayIssues(scheduledShift, attRecord, scheduledHours, actualHours, isFutureDate(year, month, i), lateInfo);
+                const noteText = issueNotes[currentYearMonth]?.[emp.id]?.[i] || '';
+                const isHandled = dayIssues.length > 0 && noteText.trim() !== '';
+
+                let rowClass = 'hover:bg-slate-50 transition-colors';
+                if (dayIssues.length > 0) {
+                    rowClass += isHandled ? ' bg-slate-100' : ' bg-late';
+                } else if (overtimeHours > 0) {
+                    rowClass += ' bg-teal-50 bg-opacity-50';
+                }
+
+                let displayShift = scheduledShift.replace(/\n/g, '<br>');
+                if(['✖', '❌'].includes(scheduledShift)) displayShift = '<span class="text-slate-400 font-bold">休假</span>';
+                if(scheduledShift === '年假') displayShift = '<span class="text-sky-600 font-bold">年假</span>';
+
+                const issueTitle = dayIssues.join('\n').replace(/"/g, '&quot;');
+                const issueBadge = dayIssues.length === 0 ? '' : (
+                    isHandled
+                        ? `<span class="ml-1 cursor-help text-slate-500" title="✅ 已處理備註：${noteText.replace(/"/g, '&quot;')}\n\n原始異常：\n${issueTitle}">✅</span>`
+                        : `<span class="ml-1 cursor-help text-amber-600" title="${issueTitle}">⚠️</span>`
+                );
+
+                // ⭐ 調整 1：將遲到字樣放大至 text-[11px] font-bold
+                const lateNote1 = lateInfo.lateMin1 > 0 ? `<div class="text-[11px] text-rose-600 font-bold text-center leading-tight">遲到${lateInfo.lateMin1}分</div>` : '';
+                const lateNote2 = lateInfo.lateMin2 > 0 ? `<div class="text-[11px] text-rose-600 font-bold text-center leading-tight">遲到${lateInfo.lateMin2}分</div>` : '';
+
+                // ⭐ 調整 2：將處理備註輸入框字體放大至 text-xs
+                const noteInput = dayIssues.length > 0 ? `
+                        <input type="text" placeholder="填寫處理備註" title="輸入處理備註後，此日期異常標示會由黃色⚠️轉為灰色✅（已處理），滑鼠移到圖示可查看備註內容"
+                               class="mt-1 w-full text-xs text-center border border-slate-300 rounded px-1.5 py-1 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500 bg-white text-slate-700 font-medium"
+                               value="${noteText.replace(/"/g, '&quot;')}"
+                               onchange="updateIssueNote('${emp.id}', ${i}, this.value)">
+                ` : '';
+
+                tbodyHTML += `
+                <tr class="${rowClass}">
+                    <td class="font-bold ${dateClass} text-xs tracking-wider">${dayLabel}</td>
+                    <td class="text-xs text-slate-500 leading-tight">${displayShift || '-'}</td>
+                    <td class="text-xs text-slate-500 font-medium">
+                        ${isAdminOut ? `
+                        <div class="flex flex-col gap-1 items-stretch">
+                            <input type="time" title="預計上班時間" class="w-full text-center border border-slate-300 rounded-md outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500 time-input-sm text-slate-700 bg-white"
+                                   value="${override.startTime || ''}" onchange="updateScheduleOverride('${emp.id}', ${i}, 'startTime', this.value)">
+                            <input type="number" step="0.5" min="0" title="預計工時" placeholder="工時" class="w-full text-center border border-slate-300 rounded-md outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500 time-input-sm text-slate-700 bg-white"
+                                   value="${override.hours ?? ''}" onchange="updateScheduleOverride('${emp.id}', ${i}, 'hours', this.value)">
+                        </div>
+                        ` : (scheduledHours > 0 ? scheduledHours + 'h' : '-')}
+                    </td>
+                    
+                    <td class="border-l-2 border-slate-200 p-1.5 align-top">
+                        <div class="flex flex-col gap-1.5">
+                            <input type="time" class="w-full text-center border ${lateInfo.lateMin1 > 0 ? 'border-rose-300' : 'border-slate-300'} rounded-md outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500 time-input-sm text-slate-700 bg-white" 
+                                   value="${in1}" onchange="updateTime('${emp.id}', ${i}, 'in1', this.value)">
+                            ${lateNote1}
+                            <input type="time" class="w-full text-center border ${lateInfo.lateMin2 > 0 ? 'border-rose-300' : 'border-slate-200'} rounded-md outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500 time-input-sm text-slate-500 bg-slate-50 placeholder-slate-300" 
+                                   value="${in2}" onchange="updateTime('${emp.id}', ${i}, 'in2', this.value)">
+                            ${lateNote2}
+                        </div>
+                    </td>
+                    <td class="p-1.5 align-top">
+                        <div class="flex flex-col gap-1.5">
+                            <input type="time" class="w-full text-center border border-slate-300 rounded-md outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500 time-input-sm text-slate-700 bg-white" 
+                                   value="${out1}" onchange="updateTime('${emp.id}', ${i}, 'out1', this.value)">
+                            <input type="time" class="w-full text-center border border-slate-200 rounded-md outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500 time-input-sm text-slate-500 bg-slate-50 placeholder-slate-300" 
+                                   value="${out2}" onchange="updateTime('${emp.id}', ${i}, 'out2', this.value)">
+                        </div>
+                    </td>
+                    
+                    <td class="border-l-2 border-slate-200 font-bold text-slate-700 bg-slate-50/50 align-top">
+                        ${actualHours > 0 ? actualHours.toFixed(1) + 'h' : '-'}${issueBadge}${noteInput}
+                    </td>
+                    <td class="font-bold bg-slate-50/50 ${overtimeHours > 0 ? 'text-teal-600' : 'text-slate-400'}">
+                        ${overtimeHours > 0 ? '+' + overtimeHours.toFixed(1) + 'h' : '-'}
+                    </td>
+                </tr>
+                `;
+            }
+            document.getElementById('attendanceBody').innerHTML = tbodyHTML;
+            document.getElementById('usedAnnualLeaveDisplay').innerText = `${usedLeaveDays} 天`;
+
+            const formattedSalary = '$' + Math.round(stats.finalSalary).toLocaleString();
+            document.getElementById('totalSalaryDisplay').innerText = formattedSalary;
+            document.getElementById('totalSalaryDisplayMobile').innerText = formattedSalary;
+        }
+
+        function updateTime(empId, day, type, value) {
+            if (!attendanceData[currentYearMonth]) attendanceData[currentYearMonth] = {};
+            if (!attendanceData[currentYearMonth][empId]) attendanceData[currentYearMonth][empId] = {};
+            if (!attendanceData[currentYearMonth][empId][day]) attendanceData[currentYearMonth][empId][day] = {};
+            
+            attendanceData[currentYearMonth][empId][day][type] = value;
+            saveData();
+            
+            renderAttendanceDetail(empId);
+            renderEmpList();
+        }
+
+        function clearData() {
+            if(confirm('確定要清空所有已匯入的排班、打卡與設定資料嗎？此操作無法復原。')) {
+                localStorage.removeItem('ecoleAttendance');
+                localStorage.removeItem('ecoleSalarySettings');
+                localStorage.removeItem('ecoleEmpDetails');
+                localStorage.removeItem('ecoleScheduleOverrides');
+                localStorage.removeItem('ecoleIssueNotes');
+                localStorage.removeItem('ecoleImportedSchedule');
+                importedData = null; attendanceData = {}; salarySettings = {}; empDetails = {}; scheduleOverrides = {}; issueNotes = {}; selectedEmpId = null;
+                document.getElementById('empListContainer').innerHTML = '<div class="text-center text-slate-400 mt-10 text-sm">請先匯入排班表以載入人員名單</div>';
+                document.getElementById('noSelectionOverlay').style.display = 'flex';
+                document.getElementById('totalEmpCount').innerText = `0 人`;
+            }
+        }
+
+        // ⭐ 調整 3：在備份 JSON 資料中一併納入員工資料 (importedData)
+        function exportBackupData() {
+            const data = { 
+                attendanceData, 
+                salarySettings, 
+                scheduleOverrides, 
+                issueNotes, 
+                empDetails,
+                importedData // 完整包含員工清單與排班結構
+            };
+            const fileName = `EcoleCafe_AttendanceBackup_${currentYearMonth}.json`;
+            const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            link.click();
+        }
+
+        // ⭐ 調整 4：還原備份 JSON 時一併讀回員工資料 (importedData)
+        function handleImportBackup(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if(data.attendanceData) attendanceData = data.attendanceData;
+                    if(data.salarySettings) salarySettings = data.salarySettings;
+                    if(data.scheduleOverrides) scheduleOverrides = data.scheduleOverrides;
+                    if(data.issueNotes) issueNotes = data.issueNotes;
+                    if(data.empDetails) empDetails = data.empDetails;
+                    if(data.importedData) {
+                        importedData = data.importedData;
+                        localStorage.setItem('ecoleImportedSchedule', JSON.stringify(data.importedData));
+                    }
+                    saveData();
+                    if(importedData) renderEmpList();
+                    if(selectedEmpId) renderAttendanceDetail(selectedEmpId);
+                    alertCustom('出勤備份檔（含員工與出勤紀錄）還原成功！');
+                } catch(err) { alertCustom('備份檔案格式錯誤。'); }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function exportCSV() {
+            if(!importedData) { alertCustom("無資料可匯出"); return; }
+            
+            let csvContent = "\uFEFF"; // BOM for Excel UTF-8
+            csvContent += "年月,員工姓名,員工類型,計薪方式,底薪/時薪,日期,排定班別,預計工時,實際上班1,實際下班1,實際上班2,實際下班2,實際工時,加班時數\n";
+            
+            const [year, month] = currentYearMonth.split('-').map(Number);
+            const daysInMonth = new Date(year, month, 0).getDate();
+
+            importedData.employees.forEach(emp => {
+                const settings = salarySettings[emp.id] || { mode: emp.type === 'FT'?'monthly':'hourly', baseRate: emp.type === 'FT'?32000:183 };
+                const modeStr = settings.mode === 'hourly' ? '時薪' : '月薪';
+
+                for (let i = 1; i <= daysInMonth; i++) {
+                    const shift = (importedData.scheduleData?.[currentYearMonth]?.[emp.id]?.[i] || '').replace(/\n/g, ' ');
+                    const scheduledHrs = getScheduledHoursForDay(shift, emp.id, i, currentYearMonth);
+                    const att = attendanceData[currentYearMonth]?.[emp.id]?.[i] || {};
+                    
+                    let in1 = att.in1 || att.in || '';
+                    let out1 = att.out1 || att.out || '';
+                    let in2 = att.in2 || '';
+                    let out2 = att.out2 || '';
+
+                    let h1 = calculateDiffHours(in1, out1);
+                    let h2 = calculateDiffHours(in2, out2);
+                    let actualHours = h1 + h2;
+                    if (h2 === 0 && h1 > 6) actualHours -= 0.5;
+                    else if (h2 > 0) { if (h1 > 6) actualHours -= 0.5; if (h2 > 6) actualHours -= 0.5; }
+
+                    let otHours = 0;
+                    if (scheduledHrs > 0 && actualHours > scheduledHrs) otHours = actualHours - scheduledHrs;
+                    else if (scheduledHrs === 0 && actualHours > 0) otHours = actualHours;
+
+                    csvContent += `${currentYearMonth},${emp.name},${emp.type},${modeStr},${settings.baseRate},${i},${shift},${scheduledHrs},${in1},${out1},${in2},${out2},${actualHours},${otHours}\n`;
+                }
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `EcoleCafe_薪資出勤明細_${currentYearMonth}.csv`;
+            link.click();
+        }
+
+        function openPDFDialog() {
+            if(!importedData) { alertCustom("無資料可匯出"); return; }
+            document.getElementById('pdfExportDialog').showModal();
+        }
+
+        function buildSummaryPageHTML(includeSalary) {
+            let html = `
+            <div style="font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; padding: 20px;">
+                <h1 style="text-align: center; font-size: 26px; font-weight: bold; margin-bottom: 35px; letter-spacing: 2px;">ÉCOLE CAFÉ 出勤與薪資總表 - ${currentYearMonth}</h1>
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                    <thead>
+                        <tr style="background-color: #f1f5f9; text-align: center; color: #475569;">
+                            <th style="border: 1px solid #cbd5e1; padding: 12px;">姓名</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 12px;">身份</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 12px;">出勤天數</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 12px;">總實際工時</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 12px;">總加班時數</th>
+                            ${includeSalary ? '<th style="border: 1px solid #cbd5e1; padding: 12px;">計薪基準</th>' : ''}
+                            ${includeSalary ? '<th style="border: 1px solid #cbd5e1; padding: 12px; background-color:#e2e8f0; color: #0f172a;">總計薪資(估算)</th>' : ''}
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            const sortedEmps = [...importedData.employees].sort((a,b) => a.type === b.type ? 0 : (a.type === 'FT' ? -1 : 1));
+            
+            sortedEmps.forEach(emp => {
+                const stats = calcEmpStats(emp, currentYearMonth);
+                const modeStr = stats.settings.mode === 'hourly' ? `時薪 $${stats.settings.baseRate}` : `月薪 $${stats.settings.baseRate}`;
+                
+                html += `
+                <tr style="text-align: center;">
+                    <td style="border: 1px solid #cbd5e1; padding: 10px; font-weight: bold; color: #1e293b;">${emp.name}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 10px; color: #64748b;">${emp.type}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 10px;">${stats.daysWorked} 天</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 10px; font-weight: bold;">${stats.totalActualHrs.toFixed(1)} h</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 10px; color: ${stats.totalOvertimeHrs > 0 ? '#0d9488':'inherit'}; font-weight: ${stats.totalOvertimeHrs > 0 ? 'bold':'normal'};">${stats.totalOvertimeHrs > 0 ? '+'+stats.totalOvertimeHrs.toFixed(1) : '-'}</td>
+                    ${includeSalary ? `<td style="border: 1px solid #cbd5e1; padding: 10px; font-size: 13px; color: #64748b;">${modeStr}</td>` : ''}
+                    ${includeSalary ? `<td style="border: 1px solid #cbd5e1; padding: 10px; font-weight: bold; font-size: 16px; color: #0f172a;">$${Math.round(stats.finalSalary).toLocaleString()}</td>` : ''}
+                </tr>`;
+            });
+            html += `</tbody></table></div>`;
+            return html;
+        }
+
+        function buildDetailPageHTML(emp, includeSalary) {
+            const stats = calcEmpStats(emp, currentYearMonth);
+            const modeStr = stats.settings.mode === 'hourly' ? `時薪 $${stats.settings.baseRate}` : `月薪 $${stats.settings.baseRate}`;
+            
+            const details = empDetails[emp.id] || { joinDate: '', birthday: '', annualLeaveTotal: 0 };
+            const seniorityStr = calculateSeniority(details.joinDate);
+            let usedLeaveDays = 0;
+            const [year, month] = currentYearMonth.split('-').map(Number);
+            const daysInMonth = new Date(year, month, 0).getDate();
+            for (let i = 1; i <= daysInMonth; i++) {
+                if ((importedData.scheduleData?.[currentYearMonth]?.[emp.id]?.[i] || '') === '年假') usedLeaveDays++;
+            }
+            
+            let html = `
+            <div style="font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; padding: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #334155; padding-bottom: 12px; margin-bottom: 16px;">
+                    <div>
+                        <h2 style="font-size: 24px; font-weight: bold; margin: 0; color: #0f172a;">${emp.name} <span style="font-size: 15px; font-weight: normal; color: #64748b;">(${emp.type})</span></h2>
+                        <div style="font-size: 15px; color: #64748b; margin-top: 6px;">出勤明細表 - ${currentYearMonth}</div>
+                    </div>
+                    <div style="text-align: right; font-size: 15px; color: #334155;">
+                        <span style="margin-right: 20px;">出勤: <strong>${stats.daysWorked}天</strong></span>
+                        <span style="margin-right: 20px;">總工時: <strong>${stats.totalActualHrs.toFixed(1)}h</strong></span>
+                        ${includeSalary ? `<span style="margin-right: 20px;">基準: <strong style="color: #475569;">${modeStr}</strong></span>` : ''}
+                        ${includeSalary ? `總薪資: <strong style="font-size:20px; color: #0f172a;">$${Math.round(stats.finalSalary).toLocaleString()}</strong>` : ''}
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 20px; font-size: 13px; color: #475569; margin-bottom: 20px; background: #f8fafc; padding: 10px 15px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                    <span>入職日期: <strong>${details.joinDate || '-'}</strong></span>
+                    <span>年資: <strong>${seniorityStr}</strong></span>
+                    <span>生日: <strong>${details.birthday || '-'}</strong></span>
+                    <span>年假總額: <strong>${details.annualLeaveTotal} 天</strong></span>
+                    <span>本月已排年假: <strong style="color: #e11d48;">${usedLeaveDays} 天</strong></span>
+                </div>
+                
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: center;">
+                    <thead>
+                        <tr style="background-color: #f1f5f9; color: #475569;">
+                            <th style="border: 1px solid #cbd5e1; padding: 8px;">日期</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px;">排定班別</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px;">預計</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px;">上班1</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px;">下班1</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px;">上班2</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px;">下班2</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px;">實際工時</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px;">加班</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+            const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dayIndex = (firstDayOfWeek + i - 1) % 7;
+                const isWeekend = dayIndex === 0 || dayIndex === 6;
+                const dayLabel = `${i.toString().padStart(2, '0')} (${weekDays[dayIndex]})`;
+                
+                const shift = importedData.scheduleData?.[currentYearMonth]?.[emp.id]?.[i] || '';
+                const scheduledHours = getScheduledHoursForDay(shift, emp.id, i, currentYearMonth);
+                const att = attendanceData[currentYearMonth]?.[emp.id]?.[i] || {};
+                
+                let in1 = att.in1 || att.in || '';
+                let out1 = att.out1 || att.out || '';
+                let in2 = att.in2 || '';
+                let out2 = att.out2 || '';
+
+                let h1 = calculateDiffHours(in1, out1);
+                let h2 = calculateDiffHours(in2, out2);
+                let actualHours = h1 + h2;
+                if (h2 === 0 && h1 > 6) actualHours -= 0.5;
+                else if (h2 > 0) { if (h1 > 6) actualHours -= 0.5; if (h2 > 6) actualHours -= 0.5; }
+
+                let otHours = 0;
+                if (scheduledHours > 0 && actualHours > scheduledHours) otHours = actualHours - scheduledHours;
+                else if (scheduledHours === 0 && actualHours > 0) otHours = actualHours;
+
+                const lateInfo = getLateInfo(shift, emp.id, i, currentYearMonth, in1, in2);
+                const dayIssues = getDayIssues(shift, att, scheduledHours, actualHours, isFutureDate(year, month, i), lateInfo);
+                const noteText = issueNotes[currentYearMonth]?.[emp.id]?.[i] || '';
+                const isHandled = dayIssues.length > 0 && noteText.trim() !== '';
+                const trStyle = dayIssues.length > 0
+                    ? (isHandled ? 'background-color: #e2e8f0;' : 'background-color: #fef08a;')
+                    : ((i % 2 === 0) ? 'background-color: #f8fafc;' : '');
+                const dateStyle = isWeekend ? 'color: #e11d48; font-weight: bold;' : '';
+                let displayShift = shift.replace(/\n/g, ' ');
+                if(['✖', '❌'].includes(shift)) displayShift = '<span style="color:#94a3b8;">休假</span>';
+                if(shift === '年假') displayShift = '<span style="color:#0284c7;">年假</span>';
+                if(isAdminOrFieldShift(shift)) {
+                    const ov = scheduleOverrides[currentYearMonth]?.[emp.id]?.[i] || {};
+                    if (ov.startTime) displayShift += ` <span style="color:#0284c7;">(預計 ${ov.startTime} 上班)</span>`;
+                }
+                const issueNote = dayIssues.length === 0 ? '' : (
+                    isHandled
+                        ? ` <span style="color:#475569;" title="已處理：${noteText.replace(/"/g, '&quot;')}">✅</span>`
+                        : ` <span style="color:#b45309;" title="${dayIssues.join('; ').replace(/"/g, '&quot;')}">⚠️</span>`
+                );
+                const in1Display = lateInfo.lateMin1 > 0 ? `${in1} <span style="color:#e11d48;font-size:10px;">(遲到${lateInfo.lateMin1}分)</span>` : in1;
+                const in2Display = lateInfo.lateMin2 > 0 ? `${in2} <span style="color:#e11d48;font-size:10px;">(遲到${lateInfo.lateMin2}分)</span>` : in2;
+
+                html += `
+                <tr style="${trStyle}">
+                    <td style="border: 1px solid #e2e8f0; padding: 6px; ${dateStyle}">${dayLabel}</td>
+                    <td style="border: 1px solid #e2e8f0; padding: 6px; color:#475569;">${displayShift || '-'}</td>
+                    <td style="border: 1px solid #e2e8f0; padding: 6px; color:#64748b;">${scheduledHours > 0 ? scheduledHours : '-'}</td>
+                    <td style="border: 1px solid #e2e8f0; padding: 6px; font-weight:bold; color: #1e293b;">${in1Display}</td>
+                    <td style="border: 1px solid #e2e8f0; padding: 6px; font-weight:bold; color: #1e293b;">${out1}</td>
+                    <td style="border: 1px solid #e2e8f0; padding: 6px; color:#94a3b8;">${in2Display}</td>
+                    <td style="border: 1px solid #e2e8f0; padding: 6px; color:#94a3b8;">${out2}</td>
+                    <td style="border: 1px solid #e2e8f0; padding: 6px; font-weight:bold; color: #0f172a;">${actualHours > 0 ? actualHours.toFixed(1) : '-'}${issueNote}</td>
+                    <td style="border: 1px solid #e2e8f0; padding: 6px; color: ${otHours > 0 ? '#0d9488':'#cbd5e1'}; font-weight:bold;">${otHours > 0 ? '+'+otHours.toFixed(1) : '-'}</td>
+                </tr>`;
+            }
+            html += `</tbody></table></div>`;
+            return html;
+        }
+
+        function addCanvasToPdfFitOnePage(pdf, canvas, pdfWidth, pdfHeight) {
+            const imgWidthPx = canvas.width;
+            const imgHeightPx = canvas.height;
+            if (imgWidthPx === 0 || imgHeightPx === 0) return;
+
+            let drawWidth = pdfWidth;
+            let drawHeight = (imgHeightPx * pdfWidth) / imgWidthPx;
+
+            if (drawHeight > pdfHeight) {
+                drawHeight = pdfHeight;
+                drawWidth = (imgWidthPx * pdfHeight) / imgHeightPx;
+            }
+
+            const offsetX = (pdfWidth - drawWidth) / 2;
+            const offsetY = 0;
+
+            const imgData = canvas.toDataURL('image/jpeg', 1.0);
+            pdf.addImage(imgData, 'JPEG', offsetX, offsetY, drawWidth, drawHeight);
+        }
+
+        async function executeExportPDF() {
+            const includeSalary = document.getElementById('pdfIncludeSalary').checked;
+            document.getElementById('pdfExportDialog').close();
+
+            showLoading("正在產生高品質 PDF 報表，請稍候...");
+            
+            setTimeout(async () => {
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = pdf.internal.pageSize.getHeight();
+                    const renderContainer = document.getElementById('pdfRenderContainer');
+                    const sortedEmps = [...importedData.employees].sort((a,b) => a.type === b.type ? 0 : (a.type === 'FT' ? -1 : 1));
+
+                    renderContainer.innerHTML = buildSummaryPageHTML(includeSalary);
+                    let canvas = await html2canvas(renderContainer, { scale: 2, backgroundColor: '#ffffff' });
+                    addCanvasToPdfFitOnePage(pdf, canvas, pdfWidth, pdfHeight);
+
+                    for (let emp of sortedEmps) {
+                        pdf.addPage();
+                        renderContainer.innerHTML = buildDetailPageHTML(emp, includeSalary);
+                        canvas = await html2canvas(renderContainer, { scale: 2, backgroundColor: '#ffffff' });
+                        addCanvasToPdfFitOnePage(pdf, canvas, pdfWidth, pdfHeight);
+                    }
+
+                    pdf.save(`EcoleCafe_出勤薪資報表_${currentYearMonth}.pdf`);
+                } catch(e) {
+                    console.error(e);
+                    alertCustom("PDF 產生失敗，請稍後再試。");
+                } finally {
+                    hideLoading();
+                }
+            }, 100);
+        }
+
+        init();
+    </script>
+</body>
+</html>
