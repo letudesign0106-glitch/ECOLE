@@ -675,9 +675,8 @@
         if (user) {
             loginBtn.innerText = `${user.displayName || '已登入'} (登出)`;
             restoreBtn.style.display = 'inline-block';
-            // 登入成功後自動同步一次共用雲端資料
             if (typeof window.restoreFromCloud === 'function') {
-                window.restoreFromCloud(true); // 帶入靜默參數避免跳出過多提示
+                window.restoreFromCloud(true);
             }
         } else {
             loginBtn.innerText = 'Google 登入';
@@ -708,7 +707,7 @@
     // 自動上傳至 Firebase 共用雲端功能 (防抖動機制)
     window.autoSaveTimer = null;
     window.triggerAutoSave = function() {
-        if (!window.currentUser) return; // 需登入才能上傳共用備份
+        if (!window.currentUser) return;
         const statusSpan = document.getElementById('cloud-status');
         if (statusSpan) statusSpan.innerText = '共用雲端同步中...';
 
@@ -725,7 +724,6 @@
                     updatedBy: window.currentUser.email || window.currentUser.displayName
                 };
                 
-                // 寫入共用文件路徑 backups / shared_ecole_cafe_backup
                 await setDoc(doc(db, "backups", SHARED_DOC_ID), dataToUpload);
                 
                 if (statusSpan) {
@@ -1199,7 +1197,8 @@
 
             const prevDateStr = getPreviousDateStr(dateVal);
             if (window.globalDataStore.dailyTracking && window.globalDataStore.dailyTracking[prevDateStr]) {
-                const prevDay = window.globalDataStore.dailyTracking[prevDateStr];
+                // 使用 JSON 深度拷貝前一天的資料，確保今天修改完全不會影響昨天的紀錄
+                const prevDay = JSON.parse(JSON.stringify(window.globalDataStore.dailyTracking[prevDateStr]));
 
                 if (prevDay.alignments) {
                     prevDay.alignments.forEach(item => {
@@ -1241,6 +1240,9 @@
                         if (val && val.trim() !== '') addPromoRow(val);
                     });
                 }
+
+                // 立即將這份初始繼承的獨立內容寫入當日紀錄，確保與前一天完全斷開獨立
+                saveCurrentDayData(dateVal);
             }
         }
 
