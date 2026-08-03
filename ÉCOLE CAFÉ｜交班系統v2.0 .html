@@ -135,6 +135,8 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
         }
 
         .section-title {
@@ -160,6 +162,22 @@
         }
 
         .add-row-btn:hover {
+            background: var(--accent-color);
+            color: #fff;
+        }
+
+        .carry-over-btn {
+            background: transparent;
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 4px 12px;
+            font-size: 0.8rem;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .carry-over-btn:hover {
             background: var(--accent-color);
             color: #fff;
         }
@@ -532,7 +550,8 @@
         <div class="card">
             <div class="section-header">
                 <div class="section-title">├── 📍 對齊項目</div>
-                <div style="display: flex; gap: 6px;">
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="carry-over-btn" onclick="carryOverSection('alignment')">帶入前一日</button>
                     <button type="button" class="add-row-btn" onclick="addAlignmentRow('', 'top', true)">上方新增</button>
                     <button type="button" class="add-row-btn" onclick="addAlignmentRow('', 'bottom', true)">下方新增</button>
                 </div>
@@ -546,7 +565,10 @@
         <div class="card">
             <div class="section-header">
                 <div class="section-title">├── 📍 主管交辦</div>
-                <button type="button" class="add-row-btn" onclick="addTaskRow()">新增交辦</button>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="carry-over-btn" onclick="carryOverSection('task')">帶入前一日</button>
+                    <button type="button" class="add-row-btn" onclick="addTaskRow()">新增交辦</button>
+                </div>
             </div>
             <div class="list-inputs" id="task-list">
                 <!-- 初始為空 -->
@@ -555,7 +577,10 @@
 
         <!-- 6. 意見討論 -->
         <div class="card">
-            <div class="section-title">├── 📍 意見討論</div>
+            <div class="section-header">
+                <div class="section-title">├── 📍 意見討論</div>
+                <button type="button" class="carry-over-btn" onclick="carryOverSection('discussion')">帶入前一日</button>
+            </div>
             <div style="margin-top: 12px;">
                 <textarea id="discussion-notes" placeholder="請輸入意見討論事項..."></textarea>
             </div>
@@ -576,7 +601,10 @@
         <div class="card">
             <div class="section-header">
                 <div class="section-title">├── 📍 缺貨商品</div>
-                <button type="button" class="add-row-btn" onclick="addShortageRow()">新增品項</button>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="carry-over-btn" onclick="carryOverSection('shortage')">帶入前一日</button>
+                    <button type="button" class="add-row-btn" onclick="addShortageRow()">新增品項</button>
+                </div>
             </div>
             <div class="list-inputs" id="shortage-list" style="margin-top: 12px;">
                 <!-- 初始為空 -->
@@ -587,7 +615,10 @@
         <div class="card">
             <div class="section-header">
                 <div class="section-title">├── 📍 需叫貨項目</div>
-                <button type="button" class="add-row-btn" onclick="addOrderRow()">新增叫貨</button>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="carry-over-btn" onclick="carryOverSection('order')">帶入前一日</button>
+                    <button type="button" class="add-row-btn" onclick="addOrderRow()">新增叫貨</button>
+                </div>
             </div>
             <div class="list-inputs" id="order-list" style="margin-top: 12px;">
                 <!-- 初始為空 -->
@@ -598,7 +629,10 @@
         <div class="card">
             <div class="section-header">
                 <div class="section-title">├── 📍 推銷品項</div>
-                <button type="button" class="add-row-btn" onclick="addPromoRow()">新增品項</button>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="carry-over-btn" onclick="carryOverSection('promo')">帶入前一日</button>
+                    <button type="button" class="add-row-btn" onclick="addPromoRow()">新增品項</button>
+                </div>
             </div>
             <div class="list-inputs" id="promo-list" style="margin-top: 12px;">
                 <!-- 初始為空 -->
@@ -1121,6 +1155,84 @@
         };
     }
 
+    // 手動按鈕觸發：將前一日指定項目的內容深度拷貝帶入當天（完全獨立不互相污染）
+    function carryOverSection(type) {
+        const prevDateStr = getPreviousDateStr(window.currentDateVal);
+        if (!window.globalDataStore.dailyTracking || !window.globalDataStore.dailyTracking[prevDateStr]) {
+            alert('前一日無紀錄資料可帶入！');
+            return;
+        }
+        const prevDay = JSON.parse(JSON.stringify(window.globalDataStore.dailyTracking[prevDateStr]));
+
+        if (type === 'alignment') {
+            if (prevDay.alignments && prevDay.alignments.length > 0) {
+                prevDay.alignments.forEach(item => {
+                    const val = typeof item === 'string' ? item : item.val;
+                    if (val && val.trim() !== '') {
+                        addAlignmentRow(val, 'bottom', false);
+                    }
+                });
+                alert('已成功帶入前一日對齊項目！');
+            } else {
+                alert('前一日無對齊項目資料。');
+            }
+        } else if (type === 'task') {
+            if (prevDay.tasks && prevDay.tasks.length > 0) {
+                let count = 0;
+                prevDay.tasks.forEach(t => {
+                    if (!t.done) {
+                        addTaskRow(t.assignee, t.desc, false);
+                        count++;
+                    }
+                });
+                alert(`已成功帶入前一日未完成的主管交辦（共 ${count} 筆）！`);
+            } else {
+                alert('前一日無主管交辦資料。');
+            }
+        } else if (type === 'discussion') {
+            if (prevDay.discussions && prevDay.discussions.trim() !== '') {
+                document.getElementById('discussion-notes').value = prevDay.discussions;
+                alert('已成功帶入前一日意見討論內容！');
+            } else {
+                alert('前一日無意見討論內容。');
+            }
+        } else if (type === 'shortage') {
+            if (prevDay.shortages && prevDay.shortages.length > 0) {
+                prevDay.shortages.forEach(val => {
+                    if (val && val.trim() !== '') addShortageRow(val);
+                });
+                alert('已成功帶入前一日缺貨商品！');
+            } else {
+                alert('前一日無缺貨商品資料。');
+            }
+        } else if (type === 'order') {
+            if (prevDay.orders && prevDay.orders.length > 0) {
+                let count = 0;
+                prevDay.orders.forEach(o => {
+                    const itemVal = typeof o === 'string' ? o : o.item;
+                    const isDone = typeof o === 'string' ? false : o.done;
+                    if (!isDone && itemVal && itemVal.trim() !== '') {
+                        addOrderRow(itemVal, false);
+                        count++;
+                    }
+                });
+                alert(`已成功帶入前一日未處理的需叫貨項目（共 ${count} 筆）！`);
+            } else {
+                alert('前一日無需叫貨項目資料。');
+            }
+        } else if (type === 'promo') {
+            if (prevDay.promos && prevDay.promos.length > 0) {
+                prevDay.promos.forEach(val => {
+                    if (val && val.trim() !== '') addPromoRow(val);
+                });
+                alert('已成功帶入前一日推銷品項！');
+            } else {
+                alert('前一日無推銷品項資料。');
+            }
+        }
+        if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
+    }
+
     function loadDayData() {
         const dateVal = window.currentDateVal;
         if (!dateVal) return;
@@ -1176,6 +1288,7 @@
             promoContainer.innerHTML = '';
             (dayData.promos || []).forEach(val => addPromoRow(val));
         } else {
+            // 全新日期：完全空白獨立
             document.getElementById('shift-manager').value = '';
             document.getElementById('station-bar').value = '';
             document.getElementById('station-counter').value = '';
@@ -1194,56 +1307,6 @@
             document.getElementById('shortage-list').innerHTML = '';
             document.getElementById('order-list').innerHTML = '';
             document.getElementById('promo-list').innerHTML = '';
-
-            const prevDateStr = getPreviousDateStr(dateVal);
-            if (window.globalDataStore.dailyTracking && window.globalDataStore.dailyTracking[prevDateStr]) {
-                // 使用 JSON 深度拷貝前一天的資料，確保今天修改完全不會影響昨天的紀錄
-                const prevDay = JSON.parse(JSON.stringify(window.globalDataStore.dailyTracking[prevDateStr]));
-
-                if (prevDay.alignments) {
-                    prevDay.alignments.forEach(item => {
-                        const val = typeof item === 'string' ? item : item.val;
-                        if (val && val.trim() !== '') {
-                            addAlignmentRow(val, 'bottom', false);
-                        }
-                    });
-                }
-
-                if (prevDay.tasks) {
-                    prevDay.tasks.forEach(t => {
-                        if (!t.done) addTaskRow(t.assignee, t.desc, false);
-                    });
-                }
-                
-                if (prevDay.discussions) {
-                    document.getElementById('discussion-notes').value = prevDay.discussions;
-                }
-
-                if (prevDay.shortages) {
-                    prevDay.shortages.forEach(val => {
-                        if (val && val.trim() !== '') addShortageRow(val);
-                    });
-                }
-
-                if (prevDay.orders) {
-                    prevDay.orders.forEach(o => {
-                        const itemVal = typeof o === 'string' ? o : o.item;
-                        const isDone = typeof o === 'string' ? false : o.done;
-                        if (!isDone && itemVal && itemVal.trim() !== '') {
-                            addOrderRow(itemVal, false);
-                        }
-                    });
-                }
-
-                if (prevDay.promos) {
-                    prevDay.promos.forEach(val => {
-                        if (val && val.trim() !== '') addPromoRow(val);
-                    });
-                }
-
-                // 立即將這份初始繼承的獨立內容寫入當日紀錄，確保與前一天完全斷開獨立
-                saveCurrentDayData(dateVal);
-            }
         }
 
         updateMonthlyCumulative();
