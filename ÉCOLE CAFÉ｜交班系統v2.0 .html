@@ -100,6 +100,27 @@
             border-color: var(--accent-color);
         }
 
+        /* Google 登入按鈕特殊樣式 */
+        #google-login-btn {
+            background-color: #4285F4;
+            color: #ffffff;
+            border-color: #4285F4;
+            font-weight: 600;
+        }
+
+        #google-login-btn:hover {
+            background-color: #3367D6;
+            border-color: #3367D6;
+            color: #ffffff;
+        }
+
+        #cloud-status {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-left: 4px;
+        }
+
         .card {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
@@ -409,8 +430,8 @@
             <button type="button" class="action-icon-btn" onclick="openStaffModal()">人員配置</button>
             <button type="button" class="action-icon-btn" onclick="clearAllFields()">全部清空</button>
             <button type="button" class="action-icon-btn" id="google-login-btn" onclick="handleGoogleLogin()">Google 登入</button>
-            <button type="button" class="action-icon-btn" id="cloud-backup-btn" onclick="uploadToCloud()" style="display:none;">雲端備份</button>
             <button type="button" class="action-icon-btn" id="cloud-restore-btn" onclick="restoreFromCloud()" style="display:none;">雲端還原</button>
+            <span id="cloud-status"></span>
             <button type="button" class="action-icon-btn" onclick="exportJSON()">匯出備份</button>
             <button type="button" class="action-icon-btn" onclick="document.getElementById('import-file').click()">讀取備份</button>
             <input type="file" id="import-file" class="hidden-file-input" accept=".json" onchange="importJSON(event)">
@@ -509,8 +530,8 @@
             <div class="section-header">
                 <div class="section-title">├── 📍 對齊項目</div>
                 <div style="display: flex; gap: 6px;">
-                    <button type="button" class="add-row-btn" onclick="addAlignmentRow('', 'top')">上方新增</button>
-                    <button type="button" class="add-row-btn" onclick="addAlignmentRow('', 'bottom')">下方新增</button>
+                    <button type="button" class="add-row-btn" onclick="addAlignmentRow('', 'top', true)">上方新增</button>
+                    <button type="button" class="add-row-btn" onclick="addAlignmentRow('', 'bottom', true)">下方新增</button>
                 </div>
             </div>
             <div class="list-inputs" id="alignment-list">
@@ -631,7 +652,8 @@
             messagingSenderId: "117812812078",
             appId: "1:117812812078:web:41664b4e6f0a1c6aff42bf",
             measurementId: "G-Q1SRBC7T5J"
-        };
+    };
+
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
@@ -642,16 +664,13 @@
     onAuthStateChanged(auth, (user) => {
         currentUser = user;
         const loginBtn = document.getElementById('google-login-btn');
-        const backupBtn = document.getElementById('cloud-backup-btn');
         const restoreBtn = document.getElementById('cloud-restore-btn');
 
         if (user) {
             loginBtn.innerText = `${user.displayName || '已登入'} (登出)`;
-            backupBtn.style.display = 'inline-block';
             restoreBtn.style.display = 'inline-block';
         } else {
             loginBtn.innerText = 'Google 登入';
-            backupBtn.style.display = 'none';
             restoreBtn.style.display = 'none';
         }
     });
@@ -675,24 +694,33 @@
         }
     }
 
-    window.uploadToCloud = async function() {
-        if (!currentUser) {
-            alert('請先進行 Google 登入！');
-            return;
-        }
-        try {
-            saveCurrentDayData();
-            const dataToUpload = {
-                ...globalDataStore,
-                updatedAt: new Date().toISOString()
-            };
+    // 自動上傳至雲端功能
+    let autoSaveTimer = null;
+    window.triggerAutoSave = function() {
+        if (!currentUser) return;
+        const statusSpan = document.getElementById('cloud-status');
+        if (statusSpan) statusSpan.innerText = '儲存中...';
 
-            await setDoc(doc(db, "backups", currentUser.uid), dataToUpload);
-            alert('已成功備份至 Firebase 雲端資料庫！');
-        } catch (error) {
-            console.error(error);
-            alert('雲端備份失敗：' + error.message);
-        }
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(async () => {
+            try {
+                saveCurrentDayData();
+                const dataToUpload = {
+                    ...globalDataStore,
+                    updatedAt: new Date().toISOString()
+                };
+                await setDoc(doc(db, "backups", currentUser.uid), dataToUpload);
+                if (statusSpan) {
+                    statusSpan.innerText = '已儲存';
+                    setTimeout(() => {
+                        if (statusSpan.innerText === '已儲存') statusSpan.innerText = '';
+                    }, 2000);
+                }
+            } catch (error) {
+                console.error(error);
+                if (statusSpan) statusSpan.innerText = '儲存失敗';
+            }
+        }, 1000);
     }
 
     window.restoreFromCloud = async function() {
@@ -752,7 +780,7 @@
         dailyTracking: {}
     };
 
-    // 預設人員參考排班表人員清單 (已取消 Rita 與 Ivy)
+    // 預設人員參考排班表人員清單
     let staffList = ['緎俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
 
     // 初始化載入
@@ -767,6 +795,18 @@
         loadStaffList();
         renderStaffPills();
         loadDayData();
+
+        // 綁定表單變更自動儲存
+        document.getElementById('handover-form').addEventListener('input', () => {
+            if (typeof window.triggerAutoSave === 'function') {
+                window.triggerAutoSave();
+            }
+        });
+        document.getElementById('handover-form').addEventListener('change', () => {
+            if (typeof window.triggerAutoSave === 'function') {
+                window.triggerAutoSave();
+            }
+        });
     });
 
     // 全部清空按鈕功能
@@ -795,6 +835,7 @@
         document.getElementById('promo-list').innerHTML = '';
 
         document.getElementById('output-section').style.display = 'none';
+        if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
     }
 
     // 自動計算總計業績、本月累積與達成率
@@ -818,7 +859,6 @@
         let totalCum = 0;
         const currentTotal = parseFloat(document.getElementById('rev-total').value) || 0;
 
-        // 計算同月份其他日期的總營收累計
         if (globalDataStore.dailyTracking) {
             Object.keys(globalDataStore.dailyTracking).forEach(dStr => {
                 if (dStr.startsWith(ym) && dStr !== dateVal) {
@@ -900,7 +940,6 @@
         });
     }
 
-    // 渲染站區與主管的快速點擊選取人員膠囊
     function renderStaffPills() {
         const containers = ['manager', 'bar', 'counter', 'kitchen'];
         containers.forEach(type => {
@@ -917,7 +956,6 @@
         });
     }
 
-    // 點擊人員膠囊處理方式
     function handleStaffPillClick(type, name) {
         const inputId = type === 'manager' ? 'shift-manager' : `station-${type}`;
         const input = document.getElementById(inputId);
@@ -937,9 +975,9 @@
             }
             input.value = currentList.join('、');
         }
+        if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
     }
 
-    // 開啟與關閉人員配置視窗
     function openStaffModal() {
         renderStaffManageList();
         document.getElementById('staff-modal').style.display = 'flex';
@@ -993,36 +1031,6 @@
         renderStaffManageList();
     }
 
-    // 根據所選日期自動從 stationData 填入站區與主管配置
-    function autoFillStationData(dateStr) {
-        if (!dateStr) return;
-        const parts = dateStr.split('-');
-        if (parts.length !== 3) return;
-        const yearMonth = `${parts[0]}-${parts[1]}`;
-        const dayNum = parseInt(parts[2], 10).toString();
-
-        if (globalDataStore.stationData && globalDataStore.stationData[yearMonth]) {
-            const sData = globalDataStore.stationData[yearMonth];
-            const morningBar = sData["早吧台"]?.[dayNum] || "";
-            const morningKitchen = sData["早廚"]?.[dayNum] || "";
-            const counterStaff = sData["外場"]?.[dayNum] || "";
-            const eveningBar = sData["晚吧台"]?.[dayNum] || "";
-            const eveningKitchen = sData["晚廚"]?.[dayNum] || "";
-
-            if (morningBar) document.getElementById('station-bar').value = morningBar;
-            if (counterStaff) {
-                document.getElementById('station-counter').value = counterStaff;
-                document.getElementById('shift-manager').value = counterStaff;
-            }
-            let kitchenList = [];
-            if (morningKitchen) kitchenList.push(morningKitchen);
-            if (eveningKitchen && eveningKitchen !== morningKitchen) kitchenList.push(eveningKitchen);
-            if (kitchenList.length > 0) {
-                document.getElementById('station-kitchen').value = kitchenList.join('、');
-            }
-        }
-    }
-
     function getPreviousDateStr(dateStr) {
         const d = new Date(dateStr);
         d.setDate(d.getDate() - 1);
@@ -1032,7 +1040,6 @@
         return `${yyyy}-${mm}-${dd}`;
     }
 
-    // 完整儲存當前日期的表單資料
     function saveCurrentDayData() {
         const dateVal = document.getElementById('briefing-date-picker').value;
         if (!dateVal) return;
@@ -1050,7 +1057,12 @@
         const attendance = document.getElementById('attendance-summary').value;
 
         const reservations = Array.from(document.querySelectorAll('.reservation-input')).map(i => i.value);
-        const alignments = Array.from(document.querySelectorAll('.alignment-input')).map(i => i.value);
+        
+        const alignments = Array.from(document.querySelectorAll('#alignment-list .row-group')).map(row => ({
+            val: row.querySelector('.alignment-input').value,
+            isNew: row.querySelector('.alignment-input').dataset.isNew === 'true'
+        }));
+
         const tasks = Array.from(document.querySelectorAll('#task-list .row-group')).map(row => ({
             assignee: row.querySelector('.task-assignee').value,
             desc: row.querySelector('.task-desc').value,
@@ -1058,7 +1070,6 @@
         }));
         const discussions = document.getElementById('discussion-notes').value;
         
-        // 儲存現場事件陣列
         const incidents = Array.from(document.querySelectorAll('#incident-list .row-group')).map(row => ({
             sit: row.querySelector('.incident-sit-input').value,
             res: row.querySelector('.incident-res-input').value
@@ -1080,7 +1091,6 @@
         };
     }
 
-    // 載入指定日期的資料；若該日無資料，則套用隔天自動帶入規則（僅對齊項目、未完成主管交辦、推銷品項會自動帶到隔天）
     function loadDayData() {
         const dateVal = document.getElementById('briefing-date-picker').value;
         if (!dateVal) return;
@@ -1104,7 +1114,13 @@
 
             const alignContainer = document.getElementById('alignment-list');
             alignContainer.innerHTML = '';
-            (dayData.alignments || []).forEach(val => addAlignmentRow(val, 'bottom'));
+            (dayData.alignments || []).forEach(item => {
+                if (typeof item === 'string') {
+                    addAlignmentRow(item, 'bottom', false);
+                } else {
+                    addAlignmentRow(item.val, 'bottom', item.isNew);
+                }
+            });
 
             const taskContainer = document.getElementById('task-list');
             taskContainer.innerHTML = '';
@@ -1115,7 +1131,6 @@
             if (dayData.incidents) {
                 dayData.incidents.forEach(inc => addIncidentRow(inc.sit, inc.res));
             } else if (dayData.incidentSit || dayData.incidentRes) {
-                // 相容舊版單一欄位寫法
                 addIncidentRow(dayData.incidentSit || '', dayData.incidentRes || '');
             }
 
@@ -1131,7 +1146,7 @@
             promoContainer.innerHTML = '';
             (dayData.promos || []).forEach(val => addPromoRow(val));
         } else {
-            // 全新日期：欄位清空，並依排班表帶入站區
+            // 全新日期：完全清空主管、站區、營業額、出勤、訂位狀況
             document.getElementById('shift-manager').value = '';
             document.getElementById('station-bar').value = '';
             document.getElementById('station-counter').value = '';
@@ -1151,19 +1166,20 @@
             document.getElementById('order-list').innerHTML = '';
             document.getElementById('promo-list').innerHTML = '';
 
-            autoFillStationData(dateVal);
-
-            // 規則：只有對齊項目、主管交辦（未完成者）、推銷品項會自動到隔天，其他為空白
+            // 規則：只有對齊項目、主管交辦（未完成者）、推銷品項會自動延續到隔天
             const prevDateStr = getPreviousDateStr(dateVal);
             if (globalDataStore.dailyTracking && globalDataStore.dailyTracking[prevDateStr]) {
                 const prevDay = globalDataStore.dailyTracking[prevDateStr];
 
-                // 1. 對齊項目
                 if (prevDay.alignments) {
-                    prevDay.alignments.forEach(val => addAlignmentRow(val, 'bottom'));
+                    prevDay.alignments.forEach(item => {
+                        const val = typeof item === 'string' ? item : item.val;
+                        if (val && val.trim() !== '') {
+                            addAlignmentRow(val, 'bottom', false);
+                        }
+                    });
                 }
 
-                // 2. 主管交辦 (排除已完成)
                 if (prevDay.tasks) {
                     prevDay.tasks.forEach(t => {
                         if (!t.done) {
@@ -1172,9 +1188,12 @@
                     });
                 }
 
-                // 3. 推銷品項
                 if (prevDay.promos) {
-                    prevDay.promos.forEach(val => addPromoRow(val));
+                    prevDay.promos.forEach(val => {
+                        if (val && val.trim() !== '') {
+                            addPromoRow(val);
+                        }
+                    });
                 }
             }
         }
@@ -1182,7 +1201,6 @@
         updateMonthlyCumulative();
     }
 
-    // 動態新增項目輔助函數
     function addReservationRow(val = '') {
         const container = document.getElementById('reservation-list');
         const div = document.createElement('div');
@@ -1191,14 +1209,13 @@
         container.appendChild(div);
     }
 
-    // 對齊項目支援選擇置頂或置底
-    function addAlignmentRow(val = '', position = 'bottom') {
+    function addAlignmentRow(val = '', position = 'bottom', isNew = true) {
         const container = document.getElementById('alignment-list');
         const div = document.createElement('div');
         div.className = 'row-group';
         div.style.alignItems = 'stretch';
         div.innerHTML = `
-            <textarea class="alignment-input" placeholder="請輸入對齊項目..." style="min-height: 42px;">${val}</textarea>
+            <textarea class="alignment-input" data-isnew="${isNew}" placeholder="請輸入對齊項目..." style="min-height: 42px;">${val}</textarea>
             <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>
         `;
         if (position === 'top') {
@@ -1206,6 +1223,7 @@
         } else {
             container.appendChild(div);
         }
+        if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
     }
 
     function addTaskRow(assignee = '', desc = '', done = false) {
@@ -1226,9 +1244,9 @@
             <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>
         `;
         container.appendChild(div);
+        if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
     }
 
-    // 現場事件新增(包含狀況與解決方式)
     function addIncidentRow(sit = '', res = '') {
         const container = document.getElementById('incident-list');
         const div = document.createElement('div');
@@ -1247,6 +1265,7 @@
             <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch; margin-left: 8px; background: transparent;">×</button>
         `;
         container.appendChild(div);
+        if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
     }
 
     function addShortageRow(val = '') {
@@ -1255,6 +1274,7 @@
         div.className = 'row-group';
         div.innerHTML = `<input type="text" class="shortage-item" value="${val}" placeholder="請輸入缺貨商品..."><button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`;
         container.appendChild(div);
+        if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
     }
 
     function addOrderRow(val = '', done = false) {
@@ -1267,6 +1287,7 @@
             <button type="button" class="remove-btn" onclick="removeRow(this)">×</button>
         `;
         container.appendChild(div);
+        if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
     }
 
     function addPromoRow(val = '') {
@@ -1275,11 +1296,13 @@
         div.className = 'row-group';
         div.innerHTML = `<input type="text" class="promo-input" value="${val}" placeholder="請輸入推銷品項與價格..."><button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`;
         container.appendChild(div);
+        if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
     }
 
     function removeRow(btn) {
         const row = btn.closest('.row-group');
         row.remove();
+        if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
     }
 
     // 產生 LINE Briefing
@@ -1311,7 +1334,6 @@
             if (kitchen) briefing += `\n廚房：${kitchen}`;
         }
 
-        // 營業額與出勤資訊區塊
         const revDay = document.getElementById('rev-day').value.trim();
         const revNight = document.getElementById('rev-night').value.trim();
         const revTotal = document.getElementById('rev-total').value.trim();
@@ -1338,7 +1360,6 @@
             }
         }
 
-        // 客情訂位狀況
         const resInputs = document.querySelectorAll('.reservation-input');
         let resText = '';
         resInputs.forEach(input => {
@@ -1346,15 +1367,20 @@
         });
         briefing += `\n\n📍客情訂位狀況：${resText.trim()}`;
 
-        // 對齊項目 (自動加入項目標頭與順序)
-        const alignmentRows = document.querySelectorAll('.alignment-input');
+        // 對齊項目 (標頭與文字自動空一格)
+        const alignmentRows = document.querySelectorAll('#alignment-list .row-group');
         let alignmentText = '';
         alignmentRows.forEach(row => {
-            if(row.value.trim() !== '') alignmentText += `🔘${row.value.trim()}\n`;
+            const input = row.querySelector('.alignment-input');
+            const val = input ? input.value.trim() : '';
+            if(val !== '') {
+                const isNew = input.dataset.isnew === 'true';
+                const marker = isNew ? '🔹' : '🔘';
+                alignmentText += `${marker} ${val}\n`;
+            }
         });
         briefing += `\n\n📍對齊項目：\n${alignmentText.trim()}`;
 
-        // 主管交辦
         const taskRows = document.querySelectorAll('#task-list .row-group');
         let taskText = '';
         taskRows.forEach(row => {
@@ -1368,11 +1394,9 @@
         });
         briefing += `\n\n📍主管交辦：\n${taskText.trim()}`;
 
-        // 意見討論
         const discussions = document.getElementById('discussion-notes').value.trim();
         briefing += `\n\n📍意見討論：\n${discussions}`;
 
-        // 現場事件 (可多筆獨立顯示)
         const incidentRows = document.querySelectorAll('#incident-list .row-group');
         let incidentContent = '';
         incidentRows.forEach((row) => {
@@ -1386,7 +1410,6 @@
         });
         briefing += `\n\n📍現場事件：\n${incidentContent.trim()}`;
 
-        // 缺貨商品
         const shortageRows = document.querySelectorAll('.shortage-item');
         let shortageText = '';
         shortageRows.forEach(row => {
@@ -1394,7 +1417,6 @@
         });
         briefing += `\n\n📍缺貨商品：\n${shortageText.trim()}`;
 
-        // 需叫貨項目
         const orderRows = document.querySelectorAll('#order-list .row-group');
         let orderText = '';
         orderRows.forEach(row => {
@@ -1407,7 +1429,6 @@
         });
         briefing += `\n\n📍需叫貨項目：\n${orderText.trim()}`;
 
-        // 推銷品項
         const promoRows = document.querySelectorAll('.promo-input');
         let promoText = '';
         promoRows.forEach(row => {
@@ -1415,7 +1436,6 @@
         });
         briefing += `\n\n📍推銷品項：\n${promoText.trim()}`;
 
-        // 最下方自動加入固定結語
         briefing += `\n\n-------------------------\n請各夥伴閱畢後於下方表情符號 點收，謝謝！`;
 
         document.getElementById('briefing-text').innerText = briefing;
@@ -1433,12 +1453,29 @@
         });
     }
 
+    // 匯出完整一個月的備份
     function exportJSON() {
         saveCurrentDayData();
+        const dateVal = document.getElementById('briefing-date-picker').value;
+        const ym = dateVal ? dateVal.substring(0, 7) : '';
+
+        // 篩選出當月份的所有每日追蹤資料
+        let monthTracking = {};
+        if (ym && globalDataStore.dailyTracking) {
+            Object.keys(globalDataStore.dailyTracking).forEach(dStr => {
+                if (dStr.startsWith(ym)) {
+                    monthTracking[dStr] = globalDataStore.dailyTracking[dStr];
+                }
+            });
+        } else {
+            monthTracking = globalDataStore.dailyTracking || {};
+        }
+
         const dataToExport = {
             ...globalDataStore,
+            dailyTracking: monthTracking,
             currentForm: {
-                date: document.getElementById('briefing-date-picker').value,
+                date: dateVal,
                 manager: document.getElementById('shift-manager').value,
                 bar: document.getElementById('station-bar').value,
                 counter: document.getElementById('station-counter').value,
@@ -1451,7 +1488,10 @@
                 revAchieveRate: document.getElementById('rev-achieve-rate').value,
                 attendance: document.getElementById('attendance-summary').value,
                 reservations: Array.from(document.querySelectorAll('.reservation-input')).map(i => i.value),
-                alignments: Array.from(document.querySelectorAll('.alignment-input')).map(i => i.value),
+                alignments: Array.from(document.querySelectorAll('#alignment-list .row-group')).map(row => ({
+                    val: row.querySelector('.alignment-input').value,
+                    isNew: row.querySelector('.alignment-input').dataset.isNew === 'true'
+                })),
                 discussions: document.getElementById('discussion-notes').value,
                 incidents: Array.from(document.querySelectorAll('#incident-list .row-group')).map(row => ({
                     sit: row.querySelector('.incident-sit-input').value,
@@ -1466,7 +1506,7 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `ecole_cafe_backup_${document.getElementById('briefing-date-picker').value || 'data'}.json`;
+        a.download = `ecole_cafe_backup_${ym || 'month'}.json`;
         a.click();
         URL.revokeObjectURL(url);
     }
