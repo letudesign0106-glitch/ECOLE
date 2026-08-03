@@ -623,15 +623,15 @@
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_AUTH_DOMAIN",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_STORAGE_BUCKET",
-        messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-        appId: "YOUR_APP_ID"
-    };
-
+       const firebaseConfig = {
+            apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
+            authDomain: "ecole-1f392.firebaseapp.com",
+            projectId: "ecole-1f392",
+            storageBucket: "ecole-1f392.firebasestorage.app",
+            messagingSenderId: "117812812078",
+            appId: "1:117812812078:web:41664b4e6f0a1c6aff42bf",
+            measurementId: "G-Q1SRBC7T5J"
+        };
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
