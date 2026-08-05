@@ -264,7 +264,6 @@
             </div>
             
             <button type="button" class="action-icon-btn export-img-btn" onclick="downloadWeeklyReportJPG()">匯出週報圖表</button>
-            <button type="button" class="action-icon-btn" onclick="undoLastAction()">↩️ 返回上一步</button>
             <button type="button" class="action-icon-btn" onclick="openStaffModal()">人員配置</button>
             
             <button type="button" class="action-icon-btn" id="google-login-btn" onclick="handleGoogleLogin()">Google 登入</button>
@@ -275,6 +274,8 @@
             <button type="button" class="action-icon-btn" onclick="exportJSON()">匯出備份</button>
             <button type="button" class="action-icon-btn" onclick="document.getElementById('import-file').click()">讀取備份</button>
             <input type="file" id="import-file" class="hidden-file-input" accept=".json" onchange="importJSON(event)">
+            <!-- 返回上一步按鈕移至最後一個位置 -->
+            <button type="button" class="action-icon-btn" onclick="undoLastAction()">↩️ 返回上一步</button>
         </div>
     </header>
 
@@ -463,6 +464,24 @@
     </div>
 </div>
 
+<!-- 手機/平板週報預覽與分享彈窗 -->
+<div id="report-preview-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 520px; text-align: center;">
+        <div class="modal-header">
+            <h3>營運週報圖片預覽</h3>
+            <button type="button" class="close-modal-btn" onclick="closeReportPreviewModal()">×</button>
+        </div>
+        <div style="margin: 12px 0; max-height: 60vh; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; padding: 4px; background: #f9f9f9;">
+            <img id="report-preview-img" style="width: 100%; height: auto; border-radius: 4px;" alt="週報圖片預覽">
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 16px;">
+            <button type="button" class="action-icon-btn export-img-btn" style="flex: 1; padding: 10px; font-weight: 600;" onclick="shareOrSaveReport()">📲 分享至 LINE / 儲存相片</button>
+            <button type="button" class="action-icon-btn" style="flex: 1; padding: 10px;" onclick="closeReportPreviewModal()">關閉</button>
+        </div>
+        <p style="font-size: 11px; color: #666; margin-top: 8px;">(若無法直接分享，手機用戶可長按上方圖片儲存至相片後再分享)</p>
+    </div>
+</div>
+
 <!-- 隱藏的營運週報報表容器：用於生成 JPG -->
 <div id="report-export-container" style="position: absolute; top: -9999px; left: -9999px; width: 800px; background: #ffffff; padding: 36px; border-radius: 12px; font-family: sans-serif; color: #111;">
     <div style="text-align: center; margin-bottom: 16px; border-bottom: 2px solid #333; padding-bottom: 12px;">
@@ -500,7 +519,7 @@
     </div>
 </div>
 
-<!-- 【 核心：Firebase SDKs 雲端整合區塊 (已強化錯誤診斷) 】 -->
+<!-- 【 核心：Firebase SDKs 雲端整合區塊 】 -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -543,7 +562,6 @@
             }
         } else {
             try {
-                // 檢查是否仍為預設佔位符
                 if (firebaseConfig.apiKey === "YOUR_API_KEY") {
                     alert('【提醒】您目前使用的是預設的 Firebase 設定佔位符 (YOUR_API_KEY)。請將程式碼中的 firebaseConfig 替換為您真實的 Firebase 專案設定，否則無法登入！');
                     return;
@@ -556,13 +574,13 @@
                 let errorMsg = error.message;
                 
                 if (error.code === 'auth/unauthorized-domain') {
-                    errorMsg = '網域未授權 (unauthorized-domain)。請至 Firebase Console -> Authentication -> Settings -> Authorized domains 加入您目前的網址（例如 localhost 或您的主機網域）。';
+                    errorMsg = '網域未授權 (unauthorized-domain)。請至 Firebase Console -> Authentication -> Settings -> Authorized domains 加入您目前的網址。';
                 } else if (error.code === 'auth/popup-closed-by-user') {
                     errorMsg = '登入彈跳視窗已被關閉。';
                 } else if (error.code === 'auth/popup-blocked') {
                     errorMsg = '登入彈跳視窗遭到瀏覽器阻擋，請允許此網站彈出視窗。';
                 } else if (error.code === 'auth/operation-not-allowed') {
-                    errorMsg = 'Google 登入未在 Firebase 專案中啟用。請至 Firebase Console -> Authentication -> Sign-in method 啟用 Google 提供者。';
+                    errorMsg = 'Google 登入未在 Firebase 專案中啟用。';
                 }
                 
                 alert('Google 登入失敗：\n' + errorMsg);
@@ -662,6 +680,7 @@
     window.currentDateVal = '';
     let staffList = ['緎俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
     let weeklyChartInstance = null;
+    let window.currentReportBlob = null;
 
     window.undoStack = [];
     window.saveUndoState = function() {
@@ -1103,7 +1122,7 @@
             .catch(err => console.error('複製失敗', err));
     }
     
-    // C. 匯出 JPG 週報圖表與本週新增項目摘要
+    // C. 匯出 JPG 週報圖表 (手機/平板支援預覽與分享，電腦維持直接下載)
     window.downloadWeeklyReportJPG = function() {
         if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal); 
         
@@ -1206,12 +1225,56 @@
         setTimeout(() => {
             html2canvas(container, { scale: 2 }).then(canvas => {
                 container.style.top = '-9999px'; container.style.left = '-9999px';
-                const link = document.createElement('a');
-                link.download = `ECOLE_CAFE_營運週報_${weekDates[0]}.jpg`;
-                link.href = canvas.toDataURL('image/jpeg', 0.9);
-                link.click();
+                
+                const isMobileOrTablet = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 1024;
+                
+                canvas.toBlob(blob => {
+                    window.currentReportBlob = blob;
+                    if (isMobileOrTablet) {
+                        // 手機與平板：顯示預覽視窗
+                        const imageUrl = URL.createObjectURL(blob);
+                        document.getElementById('report-preview-img').src = imageUrl;
+                        document.getElementById('report-preview-modal').style.display = 'flex';
+                    } else {
+                        // 電腦：直接觸發下載
+                        const link = document.createElement('a');
+                        link.download = `ECOLE_CAFE_營運週報_${weekDates[0]}.jpg`;
+                        link.href = URL.createObjectURL(blob);
+                        link.click();
+                    }
+                }, 'image/jpeg', 0.9);
             });
         }, 800);
+    }
+
+    window.closeReportPreviewModal = function() {
+        document.getElementById('report-preview-modal').style.display = 'none';
+    }
+
+    window.shareOrSaveReport = async function() {
+        if (!window.currentReportBlob) return;
+        const file = new File([window.currentReportBlob], `ECOLE_CAFE_營運週報.jpg`, { type: 'image/jpeg' });
+        
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    title: 'ÉCOLE CAFÉ 營運週報',
+                    text: '請參閱本週營運週報',
+                    files: [file]
+                });
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('分享失敗:', err);
+                    alert('分享失敗，請嘗試長按圖片選擇「加入相片/儲存影像」。');
+                }
+            }
+        } else {
+            const link = document.createElement('a');
+            link.download = `ECOLE_CAFE_營運週報.jpg`;
+            link.href = URL.createObjectURL(window.currentReportBlob);
+            link.click();
+            alert('圖片已產生，請長按圖片將其存入相片，即可分享至 LINE！');
+        }
     }
 
     window.exportJSON = function() {
