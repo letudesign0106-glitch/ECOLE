@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ÉCOLE CAFÉ ｜ 管理主頁</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F4F2EE;
+    --bg-soft: #EDEAE4;
+    --surface: #FFFFFF;
+    --ink: #2A2926;
+    --ink-soft: #736C63;
+    --ink-faint: #A7A099;
+    --line: #E2DDD4;
+
+    --sidebar-bg: #26241F;
+    --sidebar-bg-soft: #312F29;
+    --sidebar-text: #EFEBE3;
+    --sidebar-text-soft: #B4AC9F;
+
+    --c-rose: #C9A79A;
+    --c-sage: #A3AD8F;
+    --c-blue: #93A6AC;
+    --c-taupe: #BBA98B;
+    --c-oat: #D6CBAE;
+    --c-plum: #A28C93;
+
+    --radius-lg: 20px;
+    --radius-md: 14px;
+    --radius-sm: 9px;
+
+    --shadow-soft: 0 2px 10px rgba(38,36,31,0.06);
+    --shadow-card: 0 8px 24px rgba(38,36,31,0.08);
+
+    --font-display: 'Cormorant Garamond', 'Noto Sans TC', serif;
+    --font-body: 'Noto Sans TC', 'Inter', sans-serif;
+    --font-num: 'Inter', 'Noto Sans TC', sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; overflow-x: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    background-image: radial-gradient(circle at 1px 1px, rgba(42,41,38,0.035) 1px, transparent 0);
+    background-size: 22px 22px;
+  }
+  button { font-family: inherit; }
+  a { color: inherit; text-decoration: none; }
+
+  /* ---------- App layout ---------- */
+  .app {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+  }
+
+  /* ---------- Sidebar (desktop / tablet) ---------- */
+  .sidebar {
+    width: 264px;
+    flex-shrink: 0;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    padding: 30px 20px 22px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 4px 26px;
+    border-bottom: 1px solid rgba(239,235,227,0.12);
+    margin-bottom: 22px;
+  }
+  .brand-mark {
+    width: 40px; height: 40px; flex-shrink: 0;
+    border-radius: 50%;
+    position: relative;
+    background: radial-gradient(circle at 35% 30%, var(--c-oat), var(--c-taupe) 70%);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15);
+  }
+  .brand-mark::after {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(38,36,31,0.35);
+  }
+  .brand-text .brand-title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    letter-spacing: 2px;
+    font-weight: 600;
+    line-height: 1.1;
+  }
+  .brand-text .brand-sub {
+    font-size: 10.5px;
+    letter-spacing: 3px;
+    color: var(--sidebar-text-soft);
+    margin-top: 2px;
+  }
+
+  .nav-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--sidebar-text-soft);
+    padding: 0 8px;
+    margin-bottom: 10px;
+  }
+  .nav-list {
+    list-style: none;
+    margin: 0; padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    overflow-y: auto;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background .18s ease, transform .12s ease;
+    border: 1px solid transparent;
+  }
+  .nav-item:hover {
+    background: var(--sidebar-bg-soft);
+    transform: translateX(2px);
+  }
+  .nav-dot {
+    width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+  }
+  .nav-item .nav-icon { font-size: 17px; width: 20px; text-align: center; flex-shrink: 0; }
+  .nav-item .nav-name { font-size: 14.5px; font-weight: 500; letter-spacing: .3px; flex: 1; }
+  .nav-item .nav-go {
+    font-size: 12px; color: var(--sidebar-text-soft); opacity: 0; transition: opacity .15s;
+  }
+  .nav-item:hover .nav-go { opacity: 1; }
+
+  .sidebar-empty {
+    padding: 16px 10px;
+    font-size: 12.5px;
+    color: var(--sidebar-text-soft);
+    line-height: 1.7;
+    border: 1px dashed rgba(239,235,227,0.18);
+    border-radius: var(--radius-sm);
+  }
+
+  .sidebar-footer {
+    border-top: 1px solid rgba(239,235,227,0.12);
+    padding-top: 14px;
+    margin-top: 14px;
+  }
+  .edit-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: transparent;
+    border: 1px solid rgba(239,235,227,0.18);
+    color: var(--sidebar-text);
+    padding: 11px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    letter-spacing: .5px;
+    cursor: pointer;
+    transition: .15s;
+  }
+  .edit-trigger:hover { background: var(--sidebar-bg-soft); }
+
+  /* ---------- Main ---------- */
+  .main {
+    flex: 1;
+    min-width: 0;
+    padding: 34px 40px 100px;
+  }
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 34px;
+  }
+  .mobile-brand { display: none; align-items: center; gap: 10px; }
+  .mobile-brand .brand-title { font-family: var(--font-display); font-size: 20px; letter-spacing: 1.5px; font-weight: 600; }
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+  .clock {
+    text-align: right;
+    font-family: var(--font-num);
+  }
+  .clock .time { font-size: 20px; font-weight: 600; letter-spacing: .5px; }
+  .clock .date { font-size: 11.5px; color: var(--ink-soft); margin-top: 1px; }
+  .icon-btn {
+    width: 38px; height: 38px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    cursor: pointer;
+    font-size: 16px;
+    box-shadow: var(--shadow-soft);
+    transition: .15s;
+  }
+  .icon-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-card); }
+
+  .hero { margin-bottom: 38px; }
+  .hero .eyebrow {
+    font-size: 11.5px;
+    letter-spacing: 3px;
+    color: var(--ink-faint);
+    margin-bottom: 10px;
+  }
+  .hero h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(28px, 4vw, 42px);
+    margin: 0 0 8px;
+    letter-spacing: .5px;
+  }
+  .hero p {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 14.5px;
+  }
+
+  .section-title {
+    font-size: 12px;
+    letter-spacing: 2.5px;
+    color: var(--ink-faint);
+    margin: 0 0 16px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 22px 20px;
+    cursor: pointer;
+    transition: transform .16s ease, box-shadow .16s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: var(--shadow-soft);
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: var(--shadow-card); }
+  .card-top { display: flex; align-items: center; justify-content: space-between; }
+  .card-icon {
+    width: 44px; height: 44px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 19px;
+  }
+  .card-arrow { color: var(--ink-faint); font-size: 15px; }
+  .card-name { font-size: 16px; font-weight: 700; letter-spacing: .2px; }
+  .card-url { font-size: 11.5px; color: var(--ink-faint); word-break: break-all; }
+
+  .empty-state {
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-lg);
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--ink-soft);
+  }
+  .empty-state .em-title { font-family: var(--font-display); font-size: 22px; margin-bottom: 6px; }
+  .empty-state button {
+    margin-top: 14px;
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  /* ---------- Bottom nav (mobile) ---------- */
+  .bottom-nav {
+    display: none;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: var(--sidebar-bg);
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+    z-index: 40;
+    box-shadow: 0 -4px 18px rgba(0,0,0,0.18);
+  }
+  .bottom-scroll {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .bottom-scroll::-webkit-scrollbar { display: none; }
+  .bottom-item {
+    flex: 0 0 auto;
+    min-width: 66px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 6px;
+    border-radius: var(--radius-sm);
+    color: var(--sidebar-text-soft);
+    cursor: pointer;
+  }
+  .bottom-item .b-icon {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+  }
+  .bottom-item .b-name { font-size: 10.5px; letter-spacing: .2px; color: var(--sidebar-text); text-align: center; line-height: 1.2; }
+  .bottom-item.settings .b-icon { background: transparent; border: 1px solid rgba(239,235,227,0.25); }
+
+  /* ---------- Modal (修復裁切問題) ---------- */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(20,19,17,0.5);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 100;
+    padding: 0;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    width: 100%;
+    max-width: 720px;
+    /* 修正: 確保在不同瀏覽器不會因為網址列高度超出螢幕 */
+    max-height: 85vh;
+    max-height: 85dvh;
+    border-radius: 22px 22px 0 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: slideUp .22s ease;
+  }
+  @media (min-width: 700px){
+    .overlay { align-items: center; padding: 20px; }
+    .modal { border-radius: var(--radius-lg); max-height: 88vh; }
+  }
+  @keyframes slideUp { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  .modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 22px;
+    border-bottom: 1px solid var(--line);
+    flex-shrink: 0; /* 修正: 標題列不會被壓縮 */
+  }
+  .modal-head h2 {
+    font-family: var(--font-display);
+    font-size: 22px; font-weight: 600; margin: 0;
+  }
+  .modal-head .close-x {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: none; background: var(--bg-soft);
+    cursor: pointer; font-size: 16px; color: var(--ink-soft);
+  }
+  .modal-body {
+    padding: 20px 22px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    flex: 1; /* 修正: 讓本體區域撐滿剩餘空間，確保滾動正常 */
+    min-height: 0; /* 修正: 避免 flex child 尺寸失控 */
+  }
+
+  .lock-view {
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    padding: 20px 10px 6px;
+    text-align: center;
+  }
+  .lock-view .lk-icon { font-size: 30px; }
+  .lock-view input {
+    width: 180px;
+    text-align: center;
+    letter-spacing: 6px;
+    font-size: 20px;
+    padding: 12px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--bg-soft);
+  }
+  .lock-view .lk-err { color: #B5544A; font-size: 12.5px; min-height: 16px; }
+  .lock-view .lk-hint { font-size: 11.5px; color: var(--ink-faint); }
+
+  /* ---------- Row Item (含手機排版修正) ---------- */
+  .row-item {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px 12px;
+    align-items: center;
+  }
+  .row-item .ri-icon-input {
+    width: 46px; height: 46px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    text-align: center;
+    font-size: 18px;
+    grid-row: span 2;
+  }
+  .row-item input[type=text], .row-item input[type=url] {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 9px 10px;
+    font-size: 13.5px;
+    background: var(--bg-soft);
+  }
+  .ri-name { grid-column: 2; }
+  .ri-url { grid-column: 2; }
+  .ri-actions {
+    grid-column: 3;
+    grid-row: span 2;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: space-between;
+    height: 100%;
+  }
+  .ri-del {
+    background: none; border: none; color: var(--ink-faint);
+    cursor: pointer; font-size: 15px;
+  }
+  .ri-del:hover { color: #B5544A; }
+  .swatches { display: flex; gap: 6px; }
+  .swatch {
+    width: 18px; height: 18px; border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+  }
+  .swatch.active { border-color: var(--ink); }
+  .ri-meta-row {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 2px;
+  }
+  .target-toggle {
+    display: flex; gap: 6px; font-size: 11.5px; color: var(--ink-soft); align-items: center;
+  }
+  .target-toggle select {
+    border: 1px solid var(--line); border-radius: 7px; padding: 4px 6px; font-size: 11.5px; background: var(--bg-soft);
+  }
+
+  .add-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    border: 1.5px dashed var(--line);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    background: transparent;
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-size: 13.5px;
+  }
+  .add-btn:hover { border-color: var(--ink-faint); color: var(--ink); }
+
+  .settings-block {
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .settings-block h3 {
+    font-size: 12px; letter-spacing: 1.5px; color: var(--ink-faint); margin: 0;
+    text-transform: uppercase;
+  }
+  .pw-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .pw-row input {
+    flex: 1; min-width: 140px;
+    border: 1px solid var(--line); border-radius: var(--radius-sm);
+    padding: 9px 10px; font-size: 13px; background: var(--bg-soft);
+  }
+  .mini-btn {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    padding: 9px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .mini-btn:hover { background: var(--bg-soft); }
+  textarea.io-area {
+    width: 100%; min-height: 90px;
+    border: 1px solid var(--line); border-radius: var(--radius-sm);
+    padding: 10px; font-size: 12px; font-family: var(--font-num);
+    background: var(--bg-soft); resize: vertical;
+  }
+  .io-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .save-note { font-size: 11.5px; color: var(--ink-faint); line-height: 1.6; }
+
+  /* ---------- Modal Footer (修復裁切問題) ---------- */
+  .modal-foot {
+    padding: 16px 22px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-shrink: 0; /* 修正: 確認/取消按鈕列永遠固定不縮小 */
+    background: var(--surface);
+  }
+  .btn {
+    padding: 11px 20px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    cursor: pointer;
+    border: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .btn.primary {
+    background: var(--ink); color: #fff; border-color: var(--ink);
+  }
+  .btn:hover { opacity: .9; }
+
+  .toast {
+    position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: #fff;
+    padding: 11px 20px; border-radius: 999px;
+    font-size: 13px; letter-spacing: .3px;
+    box-shadow: var(--shadow-card);
+    z-index: 200;
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s, transform .25s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+
+  /* ---------- Week notes (home) ---------- */
+  .week-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+    gap: 12px;
+    margin-bottom: 38px;
+  }
+  .week-cell {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: 14px 14px 16px;
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 96px;
+  }
+  .week-cell.is-today {
+    border-color: var(--ink);
+    box-shadow: var(--shadow-card);
+  }
+  .week-cell-top { display: flex; align-items: baseline; justify-content: space-between; }
+  .week-cell-day { font-size: 11.5px; letter-spacing: 1.5px; color: var(--ink-faint); }
+  .week-cell-date { font-family: var(--font-num); font-size: 16px; font-weight: 600; }
+  .week-cell-bar { height: 3px; border-radius: 3px; width: 28px; }
+  .week-cell-note { font-size: 12px; color: var(--ink-soft); line-height: 1.5; flex: 1; word-break: break-word; }
+  .week-cell-note.empty { color: var(--ink-faint); }
+  .week-cell-more { font-size: 10.5px; color: var(--ink-faint); }
+
+  /* ---------- Modal tabs ---------- */
+  .tab-switch { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+  .tab-btn {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .tab-btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+  /* ---------- Calendar editor ---------- */
+  .cal-wrap {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: 16px;
+  }
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .cal-nav button {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 1px solid var(--line); background: var(--surface);
+    cursor: pointer; font-size: 14px;
+  }
+  .cal-nav .cal-title { font-family: var(--font-display); font-size: 18px; font-weight: 600; }
+  .cal-weekdays {
+    display: grid; grid-template-columns: repeat(7,1fr);
+    font-size: 11px; color: var(--ink-faint); text-align: center;
+    margin-bottom: 6px;
+  }
+  .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
+  .cal-day {
+    aspect-ratio: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    position: relative;
+    color: var(--ink);
+  }
+  .cal-day.blank { visibility: hidden; cursor: default; }
+  .cal-day:hover { background: var(--bg-soft); }
+  .cal-day.selected { border-color: var(--ink); background: var(--bg-soft); font-weight: 700; }
+  .cal-day.today { color: var(--c-blue); font-weight: 700; }
+  .cal-day .dot {
+    width: 5px; height: 5px; border-radius: 50%; background: var(--c-rose);
+    position: absolute; bottom: 5px;
+  }
+  .cal-day-panel { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+  .cal-day-panel h4 { margin: 0 0 10px; font-size: 13.5px; font-weight: 700; }
+  .note-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 8px 0; border-bottom: 1px dashed var(--line);
+    font-size: 13px;
+  }
+  .note-item:last-child { border-bottom: none; }
+  .note-item span { flex: 1; line-height: 1.5; word-break: break-word; }
+  .note-item button { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 13px; }
+  .note-item button:hover { color: #B5544A; }
+  .note-add-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .note-add-row input {
+    flex: 1; min-width: 160px;
+    border: 1px solid var(--line); border-radius: var(--radius-sm);
+    padding: 9px 10px; font-size: 13px; background: var(--bg-soft);
+  }
+
+  /* ---------- Import confirm ---------- */
+  .import-confirm {
+    border: 1px solid var(--c-blue);
+    background: rgba(147,166,172,0.12);
+    border-radius: var(--radius-sm);
+    padding: 16px 14px;
+    margin-top: 8px;
+    display: flex; flex-direction: column; gap: 14px;
+    font-size: 13px;
+  }
+
+  /* ---------- Responsive (手機完美適配) ---------- */
+  @media (max-width: 699px){
+    .sidebar { display: none; }
+    .mobile-brand { display: flex; }
+    .main { padding: 22px 16px 96px; } /* 保留底部空間給導覽列 */
+    .bottom-nav { display: block; }
+    .topbar { margin-bottom: 26px; }
+    .clock .time { font-size: 17px; }
+
+    /* 手機版 Modal 微調 */
+    .modal { border-radius: 16px 16px 0 0; }
+    .modal-head, .modal-foot { padding: 14px 16px; }
+    .modal-body { padding: 16px; gap: 16px; }
+
+    /* 確保編輯排版不會在手機上過於擁擠或裁切 */
+    .row-item {
+      grid-template-columns: 46px 1fr;
+      gap: 10px;
+    }
+    .row-item .ri-icon-input { grid-row: 1; grid-column: 1; }
+    .ri-name { grid-row: 1; grid-column: 2; }
+    .ri-url { grid-row: 2; grid-column: 1 / -1; }
+    .ri-actions {
+      grid-row: 3;
+      grid-column: 1 / -1;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      height: auto;
+      margin-top: 4px;
+      padding-top: 4px;
+      border-top: 1px dashed var(--line);
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============ Sidebar (desktop / tablet) ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-text">
+        <div class="brand-title">ÉCOLE CAFÉ</div>
+        <div class="brand-sub">MANAGEMENT</div>
+      </div>
+    </div>
+
+    <div class="nav-label">功能介面</div>
+    <ul class="nav-list" id="sidebarNav"></ul>
+
+    <div class="sidebar-footer">
+      <button class="edit-trigger" id="openEditSidebar">
+        <span>⚙</span><span>編輯介面設定</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============ Main ============ -->
+  <main class="main">
+    <div class="topbar">
+      <div class="mobile-brand">
+        <div class="brand-mark" style="width:32px;height:32px;"></div>
+        <div class="brand-title">ÉCOLE CAFÉ</div>
+      </div>
+      <div style="flex:1"></div>
+      <div class="topbar-right">
+        <div class="clock">
+          <div class="time" id="clockTime">--:--</div>
+          <div class="date" id="clockDate">----</div>
+        </div>
+        <button class="icon-btn" id="openEditTop" title="編輯介面設定">⚙</button>
+      </div>
+    </div>
+
+    <div class="hero">
+      <div class="eyebrow" id="greetEyebrow">歡迎回來</div>
+      <h1 id="greetTitle">早安，今天也是美好的一天 ☕</h1>
+      <p>從下方快速前往各系統，或使用左側／底部導覽列。</p>
+    </div>
+
+    <div class="section-title">本週記事</div>
+    <div id="weekGrid" class="week-grid"></div>
+
+    <div class="section-title">快速前往</div>
+    <div id="cardGrid" class="grid"></div>
+  </main>
+</div>
+
+<!-- ============ Bottom nav (mobile) ============ -->
+<nav class="bottom-nav">
+  <div class="bottom-scroll" id="bottomNav"></div>
+</nav>
+
+<!-- ============ Edit Modal ============ -->
+<div class="overlay" id="editOverlay">
+  <div class="modal">
+
+    <!-- Lock screen -->
+    <div id="lockPane">
+      <div class="modal-head">
+        <h2>後台編輯</h2>
+        <button class="close-x" id="closeLock">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="lock-view">
+          <div class="lk-icon">🔒</div>
+          <div>請輸入管理密碼以編輯介面</div>
+          <input type="password" id="pwInput" inputmode="numeric" maxlength="12" placeholder="••••">
+          <div class="lk-err" id="pwError"></div>
+          <div class="lk-hint">預設密碼為 0000，登入後可於下方修改</div>
+          <button class="btn primary" id="pwSubmit" style="margin-top:6px;">進入編輯</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit screen -->
+    <div id="editPane" style="display:none; flex: 1; min-height: 0; flex-direction: column;">
+      <div class="modal-head">
+        <h2>編輯介面設定</h2>
+        <button class="close-x" id="closeEdit">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="tab-switch">
+          <button class="tab-btn active" id="tabBtnButtons" type="button">介面按鈕</button>
+          <button class="tab-btn" id="tabBtnCalendar" type="button">行事曆記事</button>
+        </div>
+
+        <div id="tabPaneButtons">
+          <div id="rowsWrap" style="display:flex; flex-direction:column; gap:12px;"></div>
+          <button class="add-btn" id="addRowBtn" style="margin-top:12px;">＋ 新增按鈕</button>
+        </div>
+
+        <div id="tabPaneCalendar" style="display:none;">
+          <div class="cal-wrap">
+            <div class="cal-nav">
+              <button id="calPrevBtn" type="button">‹</button>
+              <div class="cal-title" id="calTitle">－</div>
+              <button id="calNextBtn" type="button">›</button>
+            </div>
+            <div class="cal-weekdays">
+              <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
+            </div>
+            <div class="cal-grid" id="calGrid"></div>
+            <div class="cal-day-panel">
+              <h4 id="calSelectedLabel">請選擇日期</h4>
+              <div id="calNoteList"></div>
+              <div class="note-add-row">
+                <input type="text" id="calNoteInput" placeholder="輸入新記事，例如：週五盤點、下午茶課程">
+                <button class="mini-btn" id="calAddNoteBtn" type="button">新增記事</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-block">
+          <h3>管理密碼</h3>
+          <div class="pw-row">
+            <input type="password" id="newPw1" placeholder="設定新密碼">
+            <input type="password" id="newPw2" placeholder="再輸入一次">
+            <button class="mini-btn" id="changePwBtn">更新密碼</button>
+          </div>
+        </div>
+
+        <div class="settings-block">
+          <h3>備份與轉移（JSON）</h3>
+          <div class="save-note">設定僅儲存在目前這台裝置的瀏覽器中。可下載 JSON 備份保存，或匯入 JSON 檔案／貼上內容套用到其他裝置，套用前都會先顯示確認畫面。</div>
+          <div class="io-row">
+            <button class="mini-btn" id="downloadJsonBtn" type="button">⬇ 下載 JSON 備份</button>
+            <button class="mini-btn" id="pickJsonBtn" type="button">⬆ 匯入 JSON 檔案</button>
+            <button class="mini-btn" id="resetBtn" type="button">還原預設值</button>
+            <input type="file" id="jsonFileInput" accept=".json,application/json" style="display:none">
+          </div>
+          <textarea class="io-area" id="ioArea" placeholder="也可以直接將 JSON 內容貼在這裡進行匯入或備份..."></textarea>
+          <div class="io-row">
+            <button class="mini-btn" id="exportTextBtn" type="button">複製為文字</button>
+            <button class="btn primary" id="validateBtn" type="button">驗證匯入內容</button>
+          </div>
+          <!-- 修正後的確認匯入方塊區 -->
+          <div class="import-confirm" id="importConfirmBox" style="display:none;">
+            <strong style="color:var(--c-blue);">⚠️ 即將匯入 JSON 資料</strong>
+            <div id="importSummary"></div>
+            <div class="io-row">
+              <button class="btn primary" id="confirmImportBtn" type="button">確認套用</button>
+              <button class="btn" id="cancelImportBtn" type="button">取消</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" id="cancelEdit">取消</button>
+        <button class="btn primary" id="saveEdit">儲存變更</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+
+  const STORAGE_KEY = 'ecole_cafe_config_v1';
+  const COLORS = {
+    rose:'#C9A79A', sage:'#A3AD8F', blue:'#93A6AC',
+    taupe:'#BBA98B', oat:'#D6CBAE', plum:'#A28C93'
+  };
+  const COLOR_KEYS = Object.keys(COLORS);
+
+  const DEFAULT_CONFIG = {
+    password:'0000',
+    buttons:[
+      {id:'b1', icon:'📋', name:'交班系統', url:'https://letudesign0106-glitch.github.io/ECOLE/%C3%89COLE%20CAF%C3%89%EF%BD%9C%E4%BA%A4%E7%8F%AD%E7%B3%BB%E7%B5%B1v3.0.html', color:'rose', target:'_blank'},
+      {id:'b2', icon:'🗓️', name:'班表系統', url:'https://letudesign0106-glitch.github.io/ECOLE/%C3%89COLE%20CAF%C3%89%EF%BD%9C%E7%8F%AD%E8%A1%A8%E6%A8%A1%E6%93%AC%E5%99%A8V3.3.html', color:'sage', target:'_blank'},
+      {id:'b3', icon:'🕒', name:'打卡出勤系統', url:'https://letudesign0106-glitch.github.io/ECOLE/%C3%89COLE%20CAF%C3%89%EF%BD%9C%E6%89%93%E5%8D%A1%E5%87%BA%E5%8B%A4%E7%B3%BB%E7%B5%B1_V1.6.html', color:'blue', target:'_blank'}
+    ],
+    notes:{} // { 'YYYY-MM-DD': [ {id, text}, ... ] }
+  };
+
+  let config = null;
+  let draft = null; // working copy while editing
+  let unlocked = false;
+  let calState = null; // { year, month, selectedKey } for calendar tab
+  let pendingImport = null; // parsed JSON waiting for confirmation
+
+  function normalizeConfig(cfg){
+    cfg = cfg || {};
+    if(!Array.isArray(cfg.buttons)) cfg.buttons = [];
+    if(!cfg.notes || typeof cfg.notes !== 'object' || Array.isArray(cfg.notes)) cfg.notes = {};
+    Object.keys(cfg.notes).forEach(k=>{
+      if(!Array.isArray(cfg.notes[k])) cfg.notes[k] = [];
+    });
+    if(!cfg.password) cfg.password = DEFAULT_CONFIG.password;
+    return cfg;
+  }
+
+  function pad2(n){ return String(n).padStart(2,'0'); }
+  function dateKey(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+  function getWeekDates(base){
+    const d = new Date(base);
+    const day = d.getDay(); // 0 Sun..6 Sat
+    const diffToMonday = (day === 0 ? -6 : 1 - day);
+    const monday = new Date(d);
+    monday.setDate(d.getDate() + diffToMonday);
+    const week = [];
+    for(let i=0;i<7;i++){
+      const dd = new Date(monday);
+      dd.setDate(monday.getDate()+i);
+      week.push(dd);
+    }
+    return week;
+  }
+  const WEEKDAY_LABELS = ['一','二','三','四','五','六','日'];
+
+  // ---------- storage helpers ----------
+  async function loadConfig(){
+    let cfg = null;
+    try{
+      if(window.storage){
+        const r = await window.storage.get(STORAGE_KEY);
+        if(r && r.value) cfg = JSON.parse(r.value);
+      }
+    }catch(e){}
+    if(!cfg){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(raw) cfg = JSON.parse(raw);
+      }catch(e){}
+    }
+    if(!cfg) cfg = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    return normalizeConfig(cfg);
+  }
+
+  async function saveConfig(cfg){
+    const raw = JSON.stringify(cfg);
+    let savedRemote = false;
+    try{
+      if(window.storage){
+        const r = await window.storage.set(STORAGE_KEY, raw);
+        if(r) savedRemote = true;
+      }
+    }catch(e){}
+    try{ localStorage.setItem(STORAGE_KEY, raw); }catch(e){}
+    return savedRemote;
+  }
+
+  function uid(){ return 'b' + Math.random().toString(36).slice(2,9); }
+
+  // ---------- toast ----------
+  function toast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toast._tm);
+    toast._tm = setTimeout(()=> t.classList.remove('show'), 2200);
+  }
+
+  // ---------- clock / greeting ----------
+  function updateClock(){
+    const now = new Date();
+    const h = now.getHours();
+    const timeStr = now.toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit', hour12:false});
+    const dateStr = now.toLocaleDateString('zh-TW', {month:'long', day:'numeric', weekday:'long'});
+    document.getElementById('clockTime').textContent = timeStr;
+    document.getElementById('clockDate').textContent = dateStr;
+
+    let greet = '早安，今天也是美好的一天 ☕';
+    let eyebrow = '早班準備中';
+    if(h >= 11 && h < 14){ greet = '午安，別忘了喝口水休息一下 🌿'; eyebrow = '營運進行中'; }
+    else if(h >= 14 && h < 18){ greet = '午後時光，穩穩地把每件事做好 🍃'; eyebrow = '午後時段'; }
+    else if(h >= 18 && h < 23){ greet = '晚安，辛苦了，準備交接與收班 🌙'; eyebrow = '晚班進行中'; }
+    else if(h >= 23 || h < 5){ greet = '深夜辛苦了，注意安全早點休息 ✨'; eyebrow = '深夜時段'; }
+    document.getElementById('greetTitle').textContent = greet;
+    document.getElementById('greetEyebrow').textContent = eyebrow;
+  }
+
+  // ---------- render nav / cards ----------
+  function openUrl(btn){
+    if(!btn.url){ toast('這個按鈕尚未設定網址'); return; }
+    let url = btn.url;
+    if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    if(btn.target === '_self'){
+      window.location.href = url;
+    }else{
+      window.open(url, '_blank', 'noopener');
+    }
+  }
+
+  function render(){
+    const sideNav = document.getElementById('sidebarNav');
+    const bottomNav = document.getElementById('bottomNav');
+    const cardGrid = document.getElementById('cardGrid');
+    sideNav.innerHTML = '';
+    bottomNav.innerHTML = '';
+    cardGrid.innerHTML = '';
+
+    if(!config.buttons.length){
+      sideNav.innerHTML = '<div class="sidebar-empty">尚未設定任何介面。<br>點選下方「編輯介面設定」新增。</div>';
+      cardGrid.innerHTML = '';
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.innerHTML = '<div class="em-title">尚未設定任何介面</div><div>新增交班、班表、打卡等系統連結，即可從這裡快速前往。</div>';
+      const btn = document.createElement('button');
+      btn.textContent = '＋ 前往編輯';
+      btn.onclick = openEditor;
+      empty.appendChild(btn);
+      cardGrid.parentElement.insertBefore(empty, cardGrid);
+      cardGrid.style.display = 'none';
+    }else{
+      const prevEmpty = document.querySelector('.empty-state');
+      if(prevEmpty) prevEmpty.remove();
+      cardGrid.style.display = '';
+    }
+
+    config.buttons.forEach(b=>{
+      const hex = COLORS[b.color] || COLORS.rose;
+
+      // sidebar item
+      const li = document.createElement('li');
+      li.className = 'nav-item';
+      li.innerHTML = `
+        <span class="nav-dot" style="background:${hex}"></span>
+        <span class="nav-icon">${escapeHtml(b.icon || '📌')}</span>
+        <span class="nav-name">${escapeHtml(b.name || '未命名')}</span>
+        <span class="nav-go">前往 →</span>`;
+      li.onclick = ()=> openUrl(b);
+      sideNav.appendChild(li);
+
+      // bottom nav item
+      const bi = document.createElement('div');
+      bi.className = 'bottom-item';
+      bi.innerHTML = `
+        <span class="b-icon" style="background:${hex}22; color:${hex};">${escapeHtml(b.icon || '📌')}</span>
+        <span class="b-name">${escapeHtml(b.name || '未命名')}</span>`;
+      bi.onclick = ()=> openUrl(b);
+      bottomNav.appendChild(bi);
+
+      // card
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="card-top">
+          <div class="card-icon" style="background:${hex}22; color:${hex};">${escapeHtml(b.icon || '📌')}</div>
+          <div class="card-arrow">↗</div>
+        </div>
+        <div>
+          <div class="card-name">${escapeHtml(b.name || '未命名')}</div>
+          <div class="card-url">${escapeHtml(b.url || '尚未設定網址')}</div>
+        </div>`;
+      card.onclick = ()=> openUrl(b);
+      cardGrid.appendChild(card);
+    });
+
+    // settings icon in bottom nav
+    const settingsItem = document.createElement('div');
+    settingsItem.className = 'bottom-item settings';
+    settingsItem.innerHTML = `<span class="b-icon">⚙</span><span class="b-name">編輯</span>`;
+    settingsItem.onclick = openEditor;
+    bottomNav.appendChild(settingsItem);
+
+    renderWeekGrid();
+  }
+
+  function renderWeekGrid(){
+    const wrap = document.getElementById('weekGrid');
+    if(!wrap) return;
+    wrap.innerHTML = '';
+    const today = new Date();
+    const todayKey = dateKey(today);
+    const week = getWeekDates(today);
+    const colorRotation = ['rose','sage','blue','taupe','oat','plum','rose'];
+    week.forEach((d, idx)=>{
+      const key = dateKey(d);
+      const notes = (config.notes && config.notes[key]) || [];
+      const cell = document.createElement('div');
+      cell.className = 'week-cell' + (key === todayKey ? ' is-today' : '');
+      const hex = COLORS[colorRotation[idx]];
+      let noteHtml = '<div class="week-cell-note empty">尚無記事</div>';
+      if(notes.length){
+        const first = escapeHtml(notes[0].text);
+        const more = notes.length > 1 ? `<div class="week-cell-more">+${notes.length-1} 則</div>` : '';
+        noteHtml = `<div class="week-cell-note">${first}</div>${more}`;
+      }
+      cell.innerHTML = `
+        <div class="week-cell-top">
+          <span class="week-cell-day">週${WEEKDAY_LABELS[idx]}</span>
+          <span class="week-cell-date">${d.getMonth()+1}/${d.getDate()}</span>
+        </div>
+        <div class="week-cell-bar" style="background:${hex}"></div>
+        ${noteHtml}`;
+      wrap.appendChild(cell);
+    });
+  }
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, s=>({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[s]));
+  }
+
+  // ---------- editor modal ----------
+  const overlay = document.getElementById('editOverlay');
+  const lockPane = document.getElementById('lockPane');
+  const editPane = document.getElementById('editPane');
+
+  function openEditor(){
+    overlay.classList.add('open');
+    if(unlocked){
+      showEditPane();
+    }else{
+      lockPane.style.display = '';
+      editPane.style.display = 'none';
+      document.getElementById('pwInput').value = '';
+      document.getElementById('pwError').textContent = '';
+      setTimeout(()=> document.getElementById('pwInput').focus(), 80);
+    }
+  }
+  function closeEditor(){
+    overlay.classList.remove('open');
+  }
+
+  function showEditPane(){
+    lockPane.style.display = 'none';
+    editPane.style.display = 'flex'; // Changed to flex to fix layout issue
+    draft = JSON.parse(JSON.stringify(config));
+    calState = null;
+    pendingImport = null;
+    const box = document.getElementById('importConfirmBox');
+    if(box) box.style.display = 'none';
+    switchTab('buttons');
+    renderRows();
+  }
+
+  function switchTab(tab){
+    document.getElementById('tabBtnButtons').classList.toggle('active', tab === 'buttons');
+    document.getElementById('tabBtnCalendar').classList.toggle('active', tab === 'calendar');
+    document.getElementById('tabPaneButtons').style.display = tab === 'buttons' ? '' : 'none';
+    document.getElementById('tabPaneCalendar').style.display = tab === 'calendar' ? '' : 'none';
+    if(tab === 'calendar') renderCalendarTab();
+  }
+
+  function renderRows(){
+    const wrap = document.getElementById('rowsWrap');
+    wrap.innerHTML = '';
+    draft.buttons.forEach((b, idx)=>{
+      const row = document.createElement('div');
+      row.className = 'row-item';
+      row.innerHTML = `
+        <input class="ri-icon-input" type="text" maxlength="4" value="${escapeAttr(b.icon)}" data-f="icon">
+        <input class="ri-name" type="text" placeholder="按鈕名稱，例如：交班系統" value="${escapeAttr(b.name)}" data-f="name">
+        <div class="ri-actions">
+          <div class="swatches"></div>
+          <button class="ri-del" title="刪除">🗑</button>
+        </div>
+        <input class="ri-url" type="url" placeholder="網址，例如：https://your-system.com" value="${escapeAttr(b.url)}" data-f="url">
+        <div class="ri-meta-row">
+          <div class="target-toggle">
+            開啟方式
+            <select data-f="target">
+              <option value="_blank" ${b.target!=='_self'?'selected':''}>新分頁</option>
+              <option value="_self" ${b.target==='_self'?'selected':''}>同一頁</option>
+            </select>
+          </div>
+        </div>`;
+
+      // field bindings
+      row.querySelectorAll('[data-f]').forEach(el=>{
+        const field = el.dataset.f;
+        const evt = el.tagName === 'SELECT' ? 'change' : 'input';
+        el.addEventListener(evt, ()=>{ draft.buttons[idx][field] = el.value; });
+      });
+
+      // color swatches
+      const swatchWrap = row.querySelector('.swatches');
+      COLOR_KEYS.forEach(ck=>{
+        const sw = document.createElement('div');
+        sw.className = 'swatch' + (b.color===ck ? ' active' : '');
+        sw.style.background = COLORS[ck];
+        sw.title = ck;
+        sw.onclick = ()=>{
+          draft.buttons[idx].color = ck;
+          swatchWrap.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));
+          sw.classList.add('active');
+        };
+        swatchWrap.appendChild(sw);
+      });
+
+      row.querySelector('.ri-del').onclick = ()=>{
+        draft.buttons.splice(idx,1);
+        renderRows();
+      };
+
+      wrap.appendChild(row);
+    });
+  }
+
+  function escapeAttr(str){
+    return String(str||'').replace(/"/g,'&quot;');
+  }
+
+  document.getElementById('addRowBtn').onclick = ()=>{
+    draft.buttons.push({id:uid(), icon:'✨', name:'', url:'', color:COLOR_KEYS[draft.buttons.length % COLOR_KEYS.length], target:'_blank'});
+    renderRows();
+    // Scroll to bottom after adding
+    setTimeout(()=>{
+      const body = document.querySelector('.modal-body');
+      body.scrollTop = body.scrollHeight;
+    }, 50);
+  };
+
+  document.getElementById('tabBtnButtons').onclick = ()=> switchTab('buttons');
+  document.getElementById('tabBtnCalendar').onclick = ()=> switchTab('calendar');
+
+  function initCalStateIfNeeded(){
+    if(!calState){
+      const now = new Date();
+      calState = { year: now.getFullYear(), month: now.getMonth(), selectedKey: dateKey(now) };
+    }
+  }
+
+  function renderCalendarTab(){
+    initCalStateIfNeeded();
+    if(!draft.notes) draft.notes = {};
+
+    document.getElementById('calTitle').textContent = `${calState.year}年${calState.month+1}月`;
+
+    const grid = document.getElementById('calGrid');
+    grid.innerHTML = '';
+
+    const firstOfMonth = new Date(calState.year, calState.month, 1);
+    let startOffset = firstOfMonth.getDay(); // 0 Sun..6 Sat
+    startOffset = (startOffset === 0 ? 6 : startOffset - 1); // Monday-start offset
+    const daysInMonth = new Date(calState.year, calState.month + 1, 0).getDate();
+    const todayKey = dateKey(new Date());
+
+    for(let i=0;i<startOffset;i++){
+      const blank = document.createElement('div');
+      blank.className = 'cal-day blank';
+      grid.appendChild(blank);
+    }
+    for(let day=1; day<=daysInMonth; day++){
+      const d = new Date(calState.year, calState.month, day);
+      const key = dateKey(d);
+      const cell = document.createElement('div');
+      cell.className = 'cal-day';
+      if(key === todayKey) cell.classList.add('today');
+      if(key === calState.selectedKey) cell.classList.add('selected');
+      const hasNotes = draft.notes[key] && draft.notes[key].length;
+      cell.innerHTML = `<span>${day}</span>${hasNotes ? '<span class="dot"></span>' : ''}`;
+      cell.onclick = ()=>{
+        calState.selectedKey = key;
+        renderCalendarTab();
+      };
+      grid.appendChild(cell);
+    }
+
+    renderDayNotes();
+  }
+
+  function renderDayNotes(){
+    const label = document.getElementById('calSelectedLabel');
+    const list = document.getElementById('calNoteList');
+    const key = calState.selectedKey;
+    const [y,m,dd] = key.split('-').map(Number);
+    label.textContent = `${y}年${m}月${dd}日 的記事`;
+    const notes = (draft.notes && draft.notes[key]) || [];
+    list.innerHTML = '';
+    if(!notes.length){
+      list.innerHTML = '<div style="font-size:12.5px; color:var(--ink-faint);">這一天還沒有記事</div>';
+      return;
+    }
+    notes.forEach(n=>{
+      const row = document.createElement('div');
+      row.className = 'note-item';
+      row.innerHTML = `<span>${escapeHtml(n.text)}</span><button title="刪除">🗑</button>`;
+      row.querySelector('button').onclick = ()=>{
+        draft.notes[key] = draft.notes[key].filter(x=>x.id !== n.id);
+        renderCalendarTab();
+      };
+      list.appendChild(row);
+    });
+  }
+
+  document.getElementById('calPrevBtn').onclick = ()=>{
+    initCalStateIfNeeded();
+    calState.month -= 1;
+    if(calState.month < 0){ calState.month = 11; calState.year -= 1; }
+    renderCalendarTab();
+  };
+  document.getElementById('calNextBtn').onclick = ()=>{
+    initCalStateIfNeeded();
+    calState.month += 1;
+    if(calState.month > 11){ calState.month = 0; calState.year += 1; }
+    renderCalendarTab();
+  };
+  document.getElementById('calAddNoteBtn').onclick = ()=>{
+    initCalStateIfNeeded();
+    const input = document.getElementById('calNoteInput');
+    const text = input.value.trim();
+    if(!text) return;
+    const key = calState.selectedKey;
+    if(!draft.notes) draft.notes = {};
+    if(!draft.notes[key]) draft.notes[key] = [];
+    draft.notes[key].push({id: uid(), text});
+    input.value = '';
+    renderCalendarTab();
+  };
+  document.getElementById('calNoteInput').addEventListener('keydown', e=>{
+    if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('calAddNoteBtn').click(); }
+  });
+
+  // password unlock
+  document.getElementById('pwSubmit').onclick = tryUnlock;
+  document.getElementById('pwInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
+  function tryUnlock(){
+    const val = document.getElementById('pwInput').value;
+    if(val === config.password){
+      unlocked = true;
+      showEditPane();
+    }else{
+      document.getElementById('pwError').textContent = '密碼錯誤，請再試一次';
+    }
+  }
+
+  document.getElementById('closeLock').onclick = closeEditor;
+  document.getElementById('closeEdit').onclick = closeEditor;
+  document.getElementById('cancelEdit').onclick = closeEditor;
+  overlay.addEventListener('click', e=>{ if(e.target === overlay) closeEditor(); });
+
+  document.getElementById('saveEdit').onclick = async ()=>{
+    // basic cleanup: trim, ensure name fallback
+    draft.buttons.forEach(b=>{
+      b.name = (b.name || '').trim() || '未命名';
+      b.url = (b.url || '').trim();
+      b.icon = (b.icon || '📌').trim() || '📌';
+    });
+    // drop empty note text, drop empty day arrays
+    if(draft.notes){
+      Object.keys(draft.notes).forEach(key=>{
+        draft.notes[key] = (draft.notes[key] || []).filter(n => n && (n.text || '').trim());
+        if(!draft.notes[key].length) delete draft.notes[key];
+      });
+    }
+    normalizeConfig(draft);
+    config = JSON.parse(JSON.stringify(draft));
+    await saveConfig(config);
+    render();
+    closeEditor();
+    toast('已儲存變更');
+  };
+
+  document.getElementById('changePwBtn').onclick = ()=>{
+    const p1 = document.getElementById('newPw1').value;
+    const p2 = document.getElementById('newPw2').value;
+    if(!p1 || p1.length < 4){ toast('密碼至少需 4 碼'); return; }
+    if(p1 !== p2){ toast('兩次輸入的密碼不一致'); return; }
+    draft.password = p1;
+    document.getElementById('newPw1').value = '';
+    document.getElementById('newPw2').value = '';
+    toast('密碼已更新，記得按「儲存變更」');
+  };
+
+  document.getElementById('exportTextBtn').onclick = ()=>{
+    document.getElementById('ioArea').value = JSON.stringify(draft, null, 2);
+    toast('已產生設定內容，請複製保存');
+  };
+
+  document.getElementById('downloadJsonBtn').onclick = ()=>{
+    try{
+      const raw = JSON.stringify(draft, null, 2);
+      const blob = new Blob([raw], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const stamp = dateKey(new Date());
+      a.download = `ecole-cafe-config-${stamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast('已下載 JSON 備份檔');
+    }catch(e){
+      toast('下載失敗，請改用「複製為文字」保存');
+    }
+  };
+
+  document.getElementById('pickJsonBtn').onclick = ()=>{
+    document.getElementById('jsonFileInput').click();
+  };
+  document.getElementById('jsonFileInput').addEventListener('change', (e)=>{
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      document.getElementById('ioArea').value = String(reader.result || '');
+      runValidateImport();
+    };
+    reader.onerror = ()=> toast('讀取檔案失敗，請確認檔案格式');
+    reader.readAsText(file);
+    e.target.value = ''; // allow re-selecting the same file later
+  });
+
+  document.getElementById('validateBtn').onclick = runValidateImport;
+
+  function runValidateImport(){
+    const raw = document.getElementById('ioArea').value.trim();
+    const box = document.getElementById('importConfirmBox');
+    if(!raw){ toast('請先貼上或選擇 JSON 內容'); return; }
+    try{
+      const parsed = JSON.parse(raw);
+      if(!parsed || !Array.isArray(parsed.buttons)) throw new Error('缺少 buttons 陣列');
+      normalizeConfig(parsed);
+      pendingImport = parsed;
+      const noteCount = Object.values(parsed.notes).reduce((sum, arr)=> sum + arr.length, 0);
+      document.getElementById('importSummary').textContent =
+        `讀取到 ${parsed.buttons.length} 個按鈕、${noteCount} 筆記事。按下「確認套用」後將覆蓋目前的設定。`;
+      box.style.display = 'flex';
+      
+      // Scroll box into view
+      setTimeout(()=> box.scrollIntoView({behavior: 'smooth', block: 'nearest'}), 100);
+
+    }catch(err){
+      pendingImport = null;
+      box.style.display = 'none';
+      toast('內容格式不正確，請確認 JSON 內容');
+    }
+  }
+
+  document.getElementById('confirmImportBtn').onclick = ()=>{
+    if(!pendingImport) return;
+    draft = pendingImport;
+    pendingImport = null;
+    document.getElementById('importConfirmBox').style.display = 'none';
+    calState = null;
+    renderRows();
+    if(document.getElementById('tabPaneCalendar').style.display !== 'none'){
+      renderCalendarTab();
+    }
+    toast('已套用匯入內容，請按最下方「儲存變更」完成儲存');
+  };
+  document.getElementById('cancelImportBtn').onclick = ()=>{
+    pendingImport = null;
+    document.getElementById('importConfirmBox').style.display = 'none';
+  };
+
+  document.getElementById('resetBtn').onclick = ()=>{
+    if(confirm('確定要還原為預設的三個按鈕，並清空所有記事嗎？此動作將覆蓋目前編輯中的內容。')){
+      draft = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+      calState = null;
+      pendingImport = null;
+      document.getElementById('importConfirmBox').style.display = 'none';
+      renderRows();
+      if(document.getElementById('tabPaneCalendar').style.display !== 'none'){
+        renderCalendarTab();
+      }
+      toast('已還原為預設值，請按「儲存變更」套用');
+    }
+  };
+
+  document.getElementById('openEditSidebar').onclick = openEditor;
+  document.getElementById('openEditTop').onclick = openEditor;
+
+  // ---------- init ----------
+  (async function init(){
+    config = await loadConfig();
+    render();
+    updateClock();
+    setInterval(updateClock, 30000);
+  })();
+
+})();
+</script>
+</body>
+</html>
