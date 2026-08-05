@@ -258,24 +258,36 @@
     <header>
         <h1>ÉCOLE CAFÉ 智慧交班系統</h1>
         <div class="header-controls">
+            <!-- 1. 日期 -->
             <div class="date-input-wrapper">
                 <span>日期：</span>
                 <input type="date" id="briefing-date-picker" onchange="onDateChange()">
             </div>
             
-            <!-- Google 登入按鈕已移至日期後方 -->
+            <!-- 2. 登入 -->
             <button type="button" class="action-icon-btn" id="google-login-btn" onclick="handleGoogleLogin()">Google 登入</button>
             
-            <button type="button" class="action-icon-btn export-img-btn" onclick="downloadWeeklyReportJPG()">匯出週報圖表</button>
-            <button type="button" class="action-icon-btn" onclick="openStaffModal()">人員配置</button>
-            
+            <!-- 3. 雲端儲存 -->
             <button type="button" class="action-icon-btn" id="cloud-save-btn" onclick="manualCloudSave()">雲端儲存</button>
+            
+            <!-- 4. 雲端讀取 -->
             <button type="button" class="action-icon-btn" id="cloud-restore-btn" onclick="restoreFromCloud()">雲端讀取</button>
             <span id="cloud-status"></span>
             
+            <!-- 5. 人員配置 -->
+            <button type="button" class="action-icon-btn" onclick="openStaffModal()">人員配置</button>
+            
+            <!-- 6. 匯出備份 -->
             <button type="button" class="action-icon-btn" onclick="exportJSON()">匯出備份</button>
+            
+            <!-- 7. 讀取備份 -->
             <button type="button" class="action-icon-btn" onclick="document.getElementById('import-file').click()">讀取備份</button>
             <input type="file" id="import-file" class="hidden-file-input" accept=".json" onchange="importJSON(event)">
+            
+            <!-- 8. 匯出圖表 -->
+            <button type="button" class="action-icon-btn export-img-btn" onclick="downloadWeeklyReportJPG()">匯出週報圖表</button>
+            
+            <!-- 9. 返回 -->
             <button type="button" class="action-icon-btn" onclick="undoLastAction()">↩️ 返回上一步</button>
         </div>
     </header>
@@ -525,7 +537,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
 
     const firebaseConfig = {
             apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
