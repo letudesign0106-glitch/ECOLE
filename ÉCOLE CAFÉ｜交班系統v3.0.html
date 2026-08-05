@@ -504,7 +504,7 @@
     </div>
 
     <!-- 兩欄式左右對齊排版 -->
-    <div style="display: flex; gap: 16px;">
+    <div style="display: flex; gap: 16px; margin-bottom: 14px;">
         <!-- 左側欄位 -->
         <div style="flex: 1.2; display: flex; flex-direction: column; gap: 14px;">
             <div style="background: #f7f8f9; border: 1px solid #e1e4e8; padding: 12px; border-radius: 8px; text-align: center;">
@@ -526,10 +526,16 @@
                 <div id="report-month-rate" style="font-size: 22px; font-weight: 800; color: #111; margin-top: 4px;">0%</div>
             </div>
             <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 14px; border-radius: 8px; display: flex; flex-direction: column;">
-                <h3 style="font-size: 15px; margin-bottom: 10px; border-left: 3px solid #5b6770; padding-left: 8px; color: #333;">本週新增項目摘要</h3>
+                <h3 style="font-size: 15px; margin-bottom: 10px; border-left: 3px solid #5b6770; padding-left: 8px; color: #333;">交辦與新增項目摘要</h3>
                 <div id="report-special-items" style="font-size: 13px; line-height: 1.6; color: #333; overflow-y: auto; max-height: 180px; white-space: pre-wrap;"></div>
             </div>
         </div>
+    </div>
+
+    <!-- 圖表與兩欄下方之專屬獨立欄位：意見討論與結果內容 -->
+    <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 14px; border-radius: 8px; display: flex; flex-direction: column;">
+        <h3 style="font-size: 15px; margin-bottom: 10px; border-left: 3px solid #5b6770; padding-left: 8px; color: #333;">意見討論與結果內容</h3>
+        <div id="report-discussion-items" style="font-size: 13px; line-height: 1.6; color: #333; overflow-y: auto; max-height: 150px; white-space: pre-wrap;"></div>
     </div>
 </div>
 
@@ -545,8 +551,7 @@
             projectId: "ecole-1f392",
             storageBucket: "ecole-1f392.firebasestorage.app",
             messagingSenderId: "117812812078",
-            appId: "1:117812812078:web:41664b4e6f0a1c6aff42bf",
-            measurementId: "G-Q1SRBC7T5J"
+            appId: "1:117812812078:web:41664b
     };
 
     const app = initializeApp(firebaseConfig);
@@ -667,7 +672,7 @@
         window.addEventListener('load', () => {
             const swCode = `
                 self.addEventListener('install', e => self.skipWaiting());
-                self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+                self.addEventListener('activate', e => self.waitUntil(clients.claim()));
                 self.addEventListener('fetch', e => {
                     e.respondWith(
                         fetch(e.request).catch(() => caches.match(e.request))
@@ -702,7 +707,7 @@
 
     window.globalDataStore = { employees: [], dailyTracking: {} };
     window.currentDateVal = '';
-    let staffList = ['絨俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
+    let staffList = ['緎俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
     let weeklyChartInstance = null;
     let currentReportBlob = null;
 
@@ -1228,7 +1233,7 @@
         const achieveRate = document.getElementById('rev-achieve-rate').value;
         document.getElementById('report-month-rate').innerText = achieveRate ? `${achieveRate}%` : '0%';
 
-        let specialItemsText = '';
+        let taskAlignText = '';
         let weekTaskLines = [];
         let weekAlignLines = [];
         let weekDiscLines = [];
@@ -1268,14 +1273,21 @@
 
         weekTaskLines = [...new Set(weekTaskLines)].slice(0, 4);
         weekAlignLines = [...new Set(weekAlignLines)].slice(0, 3);
-        weekDiscLines = [...new Set(weekDiscLines)].slice(0, 3);
+        weekDiscLines = [...new Set(weekDiscLines)].slice(0, 6);
 
-        if (weekTaskLines.length > 0) specialItemsText += `【交辦事項】\n${weekTaskLines.join('\n')}\n\n`;
-        if (weekAlignLines.length > 0) specialItemsText += `【本週新增對齊項目】\n${weekAlignLines.join('\n')}\n\n`;
-        if (weekDiscLines.length > 0) specialItemsText += `【意見討論與結果】\n${weekDiscLines.join('\n')}\n`;
+        if (weekTaskLines.length > 0) taskAlignText += `【交辦事項】\n${weekTaskLines.join('\n')}\n\n`;
+        if (weekAlignLines.length > 0) taskAlignText += `【本週新增對齊項目】\n${weekAlignLines.join('\n')}`;
 
-        if(!specialItemsText) specialItemsText = '本週無交辦與討論項目。';
-        document.getElementById('report-special-items').innerText = specialItemsText.trim();
+        if(!taskAlignText) taskAlignText = '本週無交辦與對齊項目。';
+        document.getElementById('report-special-items').innerText = taskAlignText.trim();
+
+        let discText = '';
+        if (weekDiscLines.length > 0) {
+            discText = weekDiscLines.join('\n');
+        } else {
+            discText = '本週無意見討論內容。';
+        }
+        document.getElementById('report-discussion-items').innerText = discText;
 
         // 繪製 Chart
         const ctx = document.getElementById('weeklyChart').getContext('2d');
