@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ÉCOLE CAFÉ 智慧交班系統</title>
+    <meta name="theme-color" content="#111111">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23111'/><text x='50' y='65' fill='white' font-size='50' text-anchor='middle'>E</text></svg>">
+    
+    <!-- 引入圖表與截圖套件 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #f4f4f4;
+            --card-bg: #ffffff;
+            --text-main: #1a1a1a;
+            --text-muted: #666666;
+            --border-color: #dcdcdc;
+            --accent-color: #111111;
+            --accent-hover: #333333;
+            --danger-color: #dc3545;
+            --danger-hover: #c82333;
+            --focus-ring: rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft JhengHei", sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .date-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #e2e2e2;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .date-input-wrapper input[type="date"] {
+            border: none;
+            background: transparent;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-main);
+            cursor: pointer;
+            outline: none;
+        }
+
+        .action-icon-btn {
+            background: #ffffff;
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .action-icon-btn:hover {
+            background: var(--accent-color);
+            color: #ffffff;
+            border-color: var(--accent-color);
+        }
+
+        /* 莫蘭迪配色按鈕設定 */
+        .export-img-btn { background-color: #5b6770; color: white; border-color: #5b6770; }
+        .export-img-btn:hover { background-color: #48525a; border-color: #48525a; }
+        
+        #cloud-save-btn { background-color: #AAB8AB; color: white; border-color: #AAB8AB; }
+        #cloud-save-btn:hover { background-color: #97a598; border-color: #97a598; }
+        
+        #cloud-restore-btn { background-color: #C3AAA6; color: white; border-color: #C3AAA6; }
+        #cloud-restore-btn:hover { background-color: #b09793; border-color: #b09793; }
+        
+        #google-login-btn {
+            background-color: #4285F4;
+            color: #ffffff;
+            border-color: #4285F4;
+            font-weight: 600;
+        }
+        #google-login-btn:hover {
+            background-color: #3367D6;
+            border-color: #3367D6;
+            color: #ffffff;
+        }
+
+        #cloud-status {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-left: 4px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .section-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-main);
+            border-left: 3px solid var(--accent-color);
+            padding-left: 8px;
+        }
+
+        .add-row-btn {
+            background: transparent;
+            border: 1px dashed var(--accent-color);
+            color: var(--accent-color);
+            padding: 4px 12px;
+            font-size: 0.8rem;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .add-row-btn:hover { background: var(--accent-color); color: #fff; }
+
+        .carry-over-btn {
+            background: transparent;
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 4px 12px;
+            font-size: 0.8rem;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .carry-over-btn:hover { background: var(--accent-color); color: #fff; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
+
+        label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px; }
+
+        input[type="text"], textarea, select {
+            width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px;
+            font-size: 0.95rem; background: #fff; color: var(--text-main); transition: all 0.2s ease;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none; border-color: var(--accent-color); box-shadow: 0 0 0 3px var(--focus-ring);
+        }
+        textarea { resize: vertical; min-height: 80px; }
+
+        .list-inputs { display: flex; flex-direction: column; gap: 8px; }
+        .row-group { display: flex; gap: 8px; align-items: center; }
+        .row-group input[type="text"], .row-group select { flex: 1; }
+        .row-group label.checkbox-label {
+            display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-main);
+            cursor: pointer; white-space: nowrap; margin-bottom: 0;
+        }
+
+        .staff-pills-container { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+        .staff-pill {
+            background: #f0f0f0; border: 1px solid #dcdcdc; color: var(--text-main);
+            padding: 2px 10px; font-size: 0.8rem; border-radius: 12px; cursor: pointer; transition: all 0.2s; user-select: none;
+        }
+        .staff-pill:hover { background: var(--accent-color); color: #ffffff; border-color: var(--accent-color); }
+
+        .remove-btn {
+            background: transparent; border: 1px solid var(--border-color); color: #888;
+            width: 36px; height: 41px; border-radius: 6px; cursor: pointer; display: flex;
+            align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s; flex-shrink: 0;
+        }
+        .remove-btn:hover { background: var(--danger-hover); color: #ffffff; border-color: var(--danger-hover); }
+
+        .btn {
+            background-color: var(--accent-color); color: #ffffff; border: none; padding: 14px 24px;
+            font-size: 1rem; font-weight: 600; border-radius: 24px; cursor: pointer; width: 100%;
+            transition: background-color 0.2s; display: flex; justify-content: center; align-items: center;
+            gap: 8px; margin-top: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .btn:hover { background-color: var(--accent-hover); }
+
+        .output-section { background: #111111; color: #ffffff; border-radius: 8px; padding: 20px; margin-top: 24px; display: none; }
+        .output-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .output-header h3 { font-size: 1rem; font-weight: 600; color: #ccc; }
+        .copy-btn { background: #333; color: #fff; border: none; padding: 6px 14px; font-size: 0.85rem; border-radius: 20px; cursor: pointer; transition: background 0.2s; }
+        .copy-btn:hover { background: #555; }
+        pre { background: #1a1a1a; padding: 16px; border-radius: 6px; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem; color: #e0e0e0; border: 1px solid #333; max-height: 400px; overflow-y: auto; }
+        .hidden-file-input { display: none; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+            display: flex; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-content { background: #ffffff; padding: 24px; border-radius: 12px; width: 100%; max-width: 420px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+        .modal-header h3 { font-size: 1.1rem; font-weight: 600; }
+        .close-modal-btn { background: transparent; border: none; font-size: 1.3rem; cursor: pointer; color: var(--text-muted); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s; }
+        .close-modal-btn:hover { background: #eee; color: var(--text-main); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>ÉCOLE CAFÉ 智慧交班系統</h1>
+        <div class="header-controls">
+            <div class="date-input-wrapper">
+                <span>日期：</span>
+                <input type="date" id="briefing-date-picker" onchange="onDateChange()">
+            </div>
+            
+            <button type="button" class="action-icon-btn export-img-btn" onclick="downloadWeeklyReportJPG()">匯出週報圖表</button>
+            <button type="button" class="action-icon-btn" onclick="undoLastAction()">↩️ 返回上一步</button>
+            <button type="button" class="action-icon-btn" onclick="openStaffModal()">人員配置</button>
+            
+            <button type="button" class="action-icon-btn" id="google-login-btn" onclick="handleGoogleLogin()">Google 登入</button>
+            <button type="button" class="action-icon-btn" id="cloud-save-btn" onclick="manualCloudSave()">雲端儲存</button>
+            <button type="button" class="action-icon-btn" id="cloud-restore-btn" onclick="restoreFromCloud()">雲端讀取</button>
+            <span id="cloud-status"></span>
+            
+            <button type="button" class="action-icon-btn" onclick="exportJSON()">匯出備份</button>
+            <button type="button" class="action-icon-btn" onclick="document.getElementById('import-file').click()">讀取備份</button>
+            <input type="file" id="import-file" class="hidden-file-input" accept=".json" onchange="importJSON(event)">
+        </div>
+    </header>
+
+    <form id="handover-form">
+        <datalist id="staff-options"></datalist>
+
+        <div class="card">
+            <div class="section-title">├── 值班主管與站區配置</div>
+            <div class="grid-2" style="margin-bottom: 12px; margin-top: 12px;">
+                <div>
+                    <label>值班主管 (單選)</label>
+                    <input type="text" id="shift-manager" value="" placeholder="請選擇或輸入值班主管">
+                    <div class="staff-pills-container" id="pills-manager"></div>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div>
+                    <label>吧台 (可點擊下方人員複選或重新選擇)</label>
+                    <input type="text" id="station-bar" value="" placeholder="請選擇或輸入吧台人員">
+                    <div class="staff-pills-container" id="pills-bar"></div>
+                </div>
+                <div>
+                    <label>櫃檯外場 (可點擊下方人員複選或重新選擇)</label>
+                    <input type="text" id="station-counter" value="" placeholder="請選擇或輸入外場人員">
+                    <div class="staff-pills-container" id="pills-counter"></div>
+                </div>
+            </div>
+            <div style="margin-top: 12px;">
+                <label>廚房 (可點擊下方人員複選或重新選擇)</label>
+                <input type="text" id="station-kitchen" value="" placeholder="請選擇或輸入廚房人員">
+                <div class="staff-pills-container" id="pills-kitchen"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">├── 💰 營業額與出勤資訊</div>
+            <div class="grid-2" style="margin-top: 12px; margin-bottom: 12px;">
+                <div>
+                    <label>日營業額</label>
+                    <input type="text" id="rev-day" placeholder="例如: 25830" oninput="calcTotalRevenue()">
+                </div>
+                <div>
+                    <label>夜營業額</label>
+                    <input type="text" id="rev-night" placeholder="例如: 690" oninput="calcTotalRevenue()">
+                </div>
+            </div>
+            <div class="grid-2" style="margin-bottom: 12px;">
+                <div>
+                    <label>本日營收總計</label>
+                    <input type="text" id="rev-total" placeholder="例如: 26520" oninput="updateMonthlyCumulative()">
+                </div>
+                <div>
+                    <label>本月業收累計 (自動計算)</label>
+                    <input type="text" id="rev-month-cum" placeholder="例如: 48728" readonly style="background: #f9f9f9;">
+                </div>
+            </div>
+            <div class="grid-2" style="margin-bottom: 12px;">
+                <div>
+                    <label>本月目標</label>
+                    <input type="text" id="rev-month-target" value="700000" placeholder="例如: 700000" oninput="calcAchievementRate()">
+                </div>
+                <div>
+                    <label>達成率 (%) (自動計算)</label>
+                    <input type="text" id="rev-achieve-rate" placeholder="例如: 6.9" readonly style="background: #f9f9f9;">
+                </div>
+            </div>
+            <div class="grid-2">
+                <div>
+                    <label>本日出勤 (無填寫不顯示)</label>
+                    <input type="text" id="attendance-summary" placeholder="例如: 3正1工">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-header">
+                <div class="section-title">├── 📍 客情訂位狀況</div>
+                <button type="button" class="add-row-btn" onclick="saveUndoState(); addReservationRow()">新增項目</button>
+            </div>
+            <div class="list-inputs" id="reservation-list"></div>
+        </div>
+
+        <div class="card">
+            <div class="section-header">
+                <div class="section-title">├── 📍 對齊項目</div>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); carryOverSection('alignment')">帶入前一日</button>
+                    <button type="button" class="add-row-btn" onclick="saveUndoState(); addAlignmentRow('', '通用', 'top', true)">上方新增</button>
+                    <button type="button" class="add-row-btn" onclick="saveUndoState(); addAlignmentRow('', '通用', 'bottom', true)">下方新增</button>
+                    <button type="button" class="add-row-btn" style="color: var(--danger-color); border-color: var(--danger-color);" onclick="clearAlignments()">清空對齊項目</button>
+                </div>
+            </div>
+            <div class="list-inputs" id="alignment-list"></div>
+        </div>
+
+        <div class="card">
+            <div class="section-header">
+                <div class="section-title">├── 📍 主管交辦</div>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); carryOverSection('task')">帶入前一日</button>
+                    <button type="button" class="add-row-btn" onclick="saveUndoState(); addTaskRow()">新增交辦</button>
+                </div>
+            </div>
+            <div class="list-inputs" id="task-list"></div>
+        </div>
+
+        <div class="card">
+            <div class="section-header">
+                <div class="section-title">├── 📍 意見討論</div>
+                <button type="button" class="carry-over-btn" onclick="saveUndoState(); carryOverSection('discussion')">帶入前一日</button>
+            </div>
+            <div style="margin-top: 12px;">
+                <textarea id="discussion-notes" placeholder="請輸入意見討論事項..."></textarea>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-header">
+                <div class="section-title">├── 📍 現場事件</div>
+                <button type="button" class="add-row-btn" onclick="saveUndoState(); addIncidentRow()">新增事件</button>
+            </div>
+            <div class="list-inputs" id="incident-list" style="margin-top: 12px;"></div>
+        </div>
+
+        <div class="card">
+            <div class="section-header">
+                <div class="section-title">├── 📍 缺貨商品</div>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); carryOverSection('shortage')">帶入前一日</button>
+                    <button type="button" class="add-row-btn" onclick="saveUndoState(); addShortageRow()">新增品項</button>
+                </div>
+            </div>
+            <div class="list-inputs" id="shortage-list" style="margin-top: 12px;"></div>
+        </div>
+
+        <div class="card">
+            <div class="section-header">
+                <div class="section-title">├── 📍 需叫貨項目</div>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); carryOverSection('order')">帶入前一日</button>
+                    <button type="button" class="add-row-btn" onclick="saveUndoState(); addOrderRow()">新增叫貨</button>
+                </div>
+            </div>
+            <div class="list-inputs" id="order-list" style="margin-top: 12px;"></div>
+        </div>
+
+        <div class="card">
+            <div class="section-header">
+                <div class="section-title">├── 📍 推銷品項</div>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); carryOverSection('promo')">帶入前一日</button>
+                    <button type="button" class="add-row-btn" onclick="saveUndoState(); addPromoRow()">新增品項</button>
+                </div>
+            </div>
+            <div class="list-inputs" id="promo-list" style="margin-top: 12px;"></div>
+        </div>
+
+        <button type="button" class="btn" onclick="generateLineBriefing()">
+            一鍵產生 LINE Briefing 排版
+        </button>
+    </form>
+
+    <div class="output-section" id="output-section">
+        <div class="output-header">
+            <h3>LINE 交班訊息預覽</h3>
+            <button class="copy-btn" onclick="copyBriefing()">一鍵複製內容</button>
+        </div>
+        <pre id="briefing-text"></pre>
+    </div>
+</div>
+
+<div id="staff-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>人員配置管理</h3>
+            <button type="button" class="close-modal-btn" onclick="closeStaffModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="row-group" style="margin-bottom: 16px;">
+                <input type="text" id="new-staff-name" placeholder="輸入新人員姓名">
+                <button type="button" class="action-icon-btn" style="border-radius: 6px; padding: 10px 16px; white-space: nowrap;" onclick="addNewStaff()">新增人員</button>
+            </div>
+            <label style="margin-bottom: 6px;">現有人員列表：</label>
+            <div id="staff-manage-list" class="list-inputs" style="max-height: 220px; overflow-y: auto; padding-right: 4px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- 隱藏的營運週報報表容器：用於生成 JPG (採用左右兩欄式對齊結構) -->
+<div id="report-export-container" style="position: absolute; top: -9999px; left: -9999px; width: 800px; background: #ffffff; padding: 36px; border-radius: 12px; font-family: sans-serif; color: #111;">
+    <div style="text-align: center; margin-bottom: 16px; border-bottom: 2px solid #333; padding-bottom: 12px;">
+        <h2 style="font-size: 24px; margin-bottom: 4px; font-weight: 800;">ÉCOLE CAFÉ 營運週報</h2>
+        <p id="report-date-range" style="color: #666; font-size: 14px; margin: 0;"></p>
+    </div>
+
+    <!-- 兩欄式左右對齊排版：左側放總營收與圖表，右側放達成率與本週摘要 -->
+    <div style="display: flex; gap: 16px;">
+        <!-- 左側欄位 -->
+        <div style="flex: 1.2; display: flex; flex-direction: column; gap: 14px;">
+            <div style="background: #f7f8f9; border: 1px solid #e1e4e8; padding: 12px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 13px; color: #666; font-weight: 500;">本週總營業額</div>
+                <div id="report-weekly-total-rev" style="font-size: 22px; font-weight: 800; color: #111; margin-top: 4px;">$0</div>
+            </div>
+            <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 14px; border-radius: 8px;">
+                <h3 style="font-size: 15px; margin-bottom: 10px; border-left: 3px solid #5b6770; padding-left: 8px; color: #333;">一週每日營業額分佈</h3>
+                <div style="width: 100%; height: 180px;">
+                    <canvas id="weeklyChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右側欄位 (達成率方框與下方摘要上下完全對齊) -->
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 14px;">
+            <div style="background: #f7f8f9; border: 1px solid #e1e4e8; padding: 12px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 13px; color: #666; font-weight: 500;">本月目標達成率</div>
+                <div id="report-month-rate" style="font-size: 22px; font-weight: 800; color: #111; margin-top: 4px;">0%</div>
+            </div>
+            <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 14px; border-radius: 8px; display: flex; flex-direction: column;">
+                <h3 style="font-size: 15px; margin-bottom: 10px; border-left: 3px solid #5b6770; padding-left: 8px; color: #333;">本週新增項目摘要</h3>
+                <div id="report-special-items" style="font-size: 13px; line-height: 1.6; color: #333; overflow-y: auto; max-height: 180px; white-space: pre-wrap;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 【 核心：Firebase SDKs 雲端整合區塊 】 -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+       const firebaseConfig = {
+            apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
+            authDomain: "ecole-1f392.firebaseapp.com",
+            projectId: "ecole-1f392",
+            storageBucket: "ecole-1f392.firebasestorage.app",
+            messagingSenderId: "117812812078",
+            appId: "1:117812812078:web:41664b4e6f0a1c6aff42bf",
+            measurementId: "G-Q1SRBC7T5J"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+    const SHARED_DOC_ID = "shared_ecole_cafe_backup";
+
+    onAuthStateChanged(auth, (user) => {
+        window.currentUser = user;
+        const loginBtn = document.getElementById('google-login-btn');
+        if (user) {
+            loginBtn.innerText = `${user.displayName || '已登入'} (登出)`;
+        } else {
+            loginBtn.innerText = 'Google 登入';
+        }
+    });
+
+    window.handleGoogleLogin = async function() {
+        if (window.currentUser) {
+            try { await signOut(auth); alert('已成功登出'); } 
+            catch (error) { console.error(error); }
+        } else {
+            try {
+                await signInWithPopup(auth, provider);
+                alert('Google 登入成功！請點擊「雲端讀取」下載資料或與夥伴同步。');
+            } catch (error) {
+                alert('登入失敗，請檢查 API Key：' + error.message);
+            }
+        }
+    }
+
+    window.manualCloudSave = async function() {
+        if (!window.currentUser) {
+            alert("請先進行 Google 登入！");
+            return;
+        }
+        const statusSpan = document.getElementById('cloud-status');
+        statusSpan.innerText = '☁️ 雲端同步中...';
+        try {
+            if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal); 
+            const dataToUpload = {
+                ...window.globalDataStore,
+                updatedAt: new Date().toISOString(),
+                updatedBy: window.currentUser.email || window.currentUser.displayName
+            };
+            await setDoc(doc(db, "backups", SHARED_DOC_ID), dataToUpload);
+            statusSpan.innerText = '✅ 儲存成功';
+            setTimeout(() => { if (statusSpan.innerText === '✅ 儲存成功') statusSpan.innerText = ''; }, 3000);
+            alert("資料已成功手動儲存至雲端！");
+        } catch (error) {
+            statusSpan.innerText = '⚠️ 儲存失敗';
+            alert("雲端儲存失敗: " + error.message);
+        }
+    }
+
+    window.restoreFromCloud = async function(isSilent = false) {
+        if (!window.currentUser) {
+            if (!isSilent) alert('請先進行 Google 登入！');
+            return;
+        }
+        try {
+            const docRef = doc(db, "backups", SHARED_DOC_ID);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                if (data.employees) window.globalDataStore.employees = data.employees;
+                if (data.dailyTracking) window.globalDataStore.dailyTracking = data.dailyTracking;
+                syncStaffFromEmployees();
+                loadStaffList();
+                loadDayData();
+                if (!isSilent) alert('已成功從雲端讀取最新的交班資料！');
+            } else {
+                if (!isSilent) alert('共用雲端目前尚無備份資料。');
+            }
+        } catch (error) {
+            if (!isSilent) alert('雲端還原失敗：' + error.message);
+        }
+    }
+</script>
+
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            const swCode = `
+                self.addEventListener('install', e => self.skipWaiting());
+                self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+                self.addEventListener('fetch', e => {
+                    e.respondWith(
+                        fetch(e.request).catch(() => caches.match(e.request))
+                    );
+                });
+            `;
+            const blob = new Blob([swCode], { type: 'application/javascript' });
+            navigator.serviceWorker.register(URL.createObjectURL(blob)).then(reg => {
+                reg.onupdatefound = () => {
+                    const newWorker = reg.installing;
+                    newWorker.onstatechange = () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            if (confirm('發現系統有新版本，是否立即重新載入以更新內容？')) {
+                                window.location.reload();
+                            }
+                        }
+                    };
+                };
+            }).catch(e => console.log('PWA Setup Failed', e));
+
+            const manifest = {
+                name: "ÉCOLE CAFÉ 智慧交班系統", short_name: "交班系統", display: "standalone",
+                start_url: ".", background_color: "#f4f4f4", theme_color: "#111111",
+                icons: [{ src: "data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23111'/><text x='50' y='65' fill='white' font-size='50' text-anchor='middle'>E</text></svg>", sizes: "192x192", type: "image/svg+xml" }]
+            };
+            const manifestLink = document.createElement('link');
+            manifestLink.rel = 'manifest';
+            manifestLink.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], {type: 'application/json'}));
+            document.head.appendChild(manifestLink);
+        });
+    }
+
+    window.globalDataStore = { employees: [], dailyTracking: {} };
+    window.currentDateVal = '';
+    let staffList = ['緎俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
+    let weeklyChartInstance = null;
+
+    window.undoStack = [];
+    window.saveUndoState = function() {
+        if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal);
+        const currentState = JSON.parse(JSON.stringify(window.globalDataStore.dailyTracking[window.currentDateVal] || {}));
+        window.undoStack.push(currentState);
+        if (window.undoStack.length > 30) window.undoStack.shift();
+    };
+
+    window.undoLastAction = function() {
+        if (window.undoStack.length === 0) {
+            alert('目前沒有可以返回的步驟紀錄！');
+            return;
+        }
+        const prevState = window.undoStack.pop();
+        window.globalDataStore.dailyTracking[window.currentDateVal] = prevState;
+        loadDayData(); 
+    };
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        window.currentDateVal = `${yyyy}-${mm}-${dd}`;
+        document.getElementById('briefing-date-picker').value = window.currentDateVal;
+        
+        syncStaffFromEmployees();
+        loadStaffList();
+        renderStaffPills();
+        loadDayData();
+    });
+
+    window.clearAlignments = function() {
+        if (confirm('確定要清空所有的「對齊項目」內容嗎？')) {
+            saveUndoState();
+            document.getElementById('alignment-list').innerHTML = '';
+        }
+    }
+
+    function calcTotalRevenue() {
+        const dayVal = parseFloat(document.getElementById('rev-day').value) || 0;
+        const nightVal = parseFloat(document.getElementById('rev-night').value) || 0;
+        const totalInput = document.getElementById('rev-total');
+        if (dayVal > 0 || nightVal > 0) {
+            totalInput.value = dayVal + nightVal;
+        } else if (!document.getElementById('rev-day').value && !document.getElementById('rev-night').value) {
+            totalInput.value = '';
+        }
+        updateMonthlyCumulative();
+    }
+
+    window.updateMonthlyCumulative = function() {
+        const dateVal = window.currentDateVal;
+        if (!dateVal) return;
+        const ym = dateVal.substring(0, 7); 
+
+        let totalCum = 0;
+        const currentTotal = parseFloat(document.getElementById('rev-total').value) || 0;
+
+        if (window.globalDataStore.dailyTracking) {
+            Object.keys(window.globalDataStore.dailyTracking).forEach(dStr => {
+                if (dStr.startsWith(ym) && dStr < dateVal) {
+                    const dayRev = parseFloat(window.globalDataStore.dailyTracking[dStr].revTotal) || 0;
+                    totalCum += dayRev;
+                }
+            });
+        }
+        totalCum += currentTotal;
+
+        const cumInput = document.getElementById('rev-month-cum');
+        cumInput.value = totalCum > 0 ? totalCum : '';
+        calcAchievementRate();
+    }
+
+    function calcAchievementRate() {
+        const cumVal = parseFloat(document.getElementById('rev-month-cum').value) || 0;
+        const targetVal = parseFloat(document.getElementById('rev-month-target').value) || 0;
+        const rateInput = document.getElementById('rev-achieve-rate');
+        if (targetVal > 0) {
+            rateInput.value = ((cumVal / targetVal) * 100).toFixed(1);
+        } else {
+            rateInput.value = '';
+        }
+    }
+
+    function onDateChange() {
+        const pickerVal = document.getElementById('briefing-date-picker').value;
+        if (!pickerVal || pickerVal === window.currentDateVal) return;
+        saveCurrentDayData(window.currentDateVal); 
+        window.currentDateVal = pickerVal;
+        window.undoStack = [];
+        loadDayData();
+    }
+
+    function syncStaffFromEmployees() {}
+    function loadStaffList() {
+        const datalist = document.getElementById('staff-options');
+        datalist.innerHTML = '';
+        staffList.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            datalist.appendChild(option);
+        });
+    }
+
+    function renderStaffPills() {
+        ['manager', 'bar', 'counter', 'kitchen'].forEach(type => {
+            const container = document.getElementById(`pills-${type}`);
+            if (!container) return;
+            container.innerHTML = '';
+            staffList.forEach(name => {
+                const pill = document.createElement('span');
+                pill.className = 'staff-pill'; pill.innerText = name;
+                pill.onclick = () => handleStaffPillClick(type, name);
+                container.appendChild(pill);
+            });
+        });
+    }
+
+    function handleStaffPillClick(type, name) {
+        saveUndoState();
+        const input = document.getElementById(type === 'manager' ? 'shift-manager' : `station-${type}`);
+        if (!input) return;
+        if (type === 'manager') {
+            input.value = name;
+        } else {
+            let currentList = input.value.trim() ? input.value.trim().split(/[\s、,]+/).map(s => s.trim()).filter(Boolean) : [];
+            const index = currentList.indexOf(name);
+            if (index > -1) currentList.splice(index, 1); else currentList.push(name);
+            input.value = currentList.join('、');
+        }
+    }
+
+    function openStaffModal() {
+        const container = document.getElementById('staff-manage-list');
+        container.innerHTML = '';
+        staffList.forEach((name, index) => {
+            const div = document.createElement('div'); div.className = 'row-group';
+            div.innerHTML = `<input type="text" value="${name}" readonly style="background: #f9f9f9;"><button type="button" class="remove-btn" onclick="removeStaff(${index})">×</button>`;
+            container.appendChild(div);
+        });
+        document.getElementById('staff-modal').style.display = 'flex';
+    }
+    function closeStaffModal() { document.getElementById('staff-modal').style.display = 'none'; }
+    function addNewStaff() {
+        const input = document.getElementById('new-staff-name'); const name = input.value.trim();
+        if (!name || staffList.includes(name)) return alert(name ? '此人員已存在！' : '請輸入人員姓名！');
+        staffList.push(name); window.globalDataStore.employees.push({ id: 'EMP_' + Date.now(), name: name, type: 'FT' });
+        loadStaffList(); renderStaffPills(); input.value = ''; openStaffModal();
+    }
+    function removeStaff(index) {
+        if (staffList.length <= 1) return alert('至少需保留一位人員！');
+        staffList.splice(index, 1);
+        loadStaffList(); renderStaffPills(); openStaffModal();
+    }
+
+    function getPreviousDateStr(dateStr) {
+        const d = new Date(dateStr); d.setDate(d.getDate() - 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    window.saveCurrentDayData = function(dateToSave = window.currentDateVal) {
+        if (!dateToSave) return;
+        if (!window.globalDataStore.dailyTracking) window.globalDataStore.dailyTracking = {};
+        
+        window.globalDataStore.dailyTracking[dateToSave] = {
+            manager: document.getElementById('shift-manager').value,
+            bar: document.getElementById('station-bar').value,
+            counter: document.getElementById('station-counter').value,
+            kitchen: document.getElementById('station-kitchen').value,
+            revDay: document.getElementById('rev-day').value,
+            revNight: document.getElementById('rev-night').value,
+            revTotal: document.getElementById('rev-total').value,
+            revMonthTarget: document.getElementById('rev-month-target').value,
+            attendance: document.getElementById('attendance-summary').value,
+            reservations: Array.from(document.querySelectorAll('.reservation-input')).map(i => i.value),
+            alignments: Array.from(document.querySelectorAll('#alignment-list .row-group')).map(row => ({
+                val: row.querySelector('.alignment-input').value,
+                category: row.querySelector('.alignment-category').value,
+                isNew: row.querySelector('.alignment-input').dataset.isNew === 'true'
+            })),
+            tasks: Array.from(document.querySelectorAll('#task-list .row-group')).map(row => ({
+                assignee: row.querySelector('.task-assignee').value,
+                desc: row.querySelector('.task-desc').value,
+                done: row.querySelector('.task-done').checked
+            })),
+            discussions: document.getElementById('discussion-notes').value,
+            incidents: Array.from(document.querySelectorAll('#incident-list .row-group')).map(row => ({
+                sit: row.querySelector('.incident-sit-input').value,
+                res: row.querySelector('.incident-res-input').value
+            })),
+            shortages: Array.from(document.querySelectorAll('.shortage-item')).map(i => i.value),
+            orders: Array.from(document.querySelectorAll('#order-list .row-group')).map(row => ({
+                item: row.querySelector('.order-item').value,
+                done: row.querySelector('.order-done').checked
+            })),
+            promos: Array.from(document.querySelectorAll('.promo-input')).map(i => i.value)
+        };
+    }
+
+    window.carryOverSection = function(type) {
+        const prevDateStr = getPreviousDateStr(window.currentDateVal);
+        if (!window.globalDataStore.dailyTracking || !window.globalDataStore.dailyTracking[prevDateStr]) {
+            return alert('前一日無紀錄資料可帶入！');
+        }
+        const prevDay = JSON.parse(JSON.stringify(window.globalDataStore.dailyTracking[prevDateStr]));
+
+        if (type === 'alignment') {
+            if (prevDay.alignments && prevDay.alignments.length > 0) {
+                prevDay.alignments.forEach(item => {
+                    const val = typeof item === 'string' ? item : item.val;
+                    const cat = typeof item === 'string' ? '通用' : (item.category || '通用');
+                    if (val && val.trim() !== '') addAlignmentRow(val, cat, 'bottom', false);
+                });
+                alert('已成功帶入前一日對齊項目！');
+            } else alert('前一日無對齊項目資料。');
+        } else if (type === 'task') {
+            if (prevDay.tasks && prevDay.tasks.length > 0) {
+                let count = 0;
+                prevDay.tasks.forEach(t => { if (!t.done) { addTaskRow(t.assignee, t.desc, false); count++; } });
+                alert(`已成功帶入未完成交辦（共 ${count} 筆）！`);
+            } else alert('前一日無交辦資料。');
+        } else if (type === 'discussion') {
+            if (prevDay.discussions && prevDay.discussions.trim() !== '') {
+                document.getElementById('discussion-notes').value = prevDay.discussions; alert('已成功帶入意見討論！');
+            } else alert('前一日無意見討論內容。');
+        } else if (type === 'shortage') {
+            if (prevDay.shortages && prevDay.shortages.length > 0) {
+                prevDay.shortages.forEach(val => { if (val && val.trim() !== '') addShortageRow(val); }); alert('已成功帶入缺貨商品！');
+            } else alert('前一日無缺貨商品資料。');
+        } else if (type === 'order') {
+            if (prevDay.orders && prevDay.orders.length > 0) {
+                let count = 0;
+                prevDay.orders.forEach(o => {
+                    const itemVal = typeof o === 'string' ? o : o.item;
+                    const isDone = typeof o === 'string' ? false : o.done;
+                    if (!isDone && itemVal && itemVal.trim() !== '') { addOrderRow(itemVal, false); count++; }
+                });
+                alert(`已成功帶入未處理叫貨（共 ${count} 筆）！`);
+            } else alert('前一日無需叫貨資料。');
+        } else if (type === 'promo') {
+            if (prevDay.promos && prevDay.promos.length > 0) {
+                prevDay.promos.forEach(val => { if (val && val.trim() !== '') addPromoRow(val); }); alert('已成功帶入推銷品項！');
+            } else alert('前一日無推銷品項資料。');
+        }
+    }
+
+    function loadDayData() {
+        const dateVal = window.currentDateVal;
+        if (!dateVal) return;
+
+        ['shift-manager','station-bar','station-counter','station-kitchen','rev-day','rev-night','rev-total','attendance-summary','discussion-notes'].forEach(id => document.getElementById(id).value = '');
+        ['reservation-list','alignment-list','task-list','incident-list','shortage-list','order-list','promo-list'].forEach(id => document.getElementById(id).innerHTML = '');
+
+        if (window.globalDataStore.dailyTracking && window.globalDataStore.dailyTracking[dateVal]) {
+            const dayData = window.globalDataStore.dailyTracking[dateVal];
+            document.getElementById('shift-manager').value = dayData.manager || '';
+            document.getElementById('station-bar').value = dayData.bar || '';
+            document.getElementById('station-counter').value = dayData.counter || '';
+            document.getElementById('station-kitchen').value = dayData.kitchen || '';
+            document.getElementById('rev-day').value = dayData.revDay || '';
+            document.getElementById('rev-night').value = dayData.revNight || '';
+            document.getElementById('rev-total').value = dayData.revTotal || '';
+            document.getElementById('rev-month-target').value = dayData.revMonthTarget || '700000';
+            document.getElementById('attendance-summary').value = dayData.attendance || '';
+            document.getElementById('discussion-notes').value = dayData.discussions || '';
+
+            (dayData.reservations || []).forEach(val => addReservationRow(val));
+            (dayData.alignments || []).forEach(item => {
+                if (typeof item === 'string') addAlignmentRow(item, '通用', 'bottom', false);
+                else addAlignmentRow(item.val, item.category || '通用', 'bottom', item.isNew);
+            });
+            (dayData.tasks || []).forEach(t => addTaskRow(t.assignee, t.desc, t.done));
+            if (dayData.incidents) dayData.incidents.forEach(inc => addIncidentRow(inc.sit, inc.res));
+            (dayData.shortages || []).forEach(val => addShortageRow(val));
+            (dayData.orders || []).forEach(o => addOrderRow(o.item, o.done));
+            (dayData.promos || []).forEach(val => addPromoRow(val));
+        } else {
+            document.getElementById('rev-month-target').value = '700000';
+        }
+        updateMonthlyCumulative();
+    }
+
+    window.addReservationRow = function(val = '') {
+        const div = document.createElement('div'); div.className = 'row-group';
+        div.innerHTML = `<input type="text" class="reservation-input" value="${val}" placeholder="請輸入訂位狀況..."><button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`;
+        document.getElementById('reservation-list').appendChild(div);
+    }
+
+    window.addAlignmentRow = function(val = '', category = '通用', position = 'bottom', isNew = true) {
+        const div = document.createElement('div'); div.className = 'row-group'; div.style.alignItems = 'stretch';
+        div.innerHTML = `
+            <select class="alignment-category" style="width: 80px; flex-shrink: 0; padding: 10px 4px; font-size: 0.85rem;">
+                <option value="通用" ${category==='通用'?'selected':''}>通用</option>
+                <option value="外場" ${category==='外場'?'selected':''}>外場</option>
+                <option value="吧台" ${category==='吧台'?'selected':''}>吧台</option>
+                <option value="廚房" ${category==='廚房'?'selected':''}>廚房</option>
+            </select>
+            <textarea class="alignment-input" data-isnew="${isNew}" placeholder="請輸入對齊項目內容..." style="min-height: 42px;">${val}</textarea>
+            <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>
+        `;
+        if (position === 'top') document.getElementById('alignment-list').prepend(div);
+        else document.getElementById('alignment-list').appendChild(div);
+    }
+
+    window.addTaskRow = function(assignee = '', desc = '', done = false) {
+        const div = document.createElement('div'); div.className = 'row-group'; div.style.alignItems = 'stretch';
+        div.innerHTML = `<div style="display: flex; flex-direction: column; gap: 8px; flex: 1;"><div style="display: flex; gap: 8px; align-items: center;"><input type="text" class="task-assignee" list="staff-options" value="${assignee}" placeholder="負責人" style="flex: 1;"><label class="checkbox-label"><input type="checkbox" class="task-done" ${done ? 'checked' : ''}> 已完成</label></div><div><input type="text" class="task-desc" value="${desc}" placeholder="交辦事項內容"></div></div><button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>`;
+        document.getElementById('task-list').appendChild(div);
+    }
+    window.addIncidentRow = function(sit = '', res = '') {
+        const div = document.createElement('div'); div.className = 'row-group'; div.style.alignItems = 'stretch';
+        div.style.border = '1px solid var(--border-color)'; div.style.padding = '10px'; div.style.borderRadius = '6px'; div.style.backgroundColor = '#fafafa';
+        div.innerHTML = `<div style="display: flex; flex-direction: column; gap: 8px; flex: 1;"><textarea class="incident-sit-input" placeholder="現場狀況..." style="min-height: 60px;">${sit}</textarea><textarea class="incident-res-input" placeholder="解決方式..." style="min-height: 60px;">${res}</textarea></div><button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch; margin-left: 8px; background: transparent;">×</button>`;
+        document.getElementById('incident-list').appendChild(div);
+    }
+    window.addShortageRow = function(val = '') {
+        const div = document.createElement('div'); div.className = 'row-group';
+        div.innerHTML = `<input type="text" class="shortage-item" value="${val}" placeholder="請輸入缺貨商品..."><button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`; document.getElementById('shortage-list').appendChild(div);
+    }
+    window.addOrderRow = function(val = '', done = false) {
+        const div = document.createElement('div'); div.className = 'row-group';
+        div.innerHTML = `<input type="text" class="order-item" value="${val}" placeholder="請輸入需叫貨項目"><label class="checkbox-label"><input type="checkbox" class="order-done" ${done ? 'checked' : ''}> 已處理</label><button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`; document.getElementById('order-list').appendChild(div);
+    }
+    window.addPromoRow = function(val = '') {
+        const div = document.createElement('div'); div.className = 'row-group';
+        div.innerHTML = `<input type="text" class="promo-input" value="${val}" placeholder="請輸入推銷品項..."><button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`; document.getElementById('promo-list').appendChild(div);
+    }
+    window.removeRow = function(btn) { 
+        saveUndoState();
+        btn.closest('.row-group').remove(); 
+    }
+
+    window.generateLineBriefing = function() {
+        if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal); 
+        const dateVal = window.currentDateVal;
+        const d = dateVal ? new Date(dateVal) : new Date();
+        let briefing = `ÉCOLE CAFÉ ${d.getMonth() + 1}/${d.getDate()} Briefing`;
+        
+        const manager = document.getElementById('shift-manager').value.trim();
+        if (manager) briefing += `\n值班主管：${manager}`;
+
+        const bar = document.getElementById('station-bar').value.trim();
+        const counter = document.getElementById('station-counter').value.trim();
+        const kitchen = document.getElementById('station-kitchen').value.trim();
+        if (bar || counter || kitchen) {
+            briefing += `\n\n[站區配置]`;
+            if (bar) briefing += `\n吧台：${bar}`;
+            if (counter) briefing += `\n櫃檯外場：${counter}`;
+            if (kitchen) briefing += `\n廚房：${kitchen}`;
+        }
+
+        const revDay = document.getElementById('rev-day').value.trim();
+        const revNight = document.getElementById('rev-night').value.trim();
+        const revTotal = document.getElementById('rev-total').value.trim();
+        const revMonthCum = document.getElementById('rev-month-cum').value.trim();
+        const revMonthTarget = document.getElementById('rev-month-target').value.trim();
+        const revAchieveRate = document.getElementById('rev-achieve-rate').value.trim();
+        const attendance = document.getElementById('attendance-summary').value.trim();
+
+        if (revDay || revNight || revTotal || revMonthCum || revMonthTarget || revAchieveRate || attendance) {
+            briefing += `\n\n[營收與出勤]`;
+            if (revDay) briefing += `\n日  ${revDay}`;
+            if (revNight) briefing += `\n夜  ${revNight}`;
+            if (revTotal) briefing += `\n本日總計  ${revTotal}`;
+            if (revMonthCum) briefing += `\n本月累計  ${revMonthCum}`;
+            if (revMonthTarget) briefing += `\n本月目標  ${revMonthTarget}`;
+            if (revAchieveRate) briefing += `\n達成率 ${revAchieveRate} %`;
+            if (attendance) briefing += `\n本日出勤  ${attendance}`;
+            briefing += `\n——————————`;
+        }
+
+        const resText = Array.from(document.querySelectorAll('.reservation-input')).map(i => i.value.trim()).filter(Boolean).join(' ');
+        if(resText) briefing += `\n\n📍客情訂位狀況：\n${resText}`;
+
+        let alignGroups = { '通用': [], '外場': [], '吧台': [], '廚房': [] };
+        document.querySelectorAll('#alignment-list .row-group').forEach(row => {
+            const valInput = row.querySelector('.alignment-input');
+            const catSelect = row.querySelector('.alignment-category');
+            if (!valInput) return;
+            const val = valInput.value.trim();
+            const cat = catSelect ? catSelect.value : '通用';
+            const isNew = valInput.dataset.isnew === 'true';
+            if(val !== '') {
+                const marker = isNew ? '🔹' : '▫️';
+                const formattedVal = val.split('\n').join('\n   ');
+                if(!alignGroups[cat]) alignGroups[cat] = [];
+                alignGroups[cat].push(`${marker} ${formattedVal}`);
+            }
+        });
+
+        let alignmentText = '';
+        ['通用', '外場', '吧台', '廚房'].forEach(cat => {
+            if (alignGroups[cat] && alignGroups[cat].length > 0) {
+                alignmentText += `【${cat}】\n${alignGroups[cat].join('\n')}\n\n`;
+            }
+        });
+        if (alignmentText) briefing += `\n\n📍對齊項目：\n${alignmentText.trim()}`;
+
+        const taskText = Array.from(document.querySelectorAll('#task-list .row-group')).map(row => {
+            const a = row.querySelector('.task-assignee').value.trim(), d = row.querySelector('.task-desc').value.trim(), done = row.querySelector('.task-done').checked;
+            return (a||d) ? `• 負責人：${a||'未指定'}\n  事項：${d}${done?' 【已完成】':''}` : '';
+        }).filter(Boolean).join('\n');
+        if(taskText) briefing += `\n\n📍主管交辦：\n${taskText}`;
+
+        const disc = document.getElementById('discussion-notes').value.trim();
+        if(disc) briefing += `\n\n📍意見討論：\n${disc}`;
+
+        const incText = Array.from(document.querySelectorAll('#incident-list .row-group')).map(row => {
+            const s = row.querySelector('.incident-sit-input').value.trim(), r = row.querySelector('.incident-res-input').value.trim();
+            return (s||r) ? (s?`[現場狀況]\n${s}\n`:'') + (r?`[解決方式]\n${r}\n`:'') : '';
+        }).filter(Boolean).join('\n');
+        if(incText) briefing += `\n\n📍現場事件：\n${incText.trim()}`;
+
+        const shortText = Array.from(document.querySelectorAll('.shortage-item')).map(i => i.value.trim()).filter(Boolean).join('\n');
+        if(shortText) briefing += `\n\n📍缺貨商品：\n${shortText}`;
+
+        const ordText = Array.from(document.querySelectorAll('#order-list .row-group')).map(row => {
+            const v = row.querySelector('.order-item').value.trim(), done = row.querySelector('.order-done').checked;
+            return v ? `• ${v}${done?' 【已處理】':''}` : '';
+        }).filter(Boolean).join('\n');
+        if(ordText) briefing += `\n\n📍需叫貨項目：\n${ordText}`;
+
+        const promoText = Array.from(document.querySelectorAll('.promo-input')).map(i => i.value.trim()).filter(Boolean).join('\n');
+        if(promoText) briefing += `\n\n📍推銷品項：\n${promoText}`;
+
+        briefing += `\n\n-------------------------\n請各夥伴閱畢後於下方表情符號 點收，謝謝！`;
+
+        document.getElementById('briefing-text').innerText = briefing;
+        const outputSection = document.getElementById('output-section');
+        outputSection.style.display = 'block';
+        outputSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    window.copyBriefing = function() {
+        navigator.clipboard.writeText(document.getElementById('briefing-text').innerText)
+            .then(() => alert('已成功複製 LINE 交班內容！'))
+            .catch(err => console.error('複製失敗', err));
+    }
+    
+    // C. 匯出 JPG 週報圖表與本週新增項目摘要
+    window.downloadWeeklyReportJPG = function() {
+        if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal); 
+        
+        const currentD = new Date(window.currentDateVal || new Date());
+        const day = currentD.getDay(); 
+        const diff = currentD.getDate() - day + (day === 0 ? -6 : 1); 
+        const monday = new Date(currentD.setDate(diff));
+        
+        let weekDates = [];
+        let weekLabels = [];
+        let weekRevs = [];
+        let totalWeeklyRev = 0;
+
+        for (let i = 0; i < 7; i++) {
+            let d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            const y = d.getFullYear();
+            const m = String(d.getMonth()+1).padStart(2, '0');
+            const dt = String(d.getDate()).padStart(2, '0');
+            const dStr = `${y}-${m}-${dt}`;
+            
+            weekDates.push(dStr);
+            weekLabels.push(`${m}/${dt}`);
+            
+            let dailyRev = 0;
+            if (window.globalDataStore.dailyTracking && window.globalDataStore.dailyTracking[dStr]) {
+                dailyRev = parseFloat(window.globalDataStore.dailyTracking[dStr].revTotal) || 0;
+            }
+            weekRevs.push(dailyRev);
+            totalWeeklyRev += dailyRev;
+        }
+
+        document.getElementById('report-date-range').innerText = `統計區間：${weekDates[0].replace(/-/g,'/')} - ${weekDates[6].replace(/-/g,'/')}`;
+        document.getElementById('report-weekly-total-rev').innerText = `$${totalWeeklyRev.toLocaleString()}`;
+        const achieveRate = document.getElementById('rev-achieve-rate').value;
+        document.getElementById('report-month-rate').innerText = achieveRate ? `${achieveRate}%` : '0%';
+
+        let specialItemsText = '';
+        let weekTaskLines = [];
+        let weekAlignLines = [];
+
+        weekDates.forEach(dStr => {
+            const dayData = window.globalDataStore.dailyTracking && window.globalDataStore.dailyTracking[dStr];
+            if (dayData) {
+                if (dayData.tasks) {
+                    dayData.tasks.forEach(t => {
+                        if (!t.done && (t.assignee || t.desc)) {
+                            weekTaskLines.push(`• [交辦] ${t.assignee||'未定'}: ${t.desc}`);
+                        }
+                    });
+                }
+                if (dayData.alignments) {
+                    dayData.alignments.forEach(item => {
+                        const val = typeof item === 'string' ? item : item.val;
+                        const cat = typeof item === 'string' ? '通用' : (item.category || '通用');
+                        const isNew = typeof item === 'string' ? false : item.isNew;
+                        if (val && isNew) {
+                            weekAlignLines.push(`• [${cat}] ${val.split('\n')[0]}`);
+                        }
+                    });
+                }
+            }
+        });
+
+        weekTaskLines = [...new Set(weekTaskLines)].slice(0, 3);
+        weekAlignLines = [...new Set(weekAlignLines)].slice(0, 3);
+
+        if (weekTaskLines.length > 0) specialItemsText += `【未完成交辦】\n${weekTaskLines.join('\n')}\n\n`;
+        if (weekAlignLines.length > 0) specialItemsText += `【本週新增項目】\n${weekAlignLines.join('\n')}\n`;
+
+        if(!specialItemsText) specialItemsText = '本週無未完成交辦與新增項目。';
+        document.getElementById('report-special-items').innerText = specialItemsText.trim();
+
+        // 繪製 Chart
+        const ctx = document.getElementById('weeklyChart').getContext('2d');
+        if (weeklyChartInstance) { weeklyChartInstance.destroy(); }
+        
+        weeklyChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: weekLabels,
+                datasets: [{
+                    label: '日營業額',
+                    data: weekRevs,
+                    backgroundColor: '#5b6770',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        const container = document.getElementById('report-export-container');
+        container.style.top = '0'; container.style.left = '0'; container.style.zIndex = '-1';
+        
+        setTimeout(() => {
+            html2canvas(container, { scale: 2 }).then(canvas => {
+                container.style.top = '-9999px'; container.style.left = '-9999px';
+                const link = document.createElement('a');
+                link.download = `ECOLE_CAFE_營運週報_${weekDates[0]}.jpg`;
+                link.href = canvas.toDataURL('image/jpeg', 0.9);
+                link.click();
+            });
+        }, 800);
+    }
+
+    window.exportJSON = function() {
+        if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal); 
+        const dateVal = window.currentDateVal;
+        const dataToExport = { ...window.globalDataStore };
+        const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `ecole_cafe_backup_${dateVal ? dateVal.substring(0, 7) : 'data'}.json`;
+        a.click();
+    }
+
+    window.importJSON = function(event) {
+        const file = event.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (data.employees) window.globalDataStore.employees = data.employees;
+                if (data.dailyTracking) window.globalDataStore.dailyTracking = data.dailyTracking;
+                syncStaffFromEmployees(); loadStaffList(); loadDayData();
+                alert('已成功讀取備份資料！');
+            } catch (err) { alert('檔案格式錯誤。'); }
+        };
+        reader.readAsText(file); event.target.value = '';
+    }
+</script>
+
+</body>
+</html>
