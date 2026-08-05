@@ -398,11 +398,12 @@
         <div class="card">
             <div class="section-header">
                 <div class="section-title">├── 📍 意見討論</div>
-                <button type="button" class="carry-over-btn" onclick="saveUndoState(); carryOverSection('discussion')">帶入前一日</button>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); carryOverSection('discussion')">帶入前一日</button>
+                    <button type="button" class="add-row-btn" onclick="saveUndoState(); addDiscussionRow()">新增討論</button>
+                </div>
             </div>
-            <div style="margin-top: 12px;">
-                <textarea id="discussion-notes" placeholder="請輸入意見討論事項..."></textarea>
-            </div>
+            <div class="list-inputs" id="discussion-list" style="margin-top: 12px;"></div>
         </div>
 
         <div class="card">
@@ -701,7 +702,7 @@
 
     window.globalDataStore = { employees: [], dailyTracking: {} };
     window.currentDateVal = '';
-    let staffList = ['緎俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
+    let staffList = ['絨俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
     let weeklyChartInstance = null;
     let currentReportBlob = null;
 
@@ -896,7 +897,10 @@
                 desc: row.querySelector('.task-desc').value,
                 done: row.querySelector('.task-done').checked
             })),
-            discussions: document.getElementById('discussion-notes').value,
+            discussions: Array.from(document.querySelectorAll('#discussion-list .row-group')).map(row => ({
+                topic: row.querySelector('.discussion-topic').value,
+                result: row.querySelector('.discussion-result').value
+            })),
             incidents: Array.from(document.querySelectorAll('#incident-list .row-group')).map(row => ({
                 sit: row.querySelector('.incident-sit-input').value,
                 res: row.querySelector('.incident-res-input').value
@@ -933,8 +937,16 @@
                 alert(`已成功帶入未完成交辦（共 ${count} 筆）！`);
             } else alert('前一日無交辦資料。');
         } else if (type === 'discussion') {
-            if (prevDay.discussions && prevDay.discussions.trim() !== '') {
-                document.getElementById('discussion-notes').value = prevDay.discussions; alert('已成功帶入意見討論！');
+            if (prevDay.discussions && prevDay.discussions.length > 0) {
+                prevDay.discussions.forEach(d => {
+                    const topicVal = typeof d === 'string' ? d : d.topic;
+                    const resultVal = typeof d === 'string' ? '' : (d.result || '');
+                    if (topicVal && topicVal.trim() !== '') addDiscussionRow(topicVal, resultVal);
+                });
+                alert('已成功帶入意見討論！');
+            } else if (prevDay.discussions && typeof prevDay.discussions === 'string' && prevDay.discussions.trim() !== '') {
+                addDiscussionRow(prevDay.discussions, '');
+                alert('已成功帶入意見討論！');
             } else alert('前一日無意見討論內容。');
         } else if (type === 'shortage') {
             if (prevDay.shortages && prevDay.shortages.length > 0) {
@@ -961,11 +973,11 @@
         const dateVal = window.currentDateVal;
         if (!dateVal) return;
 
-        ['shift-manager','station-bar','station-counter','station-kitchen','rev-day','rev-night','rev-total','attendance-summary','discussion-notes'].forEach(id => {
+        ['shift-manager','station-bar','station-counter','station-kitchen','rev-day','rev-night','rev-total','attendance-summary'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
-        ['reservation-list','alignment-list','task-list','incident-list','shortage-list','order-list','promo-list'].forEach(id => {
+        ['reservation-list','alignment-list','task-list','discussion-list','incident-list','shortage-list','order-list','promo-list'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.innerHTML = '';
         });
@@ -981,7 +993,6 @@
             document.getElementById('rev-total').value = dayData.revTotal || '';
             document.getElementById('rev-month-target').value = dayData.revMonthTarget || '700000';
             document.getElementById('attendance-summary').value = dayData.attendance || '';
-            document.getElementById('discussion-notes').value = dayData.discussions || '';
 
             (dayData.reservations || []).forEach(val => addReservationRow(val));
             (dayData.alignments || []).forEach(item => {
@@ -989,6 +1000,13 @@
                 else addAlignmentRow(item.val, item.category || '通用', 'bottom', item.isNew);
             });
             (dayData.tasks || []).forEach(t => addTaskRow(t.assignee, t.desc, t.done));
+            
+            if (dayData.discussions && Array.isArray(dayData.discussions)) {
+                dayData.discussions.forEach(d => addDiscussionRow(d.topic, d.result));
+            } else if (dayData.discussions && typeof dayData.discussions === 'string' && dayData.discussions.trim() !== '') {
+                addDiscussionRow(dayData.discussions, '');
+            }
+
             if (dayData.incidents) dayData.incidents.forEach(inc => addIncidentRow(inc.sit, inc.res));
             (dayData.shortages || []).forEach(val => addShortageRow(val));
             (dayData.orders || []).forEach(o => addOrderRow(o.item, o.done));
@@ -1026,6 +1044,19 @@
         div.innerHTML = `<div style="display: flex; flex-direction: column; gap: 8px; flex: 1;"><div style="display: flex; gap: 8px; align-items: center;"><input type="text" class="task-assignee" list="staff-options" value="${assignee}" placeholder="負責人" style="flex: 1;"><label class="checkbox-label"><input type="checkbox" class="task-done" ${done ? 'checked' : ''}> 已完成</label></div><div><input type="text" class="task-desc" value="${desc}" placeholder="交辦事項內容"></div></div><button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>`;
         document.getElementById('task-list').appendChild(div);
     }
+
+    window.addDiscussionRow = function(topic = '', result = '') {
+        const div = document.createElement('div'); div.className = 'row-group'; div.style.alignItems = 'stretch';
+        div.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                <input type="text" class="discussion-topic" value="${topic}" placeholder="請輸入討論主題...">
+                <input type="text" class="discussion-result" value="${result}" placeholder="請輸入討論結果...">
+            </div>
+            <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>
+        `;
+        document.getElementById('discussion-list').appendChild(div);
+    }
+
     window.addIncidentRow = function(sit = '', res = '') {
         const div = document.createElement('div'); div.className = 'row-group'; div.style.alignItems = 'stretch';
         div.style.border = '1px solid var(--border-color)'; div.style.padding = '10px'; div.style.borderRadius = '6px'; div.style.backgroundColor = '#fafafa';
@@ -1121,8 +1152,12 @@
         }).filter(Boolean).join('\n');
         if(taskText) briefing += `\n\n📍主管交辦：\n${taskText}`;
 
-        const disc = document.getElementById('discussion-notes').value.trim();
-        if(disc) briefing += `\n\n📍意見討論：\n${disc}`;
+        const discText = Array.from(document.querySelectorAll('#discussion-list .row-group')).map(row => {
+            const t = row.querySelector('.discussion-topic').value.trim();
+            const r = row.querySelector('.discussion-result').value.trim();
+            return t ? `• ${t}${r ? `\n  結果：${r}` : ''}` : '';
+        }).filter(Boolean).join('\n');
+        if(discText) briefing += `\n\n📍意見討論：\n${discText}`;
 
         const incText = Array.from(document.querySelectorAll('#incident-list .row-group')).map(row => {
             const s = row.querySelector('.incident-sit-input').value.trim(), r = row.querySelector('.incident-res-input').value.trim();
@@ -1196,14 +1231,16 @@
         let specialItemsText = '';
         let weekTaskLines = [];
         let weekAlignLines = [];
+        let weekDiscLines = [];
 
         weekDates.forEach(dStr => {
             const dayData = window.globalDataStore.dailyTracking && window.globalDataStore.dailyTracking[dStr];
             if (dayData) {
                 if (dayData.tasks) {
                     dayData.tasks.forEach(t => {
-                        if (!t.done && (t.assignee || t.desc)) {
-                            weekTaskLines.push(`• [交辦] ${t.assignee||'未定'}: ${t.desc}`);
+                        if ((t.assignee || t.desc)) {
+                            const doneStatus = t.done ? ' 【已完成】' : '';
+                            weekTaskLines.push(`• [交辦] ${t.assignee||'未定'}: ${t.desc}${doneStatus}`);
                         }
                     });
                 }
@@ -1217,16 +1254,27 @@
                         }
                     });
                 }
+                if (dayData.discussions) {
+                    dayData.discussions.forEach(d => {
+                        const t = typeof d === 'string' ? d : d.topic;
+                        const r = typeof d === 'string' ? '' : (d.result || '');
+                        if (t && t.trim() !== '') {
+                            weekDiscLines.push(`• ${t}${r ? ` (結果: ${r})` : ''}`);
+                        }
+                    });
+                }
             }
         });
 
-        weekTaskLines = [...new Set(weekTaskLines)].slice(0, 3);
+        weekTaskLines = [...new Set(weekTaskLines)].slice(0, 4);
         weekAlignLines = [...new Set(weekAlignLines)].slice(0, 3);
+        weekDiscLines = [...new Set(weekDiscLines)].slice(0, 3);
 
-        if (weekTaskLines.length > 0) specialItemsText += `【未完成交辦】\n${weekTaskLines.join('\n')}\n\n`;
-        if (weekAlignLines.length > 0) specialItemsText += `【本週新增項目】\n${weekAlignLines.join('\n')}\n`;
+        if (weekTaskLines.length > 0) specialItemsText += `【交辦事項】\n${weekTaskLines.join('\n')}\n\n`;
+        if (weekAlignLines.length > 0) specialItemsText += `【本週新增對齊項目】\n${weekAlignLines.join('\n')}\n\n`;
+        if (weekDiscLines.length > 0) specialItemsText += `【意見討論與結果】\n${weekDiscLines.join('\n')}\n`;
 
-        if(!specialItemsText) specialItemsText = '本週無未完成交辦與新增項目。';
+        if(!specialItemsText) specialItemsText = '本週無交辦與討論項目。';
         document.getElementById('report-special-items').innerText = specialItemsText.trim();
 
         // 繪製 Chart
