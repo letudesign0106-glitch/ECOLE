@@ -463,14 +463,14 @@
     </div>
 </div>
 
-<!-- 隱藏的營運週報報表容器：用於生成 JPG (採用左右兩欄式對齊結構) -->
+<!-- 隱藏的營運週報報表容器：用於生成 JPG -->
 <div id="report-export-container" style="position: absolute; top: -9999px; left: -9999px; width: 800px; background: #ffffff; padding: 36px; border-radius: 12px; font-family: sans-serif; color: #111;">
     <div style="text-align: center; margin-bottom: 16px; border-bottom: 2px solid #333; padding-bottom: 12px;">
         <h2 style="font-size: 24px; margin-bottom: 4px; font-weight: 800;">ÉCOLE CAFÉ 營運週報</h2>
         <p id="report-date-range" style="color: #666; font-size: 14px; margin: 0;"></p>
     </div>
 
-    <!-- 兩欄式左右對齊排版：左側放總營收與圖表，右側放達成率與本週摘要 -->
+    <!-- 兩欄式左右對齊排版 -->
     <div style="display: flex; gap: 16px;">
         <!-- 左側欄位 -->
         <div style="flex: 1.2; display: flex; flex-direction: column; gap: 14px;">
@@ -486,7 +486,7 @@
             </div>
         </div>
 
-        <!-- 右側欄位 (達成率方框與下方摘要上下完全對齊) -->
+        <!-- 右側欄位 -->
         <div style="flex: 1; display: flex; flex-direction: column; gap: 14px;">
             <div style="background: #f7f8f9; border: 1px solid #e1e4e8; padding: 12px; border-radius: 8px; text-align: center;">
                 <div style="font-size: 13px; color: #666; font-weight: 500;">本月目標達成率</div>
@@ -500,14 +500,13 @@
     </div>
 </div>
 
-<!-- 【 核心：Firebase SDKs 雲端整合區塊 】 -->
+<!-- 【 核心：Firebase SDKs 雲端整合區塊 (已強化錯誤診斷) 】 -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
-       const firebaseConfig = {
             apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
             authDomain: "ecole-1f392.firebaseapp.com",
             projectId: "ecole-1f392",
@@ -535,14 +534,38 @@
 
     window.handleGoogleLogin = async function() {
         if (window.currentUser) {
-            try { await signOut(auth); alert('已成功登出'); } 
-            catch (error) { console.error(error); }
+            try { 
+                await signOut(auth); 
+                alert('已成功登出'); 
+            } catch (error) { 
+                console.error("登出失敗:", error);
+                alert('登出失敗：' + error.message);
+            }
         } else {
             try {
+                // 檢查是否仍為預設佔位符
+                if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+                    alert('【提醒】您目前使用的是預設的 Firebase 設定佔位符 (YOUR_API_KEY)。請將程式碼中的 firebaseConfig 替換為您真實的 Firebase 專案設定，否則無法登入！');
+                    return;
+                }
+                
                 await signInWithPopup(auth, provider);
-                alert('Google 登入成功！請點擊「雲端讀取」下載資料或與夥伴同步。');
+                alert('Google 登入成功！');
             } catch (error) {
-                alert('登入失敗，請檢查 API Key：' + error.message);
+                console.error("Google 登入失敗詳細錯誤:", error);
+                let errorMsg = error.message;
+                
+                if (error.code === 'auth/unauthorized-domain') {
+                    errorMsg = '網域未授權 (unauthorized-domain)。請至 Firebase Console -> Authentication -> Settings -> Authorized domains 加入您目前的網址（例如 localhost 或您的主機網域）。';
+                } else if (error.code === 'auth/popup-closed-by-user') {
+                    errorMsg = '登入彈跳視窗已被關閉。';
+                } else if (error.code === 'auth/popup-blocked') {
+                    errorMsg = '登入彈跳視窗遭到瀏覽器阻擋，請允許此網站彈出視窗。';
+                } else if (error.code === 'auth/operation-not-allowed') {
+                    errorMsg = 'Google 登入未在 Firebase 專案中啟用。請至 Firebase Console -> Authentication -> Sign-in method 啟用 Google 提供者。';
+                }
+                
+                alert('Google 登入失敗：\n' + errorMsg);
             }
         }
     }
@@ -592,7 +615,7 @@
                 if (!isSilent) alert('共用雲端目前尚無備份資料。');
             }
         } catch (error) {
-            if (!isSilent) alert('雲端還原失敗：' + error.message);
+            if (!isSilent) alert('雲端讀取失敗：' + error.message);
         }
     }
 </script>
