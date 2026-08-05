@@ -274,7 +274,7 @@
             <button type="button" class="action-icon-btn" onclick="exportJSON()">匯出備份</button>
             <button type="button" class="action-icon-btn" onclick="document.getElementById('import-file').click()">讀取備份</button>
             <input type="file" id="import-file" class="hidden-file-input" accept=".json" onchange="importJSON(event)">
-            <!-- 返回上一步按鈕移至最後一個位置 -->
+            <!-- 返回上一步按鈕維持在最後一個位置 -->
             <button type="button" class="action-icon-btn" onclick="undoLastAction()">↩️ 返回上一步</button>
         </div>
     </header>
@@ -623,11 +623,23 @@
 
             if (docSnap.exists()) {
                 const data = docSnap.data();
-                if (data.employees) window.globalDataStore.employees = data.employees;
-                if (data.dailyTracking) window.globalDataStore.dailyTracking = data.dailyTracking;
-                syncStaffFromEmployees();
-                loadStaffList();
-                loadDayData();
+                if (data.employees) {
+                    window.globalDataStore.employees = data.employees;
+                    // 同步人員清單
+                    if (Array.isArray(data.employees) && data.employees.length > 0) {
+                        staffList = data.employees.map(e => e.name || e);
+                    }
+                }
+                if (data.dailyTracking) {
+                    window.globalDataStore.dailyTracking = data.dailyTracking;
+                }
+                
+                // 完整重新整理介面與配置
+                if (typeof syncStaffFromEmployees === 'function') syncStaffFromEmployees();
+                if (typeof loadStaffList === 'function') loadStaffList();
+                if (typeof renderStaffPills === 'function') renderStaffPills();
+                if (typeof loadDayData === 'function') loadDayData();
+
                 if (!isSilent) alert('已成功從雲端讀取最新的交班資料！');
             } else {
                 if (!isSilent) alert('共用雲端目前尚無備份資料。');
@@ -680,7 +692,7 @@
     window.currentDateVal = '';
     let staffList = ['緎俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
     let weeklyChartInstance = null;
-    let window.currentReportBlob = null;
+    let currentReportBlob = null;
 
     window.undoStack = [];
     window.saveUndoState = function() {
@@ -776,7 +788,12 @@
         loadDayData();
     }
 
-    function syncStaffFromEmployees() {}
+    function syncStaffFromEmployees() {
+        if (window.globalDataStore.employees && window.globalDataStore.employees.length > 0) {
+            staffList = window.globalDataStore.employees.map(e => e.name || e);
+        }
+    }
+
     function loadStaffList() {
         const datalist = document.getElementById('staff-options');
         datalist.innerHTML = '';
@@ -933,8 +950,14 @@
         const dateVal = window.currentDateVal;
         if (!dateVal) return;
 
-        ['shift-manager','station-bar','station-counter','station-kitchen','rev-day','rev-night','rev-total','attendance-summary','discussion-notes'].forEach(id => document.getElementById(id).value = '');
-        ['reservation-list','alignment-list','task-list','incident-list','shortage-list','order-list','promo-list'].forEach(id => document.getElementById(id).innerHTML = '');
+        ['shift-manager','station-bar','station-counter','station-kitchen','rev-day','rev-night','rev-total','attendance-summary','discussion-notes'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        ['reservation-list','alignment-list','task-list','incident-list','shortage-list','order-list','promo-list'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '';
+        });
 
         if (window.globalDataStore.dailyTracking && window.globalDataStore.dailyTracking[dateVal]) {
             const dayData = window.globalDataStore.dailyTracking[dateVal];
@@ -1122,7 +1145,6 @@
             .catch(err => console.error('複製失敗', err));
     }
     
-    // C. 匯出 JPG 週報圖表 (手機/平板支援預覽與分享，電腦維持直接下載)
     window.downloadWeeklyReportJPG = function() {
         if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal); 
         
@@ -1229,14 +1251,12 @@
                 const isMobileOrTablet = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 1024;
                 
                 canvas.toBlob(blob => {
-                    window.currentReportBlob = blob;
+                    currentReportBlob = blob;
                     if (isMobileOrTablet) {
-                        // 手機與平板：顯示預覽視窗
                         const imageUrl = URL.createObjectURL(blob);
                         document.getElementById('report-preview-img').src = imageUrl;
                         document.getElementById('report-preview-modal').style.display = 'flex';
                     } else {
-                        // 電腦：直接觸發下載
                         const link = document.createElement('a');
                         link.download = `ECOLE_CAFE_營運週報_${weekDates[0]}.jpg`;
                         link.href = URL.createObjectURL(blob);
@@ -1252,8 +1272,8 @@
     }
 
     window.shareOrSaveReport = async function() {
-        if (!window.currentReportBlob) return;
-        const file = new File([window.currentReportBlob], `ECOLE_CAFE_營運週報.jpg`, { type: 'image/jpeg' });
+        if (!currentReportBlob) return;
+        const file = new File([currentReportBlob], `ECOLE_CAFE_營運週報.jpg`, { type: 'image/jpeg' });
         
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
@@ -1271,7 +1291,7 @@
         } else {
             const link = document.createElement('a');
             link.download = `ECOLE_CAFE_營運週報.jpg`;
-            link.href = URL.createObjectURL(window.currentReportBlob);
+            link.href = URL.createObjectURL(currentReportBlob);
             link.click();
             alert('圖片已產生，請長按圖片將其存入相片，即可分享至 LINE！');
         }
