@@ -561,11 +561,18 @@
     const provider = new GoogleAuthProvider();
     const SHARED_DOC_ID = "shared_ecole_cafe_backup";
 
+    let hasAutoRestored = false;
+
     onAuthStateChanged(auth, (user) => {
         window.currentUser = user;
         const loginBtn = document.getElementById('google-login-btn');
         if (user) {
             loginBtn.innerText = `${user.displayName || '已登入'} (登出)`;
+            // 重新開啟網頁系統且確認已登入時，自動讀取最新雲端資料庫並匯入（僅自動執行一次）
+            if (!hasAutoRestored) {
+                hasAutoRestored = true;
+                window.restoreFromCloud(true);
+            }
         } else {
             loginBtn.innerText = 'Google 登入';
         }
@@ -708,7 +715,7 @@
 
     window.globalDataStore = { employees: [], dailyTracking: {} };
     window.currentDateVal = '';
-    let staffList = ['緎俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
+    let staffList = ['織俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
     let weeklyChartInstance = null;
     let currentReportBlob = null;
 
