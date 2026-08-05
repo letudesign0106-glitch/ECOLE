@@ -298,7 +298,6 @@
     flex-direction: column;
     gap: 16px;
     box-shadow: var(--shadow-soft);
-    /* 修正卡片高度讓其排版更均勻 */
     justify-content: center;
     min-height: 120px;
   }
@@ -368,7 +367,7 @@
   .bottom-item .b-name { font-size: 10.5px; letter-spacing: .2px; color: var(--sidebar-text); text-align: center; line-height: 1.2; }
   .bottom-item.settings .b-icon { background: transparent; border: 1px solid rgba(239,235,227,0.25); }
 
-  /* ---------- Modal (修復裁切問題) ---------- */
+  /* ---------- Modal ---------- */
   .overlay {
     position: fixed; inset: 0;
     background: rgba(20,19,17,0.5);
@@ -767,7 +766,7 @@
           <div class="date" id="clockDate">----</div>
         </div>
         <!-- 雲端存檔與Google登入按鈕 -->
-        <button class="icon-btn" id="cloudSaveBtn" title="手動存檔至雲端" style="display:none;">☁️</button>
+        <button class="icon-btn" id="cloudSaveBtn" title="覆蓋並存檔至共用雲端" style="display:none;">☁️</button>
         <button class="icon-btn" id="authBtn" title="Google 登入">👤</button>
         <button class="icon-btn" id="openEditTop" title="編輯介面設定">⚙</button>
       </div>
@@ -924,6 +923,9 @@
 
 
   const STORAGE_KEY = 'ecole_cafe_config_v1';
+  // 將存檔點指定為唯一的共用檔案
+  const SHARED_DOC_ID = 'sharedData'; 
+
   const COLORS = {
     rose:'#C9A79A', sage:'#A3AD8F', blue:'#93A6AC',
     taupe:'#BBA98B', oat:'#D6CBAE', plum:'#A28C93'
@@ -1082,7 +1084,7 @@
       bi.onclick = ()=> openUrl(b);
       bottomNav.appendChild(bi);
 
-      // card (移除網址顯示，需求 C)
+      // card (無網址顯示)
       const card = document.createElement('div');
       card.className = 'card';
       card.innerHTML = `
@@ -1381,7 +1383,7 @@
     await saveConfig(config);
     render();
     closeEditor();
-    toast('已儲存變更');
+    toast('已儲存變更 (若需同步請按右上角☁️)');
   };
 
   document.getElementById('changePwBtn').onclick = ()=>{
@@ -1494,7 +1496,7 @@
 
 
   // ==========================================
-  // 2. Firebase 同步與 Auth 邏輯
+  // 2. Firebase 同步與 Auth 邏輯 (共用資料庫)
   // ==========================================
   const authBtn = document.getElementById('authBtn');
   const cloudSaveBtn = document.getElementById('cloudSaveBtn');
@@ -1512,11 +1514,10 @@
       }
       authBtn.title = "登出 (" + user.email + ")";
       cloudSaveBtn.style.display = 'flex';
-      autoLoadFromCloud(user.uid);
     } else {
       authBtn.style.backgroundImage = 'none';
       authBtn.innerHTML = '👤';
-      authBtn.title = "Google 登入以同步雲端";
+      authBtn.title = "管理員登入以覆蓋雲端";
       cloudSaveBtn.style.display = 'none';
     }
   });
@@ -1534,30 +1535,33 @@
     }
   };
 
-  // 自動讀取雲端資料
-  async function autoLoadFromCloud(uid) {
+  // 自動讀取雲端「共用」資料（任何人開啟網頁都會執行）
+  async function autoLoadFromCloud() {
     try {
-      const doc = await db.collection('ecoleConfig').doc(uid).get();
+      const doc = await db.collection('ecoleConfig').doc(SHARED_DOC_ID).get();
       if (doc.exists) {
         const cloudData = doc.data();
         config = normalizeConfig(cloudData);
         await saveConfig(config);
         render();
-        toast('☁️ 已自動套用雲端最新設定');
+        toast('☁️ 已自動套用雲端最新共用設定');
       }
     } catch (e) {
       console.error(e);
-      toast('讀取雲端資料時發生錯誤');
+      // 若尚未設定資料庫或沒權限讀取，這裡就不顯示錯誤以免干擾一般使用者
     }
   }
 
-  // 手動存檔至雲端
+  // 手動存檔至雲端「共用」檔案
   cloudSaveBtn.onclick = async () => {
-    if (!currentUser) return;
+    if (!currentUser) {
+       toast('請先登入 Google 帳號才能更新雲端');
+       return;
+    }
     cloudSaveBtn.style.opacity = '0.5';
     try {
-      await db.collection('ecoleConfig').doc(currentUser.uid).set(config);
-      toast('✅ 系統設定已成功備份至雲端');
+      await db.collection('ecoleConfig').doc(SHARED_DOC_ID).set(config);
+      toast('✅ 系統設定已成功更新至「共用雲端」');
     } catch (e) {
       console.error(e);
       toast('雲端存檔失敗，請確認資料庫權限');
@@ -1573,7 +1577,6 @@
   let newWorker;
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      // 請確保您的伺服器根目錄下有一隻名為 sw.js 的檔案，內容可以極簡。
       navigator.serviceWorker.register('/sw.js').then(reg => {
         reg.addEventListener('updatefound', () => {
           newWorker = reg.installing;
@@ -1606,6 +1609,11 @@
     render();
     updateClock();
     setInterval(updateClock, 30000);
+    
+    // 初始化時不論是否登入，皆嘗試自動讀取雲端共用檔案
+    if (window.firebase) {
+      autoLoadFromCloud();
+    }
   })();
 
 })();
