@@ -4,6 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>ÉCOLE CAFÉ ｜ 管理主頁</title>
+
+<!-- PWA Web App Meta -->
+<meta name="theme-color" content="#F4F2EE">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="/icon.png">
+<link rel="manifest" href="/manifest.json">
+
+<!-- Firebase v8 SDK (使用 CDN 引入以確保單一檔案相容性) -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -54,6 +67,28 @@
   }
   button { font-family: inherit; }
   a { color: inherit; text-decoration: none; }
+
+  /* PWA Update Banner */
+  #pwaUpdateBanner {
+    display: none;
+    background: var(--c-blue);
+    color: #fff;
+    padding: 10px 16px;
+    text-align: center;
+    font-size: 13.5px;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  }
+  #pwaUpdateBtn {
+    background: #fff; color: var(--c-blue);
+    border: none; padding: 6px 14px; border-radius: 999px;
+    cursor: pointer; font-weight: 600; font-size: 12.5px;
+  }
 
   /* ---------- App layout ---------- */
   .app {
@@ -212,8 +247,13 @@
     font-size: 16px;
     box-shadow: var(--shadow-soft);
     transition: .15s;
+    background-position: center;
+    background-repeat: no-repeat;
   }
   .icon-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-card); }
+  
+  /* Firebase 登入/儲存按鈕特別樣式 */
+  #cloudSaveBtn { color: var(--c-blue); }
 
   .hero { margin-bottom: 38px; }
   .hero .eyebrow {
@@ -258,6 +298,9 @@
     flex-direction: column;
     gap: 16px;
     box-shadow: var(--shadow-soft);
+    /* 修正卡片高度讓其排版更均勻 */
+    justify-content: center;
+    min-height: 120px;
   }
   .card:hover { transform: translateY(-3px); box-shadow: var(--shadow-card); }
   .card-top { display: flex; align-items: center; justify-content: space-between; }
@@ -268,7 +311,6 @@
   }
   .card-arrow { color: var(--ink-faint); font-size: 15px; }
   .card-name { font-size: 16px; font-weight: 700; letter-spacing: .2px; }
-  .card-url { font-size: 11.5px; color: var(--ink-faint); word-break: break-all; }
 
   .empty-state {
     border: 1px dashed var(--line);
@@ -341,7 +383,6 @@
     background: var(--surface);
     width: 100%;
     max-width: 720px;
-    /* 修正: 確保在不同瀏覽器不會因為網址列高度超出螢幕 */
     max-height: 85vh;
     max-height: 85dvh;
     border-radius: 22px 22px 0 0;
@@ -360,7 +401,7 @@
     display: flex; align-items: center; justify-content: space-between;
     padding: 20px 22px;
     border-bottom: 1px solid var(--line);
-    flex-shrink: 0; /* 修正: 標題列不會被壓縮 */
+    flex-shrink: 0;
   }
   .modal-head h2 {
     font-family: var(--font-display);
@@ -377,8 +418,8 @@
     display: flex;
     flex-direction: column;
     gap: 18px;
-    flex: 1; /* 修正: 讓本體區域撐滿剩餘空間，確保滾動正常 */
-    min-height: 0; /* 修正: 避免 flex child 尺寸失控 */
+    flex: 1;
+    min-height: 0;
   }
 
   .lock-view {
@@ -400,7 +441,7 @@
   .lock-view .lk-err { color: #B5544A; font-size: 12.5px; min-height: 16px; }
   .lock-view .lk-hint { font-size: 11.5px; color: var(--ink-faint); }
 
-  /* ---------- Row Item (含手機排版修正) ---------- */
+  /* ---------- Row Item ---------- */
   .row-item {
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
@@ -510,14 +551,14 @@
   .io-row { display: flex; gap: 10px; flex-wrap: wrap; }
   .save-note { font-size: 11.5px; color: var(--ink-faint); line-height: 1.6; }
 
-  /* ---------- Modal Footer (修復裁切問題) ---------- */
+  /* ---------- Modal Footer ---------- */
   .modal-foot {
     padding: 16px 22px;
     border-top: 1px solid var(--line);
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    flex-shrink: 0; /* 修正: 確認/取消按鈕列永遠固定不縮小 */
+    flex-shrink: 0;
     background: var(--surface);
   }
   .btn {
@@ -654,21 +695,20 @@
     font-size: 13px;
   }
 
-  /* ---------- Responsive (手機完美適配) ---------- */
+  /* ---------- Responsive ---------- */
   @media (max-width: 699px){
     .sidebar { display: none; }
     .mobile-brand { display: flex; }
-    .main { padding: 22px 16px 96px; } /* 保留底部空間給導覽列 */
+    .main { padding: 22px 16px 96px; }
     .bottom-nav { display: block; }
     .topbar { margin-bottom: 26px; }
+    .topbar-right { gap: 8px; }
     .clock .time { font-size: 17px; }
 
-    /* 手機版 Modal 微調 */
     .modal { border-radius: 16px 16px 0 0; }
     .modal-head, .modal-foot { padding: 14px 16px; }
     .modal-body { padding: 16px; gap: 16px; }
 
-    /* 確保編輯排版不會在手機上過於擁擠或裁切 */
     .row-item {
       grid-template-columns: 46px 1fr;
       gap: 10px;
@@ -677,20 +717,19 @@
     .ri-name { grid-row: 1; grid-column: 2; }
     .ri-url { grid-row: 2; grid-column: 1 / -1; }
     .ri-actions {
-      grid-row: 3;
-      grid-column: 1 / -1;
-      flex-direction: row;
-      justify-content: space-between;
-      align-items: center;
-      height: auto;
-      margin-top: 4px;
-      padding-top: 4px;
-      border-top: 1px dashed var(--line);
+      grid-row: 3; grid-column: 1 / -1;
+      flex-direction: row; justify-content: space-between; align-items: center;
+      height: auto; margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--line);
     }
   }
 </style>
 </head>
 <body>
+
+<!-- PWA Update Banner -->
+<div id="pwaUpdateBanner">
+  ✨ 發現新版本！介面已有更新 <button id="pwaUpdateBtn">立即更新</button>
+</div>
 
 <div class="app">
 
@@ -727,6 +766,9 @@
           <div class="time" id="clockTime">--:--</div>
           <div class="date" id="clockDate">----</div>
         </div>
+        <!-- 雲端存檔與Google登入按鈕 -->
+        <button class="icon-btn" id="cloudSaveBtn" title="手動存檔至雲端" style="display:none;">☁️</button>
+        <button class="icon-btn" id="authBtn" title="Google 登入">👤</button>
         <button class="icon-btn" id="openEditTop" title="編輯介面設定">⚙</button>
       </div>
     </div>
@@ -834,7 +876,6 @@
             <button class="mini-btn" id="exportTextBtn" type="button">複製為文字</button>
             <button class="btn primary" id="validateBtn" type="button">驗證匯入內容</button>
           </div>
-          <!-- 修正後的確認匯入方塊區 -->
           <div class="import-confirm" id="importConfirmBox" style="display:none;">
             <strong style="color:var(--c-blue);">⚠️ 即將匯入 JSON 資料</strong>
             <div id="importSummary"></div>
@@ -859,6 +900,29 @@
 <script>
 (function(){
 
+  // ==========================================
+  // 1. Firebase 初始設定 (請替換為您的配置)
+  // ==========================================
+    const firebaseConfig = {
+            apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
+            authDomain: "ecole-1f392.firebaseapp.com",
+            projectId: "ecole-1f392",
+            storageBucket: "ecole-1f392.firebasestorage.app",
+            messagingSenderId: "117812812078",
+            appId: "1:117812812078:web:41664b4e6f0a1c6aff42bf",
+            measurementId: "G-Q1SRBC7T5J"
+  };
+  
+  // 避免重複初始化
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+  let currentUser = null;
+  // ==========================================
+
+
   const STORAGE_KEY = 'ecole_cafe_config_v1';
   const COLORS = {
     rose:'#C9A79A', sage:'#A3AD8F', blue:'#93A6AC',
@@ -869,18 +933,18 @@
   const DEFAULT_CONFIG = {
     password:'0000',
     buttons:[
-      {id:'b1', icon:'📋', name:'交班系統', url:'https://letudesign0106-glitch.github.io/ECOLE/%C3%89COLE%20CAF%C3%89%EF%BD%9C%E4%BA%A4%E7%8F%AD%E7%B3%BB%E7%B5%B1v3.0.html', color:'rose', target:'_blank'},
-      {id:'b2', icon:'🗓️', name:'班表系統', url:'https://letudesign0106-glitch.github.io/ECOLE/%C3%89COLE%20CAF%C3%89%EF%BD%9C%E7%8F%AD%E8%A1%A8%E6%A8%A1%E6%93%AC%E5%99%A8V3.3.html', color:'sage', target:'_blank'},
-      {id:'b3', icon:'🕒', name:'打卡出勤系統', url:'https://letudesign0106-glitch.github.io/ECOLE/%C3%89COLE%20CAF%C3%89%EF%BD%9C%E6%89%93%E5%8D%A1%E5%87%BA%E5%8B%A4%E7%B3%BB%E7%B5%B1_V1.6.html', color:'blue', target:'_blank'}
+      {id:'b1', icon:'📋', name:'交班系統', url:'https://example.com/handover', color:'rose', target:'_blank'},
+      {id:'b2', icon:'🗓️', name:'班表系統', url:'https://example.com/schedule', color:'sage', target:'_blank'},
+      {id:'b3', icon:'🕒', name:'打卡出勤系統', url:'https://example.com/attendance', color:'blue', target:'_blank'}
     ],
-    notes:{} // { 'YYYY-MM-DD': [ {id, text}, ... ] }
+    notes:{}
   };
 
   let config = null;
-  let draft = null; // working copy while editing
+  let draft = null; 
   let unlocked = false;
-  let calState = null; // { year, month, selectedKey } for calendar tab
-  let pendingImport = null; // parsed JSON waiting for confirmation
+  let calState = null; 
+  let pendingImport = null; 
 
   function normalizeConfig(cfg){
     cfg = cfg || {};
@@ -897,7 +961,7 @@
   function dateKey(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
   function getWeekDates(base){
     const d = new Date(base);
-    const day = d.getDay(); // 0 Sun..6 Sat
+    const day = d.getDay(); 
     const diffToMonday = (day === 0 ? -6 : 1 - day);
     const monday = new Date(d);
     monday.setDate(d.getDate() + diffToMonday);
@@ -915,32 +979,16 @@
   async function loadConfig(){
     let cfg = null;
     try{
-      if(window.storage){
-        const r = await window.storage.get(STORAGE_KEY);
-        if(r && r.value) cfg = JSON.parse(r.value);
-      }
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw) cfg = JSON.parse(raw);
     }catch(e){}
-    if(!cfg){
-      try{
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if(raw) cfg = JSON.parse(raw);
-      }catch(e){}
-    }
     if(!cfg) cfg = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
     return normalizeConfig(cfg);
   }
 
   async function saveConfig(cfg){
     const raw = JSON.stringify(cfg);
-    let savedRemote = false;
-    try{
-      if(window.storage){
-        const r = await window.storage.set(STORAGE_KEY, raw);
-        if(r) savedRemote = true;
-      }
-    }catch(e){}
     try{ localStorage.setItem(STORAGE_KEY, raw); }catch(e){}
-    return savedRemote;
   }
 
   function uid(){ return 'b' + Math.random().toString(36).slice(2,9); }
@@ -1034,7 +1082,7 @@
       bi.onclick = ()=> openUrl(b);
       bottomNav.appendChild(bi);
 
-      // card
+      // card (移除網址顯示，需求 C)
       const card = document.createElement('div');
       card.className = 'card';
       card.innerHTML = `
@@ -1044,13 +1092,11 @@
         </div>
         <div>
           <div class="card-name">${escapeHtml(b.name || '未命名')}</div>
-          <div class="card-url">${escapeHtml(b.url || '尚未設定網址')}</div>
         </div>`;
       card.onclick = ()=> openUrl(b);
       cardGrid.appendChild(card);
     });
 
-    // settings icon in bottom nav
     const settingsItem = document.createElement('div');
     settingsItem.className = 'bottom-item settings';
     settingsItem.innerHTML = `<span class="b-icon">⚙</span><span class="b-name">編輯</span>`;
@@ -1120,7 +1166,7 @@
 
   function showEditPane(){
     lockPane.style.display = 'none';
-    editPane.style.display = 'flex'; // Changed to flex to fix layout issue
+    editPane.style.display = 'flex'; 
     draft = JSON.parse(JSON.stringify(config));
     calState = null;
     pendingImport = null;
@@ -1162,14 +1208,12 @@
           </div>
         </div>`;
 
-      // field bindings
       row.querySelectorAll('[data-f]').forEach(el=>{
         const field = el.dataset.f;
         const evt = el.tagName === 'SELECT' ? 'change' : 'input';
         el.addEventListener(evt, ()=>{ draft.buttons[idx][field] = el.value; });
       });
 
-      // color swatches
       const swatchWrap = row.querySelector('.swatches');
       COLOR_KEYS.forEach(ck=>{
         const sw = document.createElement('div');
@@ -1188,7 +1232,6 @@
         draft.buttons.splice(idx,1);
         renderRows();
       };
-
       wrap.appendChild(row);
     });
   }
@@ -1200,7 +1243,6 @@
   document.getElementById('addRowBtn').onclick = ()=>{
     draft.buttons.push({id:uid(), icon:'✨', name:'', url:'', color:COLOR_KEYS[draft.buttons.length % COLOR_KEYS.length], target:'_blank'});
     renderRows();
-    // Scroll to bottom after adding
     setTimeout(()=>{
       const body = document.querySelector('.modal-body');
       body.scrollTop = body.scrollHeight;
@@ -1220,15 +1262,12 @@
   function renderCalendarTab(){
     initCalStateIfNeeded();
     if(!draft.notes) draft.notes = {};
-
     document.getElementById('calTitle').textContent = `${calState.year}年${calState.month+1}月`;
-
     const grid = document.getElementById('calGrid');
     grid.innerHTML = '';
-
     const firstOfMonth = new Date(calState.year, calState.month, 1);
-    let startOffset = firstOfMonth.getDay(); // 0 Sun..6 Sat
-    startOffset = (startOffset === 0 ? 6 : startOffset - 1); // Monday-start offset
+    let startOffset = firstOfMonth.getDay(); 
+    startOffset = (startOffset === 0 ? 6 : startOffset - 1); 
     const daysInMonth = new Date(calState.year, calState.month + 1, 0).getDate();
     const todayKey = dateKey(new Date());
 
@@ -1252,7 +1291,6 @@
       };
       grid.appendChild(cell);
     }
-
     renderDayNotes();
   }
 
@@ -1327,13 +1365,11 @@
   overlay.addEventListener('click', e=>{ if(e.target === overlay) closeEditor(); });
 
   document.getElementById('saveEdit').onclick = async ()=>{
-    // basic cleanup: trim, ensure name fallback
     draft.buttons.forEach(b=>{
       b.name = (b.name || '').trim() || '未命名';
       b.url = (b.url || '').trim();
       b.icon = (b.icon || '📌').trim() || '📌';
     });
-    // drop empty note text, drop empty day arrays
     if(draft.notes){
       Object.keys(draft.notes).forEach(key=>{
         draft.notes[key] = (draft.notes[key] || []).filter(n => n && (n.text || '').trim());
@@ -1396,7 +1432,7 @@
     };
     reader.onerror = ()=> toast('讀取檔案失敗，請確認檔案格式');
     reader.readAsText(file);
-    e.target.value = ''; // allow re-selecting the same file later
+    e.target.value = ''; 
   });
 
   document.getElementById('validateBtn').onclick = runValidateImport;
@@ -1414,10 +1450,7 @@
       document.getElementById('importSummary').textContent =
         `讀取到 ${parsed.buttons.length} 個按鈕、${noteCount} 筆記事。按下「確認套用」後將覆蓋目前的設定。`;
       box.style.display = 'flex';
-      
-      // Scroll box into view
       setTimeout(()=> box.scrollIntoView({behavior: 'smooth', block: 'nearest'}), 100);
-
     }catch(err){
       pendingImport = null;
       box.style.display = 'none';
@@ -1458,6 +1491,114 @@
 
   document.getElementById('openEditSidebar').onclick = openEditor;
   document.getElementById('openEditTop').onclick = openEditor;
+
+
+  // ==========================================
+  // 2. Firebase 同步與 Auth 邏輯
+  // ==========================================
+  const authBtn = document.getElementById('authBtn');
+  const cloudSaveBtn = document.getElementById('cloudSaveBtn');
+
+  // 監聽登入狀態
+  auth.onAuthStateChanged(user => {
+    currentUser = user;
+    if (user) {
+      if(user.photoURL) {
+        authBtn.innerHTML = '';
+        authBtn.style.backgroundImage = `url(${user.photoURL})`;
+        authBtn.style.backgroundSize = 'cover';
+      } else {
+        authBtn.innerHTML = '🚪';
+      }
+      authBtn.title = "登出 (" + user.email + ")";
+      cloudSaveBtn.style.display = 'flex';
+      autoLoadFromCloud(user.uid);
+    } else {
+      authBtn.style.backgroundImage = 'none';
+      authBtn.innerHTML = '👤';
+      authBtn.title = "Google 登入以同步雲端";
+      cloudSaveBtn.style.display = 'none';
+    }
+  });
+
+  // 點擊登入/登出
+  authBtn.onclick = () => {
+    if (currentUser) {
+      if(confirm('確定要登出 Google 帳號嗎？')) auth.signOut();
+    } else {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      auth.signInWithPopup(provider).catch(error => {
+        console.error("登入失敗", error);
+        toast('登入失敗，請確認 Firebase 設定');
+      });
+    }
+  };
+
+  // 自動讀取雲端資料
+  async function autoLoadFromCloud(uid) {
+    try {
+      const doc = await db.collection('ecoleConfig').doc(uid).get();
+      if (doc.exists) {
+        const cloudData = doc.data();
+        config = normalizeConfig(cloudData);
+        await saveConfig(config);
+        render();
+        toast('☁️ 已自動套用雲端最新設定');
+      }
+    } catch (e) {
+      console.error(e);
+      toast('讀取雲端資料時發生錯誤');
+    }
+  }
+
+  // 手動存檔至雲端
+  cloudSaveBtn.onclick = async () => {
+    if (!currentUser) return;
+    cloudSaveBtn.style.opacity = '0.5';
+    try {
+      await db.collection('ecoleConfig').doc(currentUser.uid).set(config);
+      toast('✅ 系統設定已成功備份至雲端');
+    } catch (e) {
+      console.error(e);
+      toast('雲端存檔失敗，請確認資料庫權限');
+    } finally {
+      cloudSaveBtn.style.opacity = '1';
+    }
+  };
+
+
+  // ==========================================
+  // 3. PWA 更新通知邏輯 (Service Worker)
+  // ==========================================
+  let newWorker;
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      // 請確保您的伺服器根目錄下有一隻名為 sw.js 的檔案，內容可以極簡。
+      navigator.serviceWorker.register('/sw.js').then(reg => {
+        reg.addEventListener('updatefound', () => {
+          newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              document.getElementById('pwaUpdateBanner').style.display = 'flex';
+            }
+          });
+        });
+      }).catch(err => console.log('SW Register Failed (本地無伺服器時請忽略此訊息)'));
+
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          window.location.reload();
+          refreshing = true;
+        }
+      });
+    });
+  }
+
+  document.getElementById('pwaUpdateBtn').onclick = () => {
+    if (newWorker) newWorker.postMessage({ action: 'skipWaiting' });
+  };
+
 
   // ---------- init ----------
   (async function init(){
