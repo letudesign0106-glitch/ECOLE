@@ -787,10 +787,10 @@
     <div class="section-title">今日營運概況</div>
     <div class="grid" style="margin-bottom: 38px;">
       
-      <!-- 1. 營業目標卡片 (來自 backups) -->
+      <!-- 1. 營業目標卡片 (抓取前一天的累計資料) -->
       <div class="card dashboard-card">
         <div class="card-top">
-          <div class="card-name">本月營業目標達成率</div>
+          <div class="card-name">本月營業目標達成率 (昨日結算)</div>
         </div>
         <div>
           <div class="stat-value" id="revProgress">--%</div>
@@ -803,7 +803,7 @@
         </div>
       </div>
       
-      <!-- 2. 今日排班與站位 (來自 ecoleCafe) -->
+      <!-- 2. 今日排班與站位 -->
       <div class="card dashboard-card">
         <div class="card-top">
           <div class="card-name">今日排班與站位</div>
@@ -814,7 +814,7 @@
         <div id="shiftNote" style="font-size: 12px; color: var(--ink-faint); margin-top: 8px; display: none;"></div>
       </div>
       
-      <!-- 3. 今日待辦事項卡片 (來自 backups) -->
+      <!-- 3. 今日待辦事項卡片 -->
       <div class="card dashboard-card">
         <div class="card-top">
           <div class="card-name">今日待辦事項</div>
@@ -1008,6 +1008,12 @@
 
   function pad2(n){ return String(n).padStart(2,'0'); }
   function dateKey(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+  
+  function getPreviousDateKey(d = new Date()){
+    const prev = new Date(d);
+    prev.setDate(prev.getDate() - 1);
+    return dateKey(prev);
+  }
   
   function getWeekDates(base){
     const d = new Date(base);
@@ -1609,32 +1615,32 @@
   // ==========================================
   function subscribeToDashboard() {
     const todayStr = dateKey(new Date()); 
+    const prevDateStr = getPreviousDateKey(new Date()); // 前一天日期鍵值
     
     // ----------------------------------------
-    // [監聽一] 交班系統備份 (backups -> shared_ecole_cafe_backup 或 當日日期檔)
+    // [監聽一] 交班系統 (營業目標達成率抓取「前一天」資料、待辦事項抓取「今天」資料)
     // ----------------------------------------
     try {
-      // 同時支援共用交班備份文件 (shared_ecole_cafe_backup) 與當日日期文件
-      db.collection('backups').doc('shared_ecole_cafe_backup').onSnapshot(doc => {
-        const taskList = document.getElementById('taskList');
-        
-        let data = {};
+      // 1. 抓取前一天的營業額與目標數據
+      db.collection('backups').doc(prevDateStr).onSnapshot(doc => {
+        let prevData = {};
         if (doc.exists) {
-          data = doc.data();
+          prevData = doc.data();
         }
 
-        // 若共用備份中沒有找到對應今日的資料，嘗試讀取當日文件
-        db.collection('backups').doc(todayStr).get().then(dayDoc => {
-          if (dayDoc.exists) {
-            const dayData = dayDoc.data();
-            if (dayData.revTotal) data.revTotal = dayData.revTotal;
-            if (dayData.revMonthTarget) data.revMonthTarget = dayData.revMonthTarget;
-            if (dayData.tasks) data.tasks = dayData.tasks;
+        // 同時檢查共用備份 backup 作為備援
+        db.collection('backups').doc('shared_ecole_cafe_backup').get().then(sharedDoc => {
+          let sharedData = {};
+          if (sharedDoc.exists) {
+            sharedData = sharedDoc.data();
+            // 如果 sharedData 內有 dailyTracking 且包含前一天資料
+            if (sharedData.dailyTracking && sharedData.dailyTracking[prevDateStr]) {
+              prevData = { ...sharedData.dailyTracking[prevDateStr], ...prevData };
+            }
           }
 
-          // --- 處理營業額與目標 (對齊交班系統的欄位: revTotal 與 revMonthTarget) ---
-          const total = parseFloat(data.revTotal) || 0;
-          const target = parseFloat(data.revMonthTarget) || 700000;
+          const total = parseFloat(prevData.revMonthCum || prevData.revTotal) || 0;
+          const target = parseFloat(prevData.revMonthTarget) || 700000;
           
           let percent = 0;
           if (target > 0) percent = (total / target) * 100;
@@ -1645,11 +1651,28 @@
           document.getElementById('revTotal').textContent = total.toLocaleString();
           document.getElementById('revTarget').textContent = target.toLocaleString();
           document.getElementById('revProgressBar').style.width = barPercent + '%';
-          
-          // --- 處理待辦事項 / 主管交辦 ---
-          const tasks = data.tasks || [];
+        }).catch(() => {});
+      });
+
+      // 2. 抓取今天的待辦事項 (主管交辦事項)
+      db.collection('backups').doc(todayStr).onSnapshot(doc => {
+        const taskList = document.getElementById('taskList');
+        let tasks = [];
+        if (doc.exists && doc.data().tasks) {
+          tasks = doc.data().tasks;
+        }
+
+        // 同步檢查共用備份
+        db.collection('backups').doc('shared_ecole_cafe_backup').get().then(sharedDoc => {
+          if (sharedDoc.exists) {
+            const sharedData = sharedDoc.data();
+            if (sharedData.dailyTracking && sharedData.dailyTracking[todayStr] && sharedData.dailyTracking[todayStr].tasks) {
+              if (tasks.length === 0) tasks = sharedData.dailyTracking[todayStr].tasks;
+            }
+            if (tasks.length === 0 && sharedData.tasks) tasks = sharedData.tasks;
+          }
+
           taskList.innerHTML = '';
-          
           if (tasks.length === 0) {
             taskList.innerHTML = '<li style="color:var(--ink-faint); list-style:none; margin-left:-20px;">今日目前無待辦事項</li>';
           } else {
@@ -1665,74 +1688,94 @@
               taskList.appendChild(li);
             });
           }
-        }).catch(err => console.log("讀取當日交班細節失敗", err));
-
-      }, error => {
-        console.error("讀取交班系統失敗:", error);
+        }).catch(() => {});
       });
+
     } catch (err) {
       console.error(err);
     }
 
     // ----------------------------------------
-    // [監聽二] 排班系統 / 站位配置 (ecoleCafe -> main_schedule 或 當日日期檔)
+    // [監聽二] 排班系統 / 站位配置 (ecoleCafe)
     // ----------------------------------------
     try {
-      db.collection('ecoleCafe').doc('main_schedule').onSnapshot(doc => {
-        const shiftList = document.getElementById('shiftList');
-        const shiftNote = document.getElementById('shiftNote');
-
-        let data = {};
-        if (doc.exists) {
-          data = doc.data();
-        }
-
-        // 讀取當日排班資料
-        db.collection('ecoleCafe').doc(todayStr).get().then(dayDoc => {
-          if (dayDoc.exists) {
-            const dayData = dayDoc.data();
-            if (dayData.stationData) data.stationData = dayData.stationData;
-            if (dayData.employees) data.employees = dayData.employees;
-          }
-
-          let displayTexts = [];
-
-          // 優先讀取站位資訊 (stationData 或 交班系統中的 manager, bar, counter, kitchen)
-          if (data.stationData && typeof data.stationData === 'object' && Object.keys(data.stationData).length > 0) {
-            for (let key in data.stationData) {
-              let val = data.stationData[key];
-              if (Array.isArray(val)) val = val.join('、');
-              else if (typeof val === 'object') val = JSON.stringify(val);
-              displayTexts.push(`${key}：${val}`);
-            }
-          } else {
-            // 從共用交班資料中抓取站位 (值班主管、吧台、外場、廚房)
-            db.collection('backups').doc('shared_ecole_cafe_backup').get().then(backupDoc => {
-              if (backupDoc.exists) {
-                const bData = backupDoc.data();
-                const tracking = bData.dailyTracking && bData.dailyTracking[todayStr];
-                if (tracking) {
-                  if (tracking.manager) displayTexts.push(`值班主管：${tracking.manager}`);
-                  if (tracking.bar) displayTexts.push(`吧台：${tracking.bar}`);
-                  if (tracking.counter) displayTexts.push(`櫃檯外場：${tracking.counter}`);
-                  if (tracking.kitchen) displayTexts.push(`廚房：${tracking.kitchen}`);
-                }
-              }
-              renderShiftTexts(displayTexts, shiftList, shiftNote);
-            }).catch(() => renderShiftTexts(displayTexts, shiftList, shiftNote));
-            return;
-          }
-
-          renderShiftTexts(displayTexts, shiftList, shiftNote);
-        }).catch(() => {});
-
-      }, error => {
-        console.error("讀取排班系統失敗:", error);
-        document.getElementById('shiftList').innerHTML = '<li style="color:#B5544A; list-style:none; margin-left:-20px;">讀取失敗，請確認資料庫權限</li>';
+      db.collection('ecoleCafe').doc(todayStr).onSnapshot(doc => {
+        processShiftData(doc, todayStr);
+      }, () => {
+        db.collection('ecoleCafe').doc('main_schedule').onSnapshot(doc => {
+          processShiftData(doc, todayStr);
+        }, error => {
+          console.error("讀取排班系統失敗:", error);
+          document.getElementById('shiftList').innerHTML = '<li style="color:#B5544A; list-style:none; margin-left:-20px;">讀取失敗，請確認資料庫權限</li>';
+        });
       });
     } catch (err) {
       console.error(err);
     }
+  }
+
+  function processShiftData(doc, todayStr) {
+    const shiftList = document.getElementById('shiftList');
+    const shiftNote = document.getElementById('shiftNote');
+    let data = {};
+    if (doc.exists) data = doc.data();
+
+    let displayTexts = [];
+
+    function parseStationData(obj, prefix = '') {
+      if (!obj) return;
+      if (typeof obj === 'string') {
+        let cleaned = obj.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+        try {
+          let parsed = JSON.parse(cleaned);
+          if (typeof parsed === 'object') {
+            parseStationData(parsed, prefix);
+            return;
+          }
+        } catch(e) {}
+        displayTexts.push(prefix ? `${prefix}：${cleaned}` : cleaned);
+      } else if (typeof obj === 'object') {
+        for (let k in obj) {
+          let val = obj[k];
+          let newPrefix = prefix ? `${prefix} - ${k}` : k;
+          if (typeof val === 'object' && val !== null) {
+            parseStationData(val, newPrefix);
+          } else {
+            let vStr = String(val !== undefined && val !== null ? val : '').replace(/&quot;/g, '"');
+            if (vStr.trim()) {
+              displayTexts.push(`${newPrefix}：${vStr}`);
+            }
+          }
+        }
+      }
+    }
+
+    if (data.stationData) {
+      parseStationData(data.stationData);
+    } else if (data.employees) {
+      let emps = Array.isArray(data.employees) ? data.employees : [data.employees];
+      emps.forEach(e => {
+        let name = typeof e === 'string' ? e : (e.name || JSON.stringify(e));
+        displayTexts.push(`人員：${name}`);
+      });
+    } else {
+      db.collection('backups').doc('shared_ecole_cafe_backup').get().then(backupDoc => {
+        if (backupDoc.exists) {
+          const bData = backupDoc.data();
+          const tracking = bData.dailyTracking && bData.dailyTracking[todayStr];
+          if (tracking) {
+            if (tracking.manager) displayTexts.push(`值班主管：${tracking.manager}`);
+            if (tracking.bar) displayTexts.push(`吧台：${tracking.bar}`);
+            if (tracking.counter) displayTexts.push(`櫃檯外場：${tracking.counter}`);
+            if (tracking.kitchen) displayTexts.push(`廚房：${tracking.kitchen}`);
+          }
+        }
+        renderShiftTexts(displayTexts, shiftList, shiftNote);
+      }).catch(() => renderShiftTexts(displayTexts, shiftList, shiftNote));
+      return;
+    }
+
+    renderShiftTexts(displayTexts, shiftList, shiftNote);
   }
 
   function renderShiftTexts(displayTexts, shiftList, shiftNote) {
