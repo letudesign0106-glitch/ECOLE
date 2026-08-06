@@ -63,61 +63,8 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 }
 #pwa-update-toast:hover { background: #D4AF37; }
 
-/* ================= LOGIN ================= */
-#login-screen{
-  min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
-}
-.login-card{
-  width:100%; max-width:460px; background:var(--paper); border:1px solid var(--line);
-  border-radius:var(--radius); box-shadow:var(--shadow); padding:44px 40px 36px; position:relative;
-}
-.crest{
-  width:56px;height:56px; border:1.5px solid var(--ink); border-radius:50%;
-  display:flex;align-items:center;justify-content:center; margin:0 auto 18px;
-}
-.crest svg{width:26px;height:26px;}
-.login-title{ text-align:center; font-size:28px; font-weight:500; letter-spacing:0.06em; margin:0 0 2px; }
-.login-sub{ text-align:center; font-size:11px; letter-spacing:0.24em; text-transform:uppercase; color:var(--ink-soft); margin:0 0 30px; }
-.login-divider{ height:1px;background:var(--line);margin:0 0 26px; }
-
-.google-btn{
-  width:100%; background:#4285F4; color:#fff; border:none; border-radius:var(--radius);
-  padding:13px; font-size:13.5px; font-weight:600; letter-spacing:0.04em; margin-bottom:12px;
-  display:flex; align-items:center; justify-content:center; gap:8px;
-}
-.google-btn:hover{ background:#3367D6; }
-.google-btn svg{ width:18px; height:18px; fill:#fff; }
-.guest-btn{
-  width:100%; background:var(--paper); color:var(--ink-soft); border:1px solid var(--line-strong);
-  border-radius:var(--radius); padding:13px; font-size:13.5px; font-weight:600; margin-bottom:24px;
-}
-.guest-btn:hover{ border-color:var(--ink); color:var(--ink); }
-
-.role-label{ font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:10px; display:block; }
-.role-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:22px; }
-.role-btn{
-  border:1px solid var(--line-strong); background:var(--paper); border-radius:var(--radius);
-  padding:13px 10px; text-align:left; transition:border-color .15s, background .15s;
-}
-.role-btn .rn{display:block;font-weight:600;font-size:13.5px;}
-.role-btn .rd{display:block;font-size:11px;color:var(--ink-soft);margin-top:2px;}
-.role-btn:hover{border-color:var(--slate);}
-.role-btn.selected{border-color:var(--ink);background:var(--sage-bg);}
-.name-input{
-  width:100%; border:1px solid var(--line-strong); border-radius:var(--radius);
-  padding:11px 12px; font-size:13.5px; background:var(--paper); margin-bottom:18px;
-}
-.name-input:focus{outline:none;border-color:var(--ink);}
-.enter-btn{
-  width:100%; background:var(--ink); color:#fff; border:none; border-radius:var(--radius);
-  padding:13px; font-size:13.5px; font-weight:600; letter-spacing:0.04em;
-}
-.enter-btn:disabled{background:var(--line-strong);cursor:not-allowed;}
-.login-foot{ text-align:center;margin-top:16px;font-size:11px;color:var(--ink-soft); }
-
 /* ================= APP SHELL ================= */
-#app{display:none;min-height:100vh;grid-template-columns:216px 1fr;}
-#app.active{display:grid;}
+#app{display:grid;min-height:100vh;grid-template-columns:216px 1fr;}
 .rail{
   background:var(--ink); color:#EDEAE2; padding:24px 18px; display:flex;flex-direction:column;
   position:sticky;top:0;height:100vh;
@@ -137,18 +84,24 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 .rail-foot{margin-top:auto;padding-top:16px;border-top:1px solid rgba(255,255,255,0.1);}
 .who{font-size:12.5px;font-weight:600;}
 .who-role{font-size:10.5px;color:#A79C8E;margin-top:1px;}
-.logout-btn{
-  margin-top:10px;background:none;border:1px solid rgba(255,255,255,0.18);
-  color:#D9D5C9;font-size:11px;padding:7px 10px;border-radius:3px;width:100%; cursor:pointer;
-}
-.logout-btn:hover{border-color:#fff;}
 
 .main{padding:26px 34px 60px;max-width:980px;}
-.topbar{ display:flex;justify-content:space-between;align-items:flex-end; margin-bottom:26px;flex-wrap:wrap;gap:12px; }
+.topbar{ display:flex;justify-content:space-between;align-items:flex-end; margin-bottom:26px;flex-wrap:wrap;gap:12px; position:relative; }
 .topbar h1{font-size:26px;font-weight:500;margin:0 0 4px;}
+
+.topbar-right { display:flex; align-items:center; gap:16px; }
 .clock{ font-family:'IBM Plex Mono',monospace;font-size:13px; color:var(--ink-soft); display:flex;align-items:center;gap:8px; }
 .clock .live-dot{width:6px;height:6px;border-radius:50%;background:var(--sage);animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+
+.user-avatar-btn {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--ink); color: #fff; font-weight: 600; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border: 2px solid var(--ochre); box-shadow: var(--shadow);
+  transition: transform .15s, background .15s;
+}
+.user-avatar-btn:hover { transform: scale(1.05); background: #332F2B; }
 
 .period-rail{
   display:flex;gap:0;margin-bottom:24px; border:1px solid var(--line);border-radius:var(--radius);
@@ -253,10 +206,6 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 .progress-track{height:8px;background:var(--line);border-radius:4px;overflow:hidden;}
 .progress-fill{height:100%;background:var(--sage);transition:width .3s;}
 
-.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;padding:18px 20px;}
-.stat-card{border:1px solid var(--line);border-radius:3px;padding:14px 16px;background:var(--bg);}
-.stat-num{font-family:'Fraunces',serif;font-size:30px;line-height:1;}
-.stat-label{font-size:11px;color:var(--ink-soft);margin-top:4px;}
 .list-simple{padding:4px 20px 18px; margin:0;}
 .list-simple li{font-size:12.5px;padding:8px 0;border-bottom:1px dashed var(--line);list-style:none;display:flex;justify-content:space-between;gap:8px;}
 .list-simple li:last-child{border-bottom:none;}
@@ -303,7 +252,7 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 }
 
 @media (max-width:820px){
-  #app.active{display:block;}
+  #app{display:block;}
   .rail{position:relative;height:auto;flex-direction:row;align-items:center;padding:14px 16px;overflow-x:auto;}
   .rail-brand{margin-bottom:0;margin-right:16px;flex-shrink:0;}
   .nav-group{display:flex;gap:6px;margin-bottom:0;}
@@ -319,39 +268,6 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 <body>
 
 <div id="pwa-update-toast">發現系統新版本！點擊此處進行更新 🚀</div>
-
-<!-- ===================== LOGIN ===================== -->
-<div id="login-screen">
-  <div class="login-card">
-    <div class="crest">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#221F1C" stroke-width="1.3">
-        <path d="M4 8h13a3 3 0 0 1 0 6h-1" stroke-linecap="round"/>
-        <path d="M4 8v7a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3v-1" stroke-linecap="round"/>
-        <path d="M8 3c0 1.2-1 1.2-1 2.4S8 7 8 7" stroke-linecap="round"/>
-        <path d="M11 3c0 1.2-1 1.2-1 2.4S11 7 11 7" stroke-linecap="round"/>
-      </svg>
-    </div>
-    <h1 class="login-title">ÉCOLE CAFÉ</h1>
-    <p class="login-sub">Coffee · Food · Connect</p>
-    <div class="login-divider"></div>
-
-    <button id="google-login-btn" class="google-btn">
-      <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-      使用 Google 帳號登入
-    </button>
-    <button id="guest-login-btn" class="guest-btn">訪客登入 (無雲端同步)</button>
-    
-    <div style="text-align:center; font-size:11px; color:var(--ink-soft); margin-bottom:16px;">— 或使用一般登入 —</div>
-
-    <span class="role-label">01 · 選擇身分</span>
-    <div class="role-grid" id="role-grid"></div>
-    <span class="role-label">02 · 你的名字</span>
-    <input type="text" id="name-input" class="name-input" placeholder="例如：小玉">
-    <button class="enter-btn" id="enter-btn" disabled>進入今日工作清單</button>
-    
-    <p class="login-foot">資料儲存於本店共享空間，登入人員皆可看到彼此的打勾與紀錄。</p>
-  </div>
-</div>
 
 <!-- ===================== APP ===================== -->
 <div id="app">
@@ -391,12 +307,37 @@ input,select,textarea{font-family:'Inter',sans-serif;}
     <div class="rail-foot">
       <div class="who" id="who-name">—</div>
       <div class="who-role" id="who-role">—</div>
-      <div id="sync-status" style="font-size:10px; color:var(--sage); margin-top:4px;"></div>
-      <button class="logout-btn" id="logout-btn">登出 / 切換身分</button>
+      <div id="sync-status" style="font-size:10px; color:var(--sage); margin-top:4px;">● 系統就緒</div>
     </div>
   </div>
 
   <div class="main" id="main"></div>
+</div>
+
+<!-- ===================== IDENTITY MODAL ===================== -->
+<div class="modal-bg" id="identity-modal-bg">
+  <div class="modal">
+    <h3>切換身分與名字</h3>
+    <p>請輸入您的名字並選擇執勤身分：</p>
+    <div style="margin-top: 14px;">
+      <label style="font-size:11px; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:6px;">您的名字</label>
+      <input type="text" id="id-modal-name" class="name-input" placeholder="例如：小玉" style="width:100%; border:1px solid var(--line-strong); border-radius:var(--radius); padding:10px; margin-bottom:14px;">
+      
+      <label style="font-size:11px; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:6px;">選擇身分</label>
+      <select id="id-modal-role" class="name-input" style="width:100%; border:1px solid var(--line-strong); border-radius:var(--radius); padding:10px; margin-bottom:20px;">
+        <option value="admin">管理員 (總覽 · 報修 · 任務設定)</option>
+        <option value="counter">櫃檯／外場 (正職／兼職)</option>
+        <option value="barista">吧台 (咖啡師)</option>
+        <option value="kitchen">廚房 (餐點製作)</option>
+        <option value="trainee">新進人員 (受訓中)</option>
+      </select>
+
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn ghost small" id="id-modal-cancel">取消</button>
+        <button class="btn small" id="id-modal-save">確認儲存</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="modal-bg" id="modal-bg">
@@ -440,7 +381,7 @@ document.getElementById('pwa-update-toast').addEventListener('click', () => {
 });
 
 /* ============================================================
-   FIREBASE CONFIGURATION
+   FIREBASE DATABASE CONFIGURATION (共用雲端資料庫)
    ============================================================ */
     const firebaseConfig = {
             apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
@@ -453,18 +394,16 @@ document.getElementById('pwa-update-toast').addEventListener('click', () => {
 };
 
 let db = null;
-let auth = null;
 let useFirebase = false;
 
 try {
   if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
     firebase.initializeApp(firebaseConfig);
     db = firebase.database();
-    auth = firebase.auth();
     useFirebase = true;
   }
 } catch(e) {
-  console.warn("Firebase 初始化失敗，將使用單機模式", e);
+  console.warn("Firebase 初始化失敗，將使用本機儲存模式", e);
 }
 
 /* ============================================================
@@ -674,8 +613,12 @@ const DEFAULT_TASKS = {
   },
 };
 
-/* ---------------- App state ---------------- */
-let session = null; 
+/* ---------------- App state & Session ---------------- */
+let session = {
+  name: localStorage.getItem('ecole_name') || '值班夥伴',
+  role: localStorage.getItem('ecole_role') || 'counter'
+};
+
 let state = null;   
 let currentView = 'dashboard';
 let currentModule = 'counter';
@@ -729,9 +672,10 @@ function getTasksFor(mod, pid) {
   return state.tasksConfig[mod][pid] || [];
 }
 
+/* --- 自動讀取資料庫 (雲端即時同步與本機載入) --- */
 async function loadState(){
   const key = 'day:'+todayKey();
-  if (useFirebase && !session.isGuest) {
+  if (useFirebase) {
     try {
       const snap = await db.ref('ledger/' + key).once('value');
       const val = snap.val();
@@ -753,19 +697,26 @@ async function loadState(){
   if(!state.prep) state.prep = {};
 }
 
+/* --- 自動存檔機制 --- */
 let saveTimer=null;
 async function saveState(){
   const key = 'day:'+todayKey();
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async ()=>{
-    if (useFirebase && !session.isGuest) {
-      try{ await db.ref('ledger/' + key).set(state); }
-      catch(e){ console.error('firebase save error', e); }
+    if (useFirebase) {
+      try{ 
+        await db.ref('ledger/' + key).set(state); 
+      } catch(e){ 
+        console.error('firebase save error', e); 
+      }
     } else {
-      try{ localStorage.setItem(key, JSON.stringify(state)); }
-      catch(e){ console.error('local save error', e); }
+      try{ 
+        localStorage.setItem(key, JSON.stringify(state)); 
+      } catch(e){ 
+        console.error('local save error', e); 
+      }
     }
-  }, 250);
+  }, 200);
 }
 
 function taskState(id){
@@ -777,74 +728,13 @@ function setTaskStatus(id, status){
   saveState();
 }
 
-/* ---------------- Login & Auth ---------------- */
-function initLogin(){
-  const grid = document.getElementById('role-grid');
-  ROLES.forEach(r=>{
-    if(r.id === 'admin') return; 
-    const b = document.createElement('button');
-    b.className = 'role-btn';
-    b.innerHTML = `<span class="rn">${r.name}</span><span class="rd">${r.desc}</span>`;
-    b.onclick = ()=>{
-      document.querySelectorAll('.role-btn').forEach(x=>x.classList.remove('selected'));
-      b.classList.add('selected');
-      selectedRole = r.id;
-      checkLoginReady();
-    };
-    grid.appendChild(b);
-  });
-  
-  document.getElementById('name-input').addEventListener('input', checkLoginReady);
-  document.getElementById('enter-btn').addEventListener('click', () => doLoginLocal());
-  
-  document.getElementById('guest-login-btn').addEventListener('click', () => {
-    session = {name: '訪客', role: 'counter', isGuest: true};
-    executeLoginSequence();
-  });
-
-  document.getElementById('google-login-btn').addEventListener('click', async () => {
-    if(!useFirebase) return toast('尚未設定 Firebase，請使用訪客登入');
-    try {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      const result = await auth.signInWithPopup(provider);
-      const user = result.user;
-      
-      const snap = await db.ref('staffMapping/' + user.uid).once('value');
-      let mappedRole = snap.val();
-      if(!mappedRole) mappedRole = 'counter'; 
-      
-      session = {name: user.displayName || 'Google 用戶', role: mappedRole, uid: user.uid, isGuest: false};
-      executeLoginSequence();
-    } catch(e) {
-      console.error(e);
-      toast('Google 登入失敗');
-    }
-  });
-}
-
-let selectedRole = null;
-function checkLoginReady(){
-  const name = document.getElementById('name-input').value.trim();
-  document.getElementById('enter-btn').disabled = !(name && selectedRole);
-}
-
-async function doLoginLocal(){
-  const name = document.getElementById('name-input').value.trim();
-  if(!name || !selectedRole) return;
-  session = {name, role: selectedRole, isGuest: !useFirebase};
-  executeLoginSequence();
-}
-
-async function executeLoginSequence(){
+/* ---------------- Startup Initialization ---------------- */
+async function initApp() {
   await loadState();
   state.presence[session.name] = {role: session.role, time: nowLabel()};
   saveState();
   
-  document.getElementById('login-screen').style.display='none';
-  document.getElementById('app').classList.add('active');
-  document.getElementById('who-name').textContent = session.name;
-  document.getElementById('who-role').textContent = ROLES.find(r=>r.id===session.role)?.name || session.role;
-  document.getElementById('sync-status').textContent = session.isGuest ? '● 單機模式 (不聯網)' : '● 雲端同步中';
+  updateUserInfoUI();
   
   document.getElementById('admin-nav-group').style.display = session.role==='admin' ? 'block' : 'none';
   if(['counter','barista','kitchen'].includes(session.role)){
@@ -854,18 +744,71 @@ async function executeLoginSequence(){
   setInterval(tick, 1000);
   setInterval(checkReminders, 60000);
   tick();
+
+  // 若使用 Firebase，開啟即時資料庫自動讀取監聽（讓所有登入者同步顯示彼此的變更）
+  if (useFirebase) {
+    const key = 'day:' + todayKey();
+    db.ref('ledger/' + key).on('value', (snapshot) => {
+      const val = snapshot.val();
+      if (val) {
+        state = val;
+        render(); // 自動刷新畫面載入最新雲端資料
+      }
+    });
+    document.getElementById('sync-status').textContent = '● 雲端資料庫同步中';
+  } else {
+    document.getElementById('sync-status').textContent = '● 本機儲存模式';
+  }
+
+  // 綁定身分切換視窗事件
+  document.getElementById('user-avatar-btn').addEventListener('click', openIdentityModal);
+  document.getElementById('id-modal-cancel').addEventListener('click', closeIdentityModal);
+  document.getElementById('id-modal-save').addEventListener('click', saveIdentityModal);
+  document.getElementById('identity-modal-bg').addEventListener('click', (e) => {
+    if(e.target.id === 'identity-modal-bg') closeIdentityModal();
+  });
 }
 
-document.getElementById('logout-btn').addEventListener('click', ()=>{
-  if(auth) auth.signOut();
-  session = null;
-  document.getElementById('app').classList.remove('active');
-  document.getElementById('login-screen').style.display='flex';
-  document.getElementById('name-input').value='';
-  selectedRole=null;
-  document.querySelectorAll('.role-btn').forEach(x=>x.classList.remove('selected'));
-  document.getElementById('enter-btn').disabled=true;
-});
+function updateUserInfoUI() {
+  document.getElementById('who-name').textContent = session.name;
+  document.getElementById('who-role').textContent = ROLES.find(r=>r.id===session.role)?.name || session.role;
+  const avatarBtn = document.getElementById('user-avatar-btn');
+  if(avatarBtn) {
+    avatarBtn.textContent = session.name ? session.name.substring(0,1).toUpperCase() : 'U';
+  }
+}
+
+function openIdentityModal() {
+  document.getElementById('id-modal-name').value = session.name;
+  document.getElementById('id-modal-role').value = session.role;
+  document.getElementById('identity-modal-bg').classList.add('open');
+}
+
+function closeIdentityModal() {
+  document.getElementById('identity-modal-bg').classList.remove('open');
+}
+
+function saveIdentityModal() {
+  const nameVal = document.getElementById('id-modal-name').value.trim();
+  const roleVal = document.getElementById('id-modal-role').value;
+  if(!nameVal) {
+    toast('請輸入名字');
+    return;
+  }
+  session.name = nameVal;
+  session.role = roleVal;
+  localStorage.setItem('ecole_name', session.name);
+  localStorage.setItem('ecole_role', session.role);
+  
+  updateUserInfoUI();
+  document.getElementById('admin-nav-group').style.display = session.role==='admin' ? 'block' : 'none';
+  if(['counter','barista','kitchen'].includes(session.role)){
+    currentModule = session.role;
+  }
+  closeIdentityModal();
+  toast('身分更新成功！');
+  render();
+}
 
 /* ---------------- Nav ---------------- */
 document.querySelectorAll('.nav-item').forEach(el=>{
@@ -946,7 +889,10 @@ function render(){
 function topbar(title){
   return `<div class="topbar">
     <div><h1>${title}</h1><div class="hint">${session.name} · ${ROLES.find(r=>r.id===session.role)?.name||session.role}</div></div>
-    <div class="clock mono"><span class="live-dot"></span><span id="clock-el"></span></div>
+    <div class="topbar-right">
+      <div class="clock mono"><span class="live-dot"></span><span id="clock-el"></span></div>
+      <div class="user-avatar-btn" id="user-avatar-btn" title="點擊切換身分與名字">${session.name ? session.name.substring(0,1).toUpperCase() : 'U'}</div>
+    </div>
   </div>`;
 }
 
@@ -982,6 +928,7 @@ function renderDashboard(main){
 
   main.innerHTML = html;
   bindTaskEvents(main);
+  bindAvatarClick(main);
   main.querySelectorAll('[data-period]').forEach(b=>{
     b.addEventListener('click', ()=>{ currentPeriod = b.dataset.period; render(); });
   });
@@ -1112,6 +1059,7 @@ function renderModule(main, mod){
   main.innerHTML = html;
   bindTaskEvents(main);
   bindModuleEvents(main, mod);
+  bindAvatarClick(main);
   main.querySelectorAll('[data-period]').forEach(b=>{
     b.addEventListener('click', ()=>{ currentPeriod = b.dataset.period; render(); });
   });
@@ -1153,6 +1101,13 @@ function renderTaskList(list, mod){
       </div>
     </div>`;
   }).join('');
+}
+
+function bindAvatarClick(root) {
+  const btn = root.querySelector('#user-avatar-btn');
+  if(btn) {
+    btn.addEventListener('click', openIdentityModal);
+  }
 }
 
 function bindTaskEvents(root){
@@ -1311,6 +1266,7 @@ function renderReport(main){
     <div class="report-box" id="report-box"></div>
   </div>`;
   main.innerHTML = html;
+  bindAvatarClick(main);
   document.getElementById('report-box').textContent = buildReportText();
   main.querySelector('#note-save').addEventListener('click', ()=>{
     const v = main.querySelector('#note-input').value.trim();
@@ -1349,6 +1305,7 @@ function renderTraining(main){
 
   if(!currentTrainee) {
     main.innerHTML = html + `<div class="empty-note">請先選擇或新增新進人員以開始訓練紀錄。</div>`;
+    bindAvatarClick(main);
     main.querySelector('#btn-add-trainee').addEventListener('click', handleAddTrainee);
     return;
   }
@@ -1404,6 +1361,7 @@ function renderTraining(main){
   });
 
   main.innerHTML = html;
+  bindAvatarClick(main);
 
   main.querySelector('#btn-add-trainee').addEventListener('click', handleAddTrainee);
   
@@ -1470,11 +1428,12 @@ let adminEditPid = 'opening';
 
 function renderAdmin(main){
   if(session.role !== 'admin'){
-    main.innerHTML = `<div class="empty-note">權限不足</div>`; return;
+    main.innerHTML = `<div class="empty-note">權限不足（請點擊右上角頭像切換為「管理員」身分）</div>`; 
+    bindAvatarClick(main);
+    return;
   }
   let html = topbar('管理總覽與設定');
 
-  // JSON 匯入與匯出區塊
   html += `<div class="section-card">
     <div class="section-head"><h2>資料備份與還原 (JSON 匯入/匯出)</h2></div>
     <div class="inv-grid">
@@ -1521,8 +1480,8 @@ function renderAdmin(main){
   </div>`;
 
   main.innerHTML = html;
+  bindAvatarClick(main);
   
-  // JSON Export event
   main.querySelector('#btn-export-json').addEventListener('click', () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
     const dl = document.createElement('a');
@@ -1532,7 +1491,6 @@ function renderAdmin(main){
     toast('已成功匯出 JSON 資料');
   });
 
-  // JSON Import event
   main.querySelector('#import-json-file').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if(!file) return;
@@ -1613,7 +1571,7 @@ function renderAdmin(main){
 }
 
 /* ---------------- Boot ---------------- */
-initLogin();
+initApp();
 </script>
 </body>
 </html>
