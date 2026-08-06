@@ -72,7 +72,7 @@
             </h1>
             <div class="text-sm text-gray-600 mt-2 flex gap-4 items-center">
                 <span>選擇月份：</span>
-                <input type="month" id="monthSelector" class="border border-gray-300 rounded px-2 py-1 text-gray-700 outline-none focus:border-black" value="2026-07">
+                <input type="month" id="monthSelector" class="border border-gray-300 rounded px-2 py-1 text-gray-700 outline-none focus:border-black">
             </div>
         </div>
 
@@ -88,7 +88,7 @@
             <button onclick="manageShiftSettings()" class="admin-only border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition shadow-sm">⚙️ 班別設定</button>
             
             <button onclick="autoFill()" class="admin-only border border-black bg-black text-white hover:bg-gray-800 px-4 py-2 rounded-sm text-sm transition shadow-sm">✨ 自動排班</button>
-            <button onclick="clearSchedule()" class="admin-only border border-gray-300 bg-white text-red-600 hover:bg-red-50 px-4 py-2 rounded-sm text-sm transition"> 清空當月</button>
+            <button onclick="clearSchedule()" class="admin-only border border-gray-300 bg-white text-red-600 hover:bg-red-50 px-4 py-2 rounded-sm text-sm transition">🗑️ 清空當月</button>
             <div class="admin-only w-px h-8 bg-gray-200 mx-1 hidden sm:block"></div>
             <button onclick="triggerImport()" class="admin-only border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition"> 匯入</button>
             <button onclick="exportJSON()" class="admin-only border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition"> 備份</button>
@@ -121,7 +121,7 @@
     <!-- 匯出大表日期範圍選擇 -->
     <dialog id="exportDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-sm border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-            <h3 class="font-bold text-gray-800 tracking-wide"> 匯出大表區間選擇</h3>
+            <h3 class="font-bold text-gray-800 tracking-wide">🖼️ 匯出大表區間選擇</h3>
             <button onclick="document.getElementById('exportDialog').close()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
         </div>
         <div class="p-5 bg-white flex flex-col gap-4 text-sm">
@@ -179,7 +179,7 @@
             <h3 class="font-bold text-gray-800 tracking-wide" id="ganttTitle">單日排班進度表</h3>
             <div class="flex items-center gap-2">
                 <select id="ganttDaySelect" class="border border-gray-300 rounded px-2 py-1 text-sm outline-none bg-white font-bold" onchange="renderGanttChart(this.value)"></select>
-                <button onclick="exportGanttImage()" class="bg-black text-white px-3 py-1 rounded text-sm hover:bg-gray-800 shadow-sm flex items-center gap-1"> 匯出</button>
+                <button onclick="exportGanttImage()" class="bg-black text-white px-3 py-1 rounded text-sm hover:bg-gray-800 shadow-sm flex items-center gap-1">🖼️ 匯出</button>
                 <button onclick="document.getElementById('ganttDialog').close()" class="text-gray-400 hover:text-black text-2xl leading-none ml-2">&times;</button>
             </div>
         </div>
@@ -322,10 +322,6 @@
     </dialog>
 
     <script>
-        // ==========================================
-        // 1. 🔥 Firebase 金鑰設定區 🔥 
-        // 部署至 Netlify 時，請務必將此處替換為您的專屬設定
-        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
             authDomain: "ecole-1f392.firebaseapp.com",
@@ -468,7 +464,11 @@
             shiftSettings.M1 = "11:30-20:30";
         }
         
-        let currentYearMonth = '2026-07';
+        // --- 修改區域：動態獲取當前年月 ---
+        const todayDate = new Date();
+        let currentYearMonth = todayDate.getFullYear() + '-' + String(todayDate.getMonth() + 1).padStart(2, '0');
+        // ---------------------------------
+        
         let selectedCell = { empId: null, day: null, type: null, station: null };
         let confirmResolver = null;
 
@@ -940,9 +940,6 @@
             return array;
         }
 
-        // ==========================================
-        // 🔥 升級版：嚴謹規則模板自動排班引擎
-        // ==========================================
         function executeAutoFill() {
             document.getElementById('autoFillDialog').close();
             const targetRestDays = parseInt(document.getElementById('ftRestDaysInput').value, 10) || 8;
@@ -954,7 +951,6 @@
 
             const isWork = (s) => s && !['✖', '❌', '年假', 'X_R', 'X_B', 'X_P', 'X_G'].includes(s);
 
-            // [第一步] 計算並分配正職休假 (避免連續上班 6 天)
             employees.filter(e => e.type === 'FT').forEach(emp => {
                 let tempConsecutive = consecutiveDays[emp.id];
                 let manualOffs = 0;
@@ -993,7 +989,6 @@
 
             employees.forEach(emp => { consecutiveDays[emp.id] = parseInt(carryOverData[currentYearMonth]?.[emp.id] || 0, 10); });
 
-            // [第二步] 每日完美班表派發
             for (let day = 1; day <= daysInMonth; day++) {
                 const dayIndex = new Date(year, month - 1, day).getDay();
                 const isWeekend = dayIndex === 0 || dayIndex === 6;
@@ -1016,7 +1011,6 @@
                         if(emp.type === 'FT') availableFTs.push(emp);
                         else availablePTs.push(emp);
                     } else {
-                        // 記錄當日已被手動排入的班表
                         manualShifts.push(s);
                     }
                 });
@@ -1026,11 +1020,6 @@
                 
                 let neededStaffCount = Math.max(0, requiredStaff - manualShifts.length);
 
-                // ⭐ 核心升級：定義完美符合開收班與搭配規則的模板
-                // A. 必須有 D2 或 A1 (開班)
-                // B. 必須有 N1, N2 或 A2 (收班)
-                // C. 至少兩位早班，或 1早 + 1兩頭班
-                // D. 至少兩位晚班，或 1晚+1兩頭班 / 1晚+1中班
                 const templates4 = [
                     ['A1', 'D2', 'M1', 'N1'],
                     ['D2', 'D1', 'A2', 'N1'],
@@ -1048,14 +1037,12 @@
                     templates5[Math.floor(Math.random() * templates5.length)].slice() : 
                     templates4[Math.floor(Math.random() * templates4.length)].slice();
                 
-                // 扣除已經由管理員手動排班的額度，保證系統不超額塞人
                 manualShifts.forEach(ms => {
                     let code = ms.split('\n')[0].trim();
                     let idx = targetTemplate.indexOf(code);
                     if (idx !== -1) {
                         targetTemplate.splice(idx, 1);
                     } else {
-                        // 模糊匹配移除 (同系列班別互相抵銷)
                         let series = code.charAt(0); 
                         let sIdx = targetTemplate.findIndex(t => t.startsWith(series));
                         if (sIdx !== -1) targetTemplate.splice(sIdx, 1);
@@ -1063,24 +1050,20 @@
                     }
                 });
 
-                // 將分配權重排序：D2 盡量留到最後發給 PT (工讀)
                 targetTemplate.sort((a, b) => {
                     let scoreA = a === 'D2' ? 1 : 0;
                     let scoreB = b === 'D2' ? 1 : 0;
                     return scoreA - scoreB;
                 });
 
-                // 分發班別給當日待命的人員
                 for (let shiftCode of targetTemplate) {
                     if (neededStaffCount <= 0) break;
                     
                     let emp;
                     if (shiftCode === 'D2') {
-                        // D2 優先給 PT
                         if (availablePTs.length > 0) emp = availablePTs.pop();
                         else if (availableFTs.length > 0) emp = availableFTs.pop();
                     } else {
-                        // 其他較長或跨段班別 (N, M, A, D1) 優先給 FT
                         if (availableFTs.length > 0) emp = availableFTs.pop();
                         else if (availablePTs.length > 0) emp = availablePTs.pop();
                     }
@@ -1091,11 +1074,9 @@
                     }
                 }
 
-                // 剩餘沒排到班的人員標記為排休 (✖)
                 availableFTs.forEach(emp => { scheduleData[currentYearMonth][emp.id][day] = '✖'; });
                 availablePTs.forEach(emp => { scheduleData[currentYearMonth][emp.id][day] = '✖'; });
 
-                // 更新當日所有工作人員，計算連續天數並排入站點
                 employees.forEach(emp => {
                     let s = scheduleData[currentYearMonth][emp.id][day];
                     if (isWork(s) || ['行政', '公出'].includes(s)) { consecutiveDays[emp.id]++; } 
@@ -1109,16 +1090,14 @@
 
                 if(workingToday.length === 0) continue;
 
-                // ⭐ 站點指派優化：外場人員可由早晚班人員重複支援
                 if (!stationData[currentYearMonth]['外場'][day]) {
                     stationData[currentYearMonth]['外場'][day] = workingToday[Math.floor(Math.random() * workingToday.length)].name;
                 }
 
-                let assignPool = [...workingToday]; // 複製清單，不拔除外場已指派的人，允許多重站點
+                let assignPool = [...workingToday]; 
                 ['晚吧台', '晚廚'].forEach(st => {
                     if(!stationData[currentYearMonth][st][day]) {
                         let ftIdx = assignPool.findIndex(e => e.type === 'FT');
-                        // 優先將剩餘的 FT 給晚吧晚廚，沒有則塞剩下的人
                         if(ftIdx !== -1) stationData[currentYearMonth][st][day] = assignPool.splice(ftIdx, 1)[0].name;
                         else if(assignPool.length > 0) stationData[currentYearMonth][st][day] = assignPool.pop().name;
                     }
