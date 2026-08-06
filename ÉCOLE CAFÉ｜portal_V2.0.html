@@ -285,7 +285,6 @@
   .task-list { margin: 12px 0 0; padding-left: 20px; font-size: 14px; color: var(--ink-soft); line-height: 1.8; }
   .task-list li { padding-left: 4px; word-break: break-word; }
 
-  /* 調整網格最小寬度至 280px，確保站位欄位寬敞不跳行 */
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -1613,7 +1612,7 @@
   };
 
   // ==========================================
-  // 3. 營運儀表板 - 即時監聽與精準日期過濾解析
+  // 3. 營運儀表板 - 即時監聽與嚴格當日過濾
   // ==========================================
   function subscribeToDashboard() {
     const todayObj = new Date();
@@ -1722,7 +1721,7 @@
 
 
     // ----------------------------------------
-    // [功能三] 今日排班與站位 (精準過濾今日人員)
+    // [功能三] 嚴格過濾「今日」排班與站位
     // ----------------------------------------
     try {
       let unsubscribeMain = null;
@@ -1742,7 +1741,7 @@
         document.getElementById('shiftNote').style.display = 'none';
       }
 
-      // 精準只過濾並擷取「今日」的站位人員
+      // 嚴格只萃取今天日期的對應站位與人員
       function extractOnlyTodaySchedule(dataObj, dateObj) {
         let monthStr = `${dateObj.getFullYear()}-${pad2(dateObj.getMonth() + 1)}`; // 例: 2026-08
         let dayStr = dateObj.getDate().toString();       // 例: 6
@@ -1751,32 +1750,34 @@
         
         let texts = [];
 
-        function parseNode(node, prefix = '') {
+        // 遞迴檢索資料結構，只抓取符合今天日期的資料
+        function scanNode(node, prefix = '') {
           if (!node) return;
           if (typeof node === 'object' && !Array.isArray(node)) {
-            // 如果物件裡面包含日期鍵值（例如 6 或 06 或 2026-08-06）
-            if (node[fullDateStr] !== undefined || node[dayStr] !== undefined || node[dayPadStr] !== undefined) {
-              let val = node[fullDateStr] !== undefined ? node[fullDateStr] : (node[dayStr] !== undefined ? node[dayStr] : node[dayPadStr]);
-              if (val) {
-                let cleanVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
-                if (cleanVal.trim()) texts.push(`${prefix}：${cleanVal}`);
+            // 如果此層物件直接包含了今天的日期鍵值（例如 "6", "06", "2026-08-06"）
+            let targetVal = undefined;
+            if (node[fullDateStr] !== undefined) targetVal = node[fullDateStr];
+            else if (node[dayStr] !== undefined) targetVal = node[dayStr];
+            else if (node[dayPadStr] !== undefined) targetVal = node[dayPadStr];
+
+            if (targetVal !== undefined) {
+              if (targetVal !== null && String(targetVal).trim() !== '') {
+                texts.push(`${prefix}：${String(targetVal)}`);
               }
             } else {
-              // 遞迴向下尋找站位與日期
+              // 繼續往下尋找
               for (let k in node) {
                 let nextPrefix = prefix ? `${prefix} - ${k}` : k;
-                parseNode(node[k], nextPrefix);
+                scanNode(node[k], nextPrefix);
               }
             }
-          } else if (typeof node === 'string' && node.trim() !== '') {
-            texts.push(`${prefix}：${node}`);
           }
         }
 
-        // 尋找當月資料包或直接尋找全域節點
-        let targetData = dataObj[monthStr] || dataObj.stationData || dataObj[fullDateStr] || dataObj;
-        parseNode(targetData);
-        
+        // 定位資料來源
+        let sourceData = dataObj[monthStr] || dataObj.stationData || dataObj;
+        scanNode(sourceData);
+
         return texts;
       }
 
@@ -1797,7 +1798,6 @@
         }).catch(() => renderShiftTexts([]));
       }
 
-      // 優先讀取今日專屬文件，若無則讀取大表
       db.collection('ecoleCafe').doc(todayStr).onSnapshot(dayDoc => {
         if (dayDoc.exists) {
           let extracted = extractOnlyTodaySchedule(dayDoc.data(), todayObj);
@@ -1807,7 +1807,6 @@
           }
         }
         
-        // 若今日無獨立文件，讀取 main_schedule 大表
         if (!unsubscribeMain) {
           unsubscribeMain = db.collection('ecoleCafe').doc('main_schedule').onSnapshot(mainDoc => {
             if (mainDoc.exists) {
