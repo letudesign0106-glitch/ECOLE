@@ -237,7 +237,8 @@
     font-family: var(--font-num);
   }
   .clock .time { font-size: 20px; font-weight: 600; letter-spacing: .5px; }
-  .clock .date { font-size: 11.5px; color: var(--ink-soft); margin-top: 1px; }
+  .clock .date { font-size: 11.5px; color: var(--ink-soft); margin-top: 1px; white-space: nowrap; }
+  
   .icon-btn {
     width: 38px; height: 38px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
@@ -252,7 +253,6 @@
   }
   .icon-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-card); }
   
-  /* Firebase 登入/儲存按鈕特別樣式 */
   #cloudSaveBtn { color: var(--c-blue); }
 
   .hero { margin-bottom: 38px; }
@@ -269,11 +269,6 @@
     margin: 0 0 8px;
     letter-spacing: .5px;
   }
-  .hero p {
-    margin: 0;
-    color: var(--ink-soft);
-    font-size: 14.5px;
-  }
 
   .section-title {
     font-size: 12px;
@@ -281,6 +276,13 @@
     color: var(--ink-faint);
     margin: 0 0 16px;
   }
+
+  /* ---------- Dashboard Stats Styles ---------- */
+  .stat-value { font-family: var(--font-num); font-size: 32px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+  .progress-bar-bg { width: 100%; height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 12px; }
+  .progress-bar-fill { height: 100%; background: var(--c-sage); transition: width 0.8s ease; border-radius: 999px; }
+  .task-list { margin: 12px 0 0; padding-left: 20px; font-size: 14px; color: var(--ink-soft); line-height: 1.8; }
+  .task-list li { padding-left: 4px; }
 
   .grid {
     display: grid;
@@ -302,6 +304,11 @@
     min-height: 120px;
   }
   .card:hover { transform: translateY(-3px); box-shadow: var(--shadow-card); }
+  
+  /* 針對非導覽按鈕的卡片，取消置中，靠上對齊 */
+  .dashboard-card { min-height: auto; justify-content: flex-start; gap: 8px; cursor: default; }
+  .dashboard-card:hover { transform: none; box-shadow: var(--shadow-soft); }
+
   .card-top { display: flex; align-items: center; justify-content: space-between; }
   .card-icon {
     width: 44px; height: 44px; border-radius: 50%;
@@ -607,7 +614,7 @@
     border-color: var(--ink);
     box-shadow: var(--shadow-card);
   }
-  .week-cell-top { display: flex; align-items: baseline; justify-content: space-between; }
+  .week-cell-top { display: flex; align-items: baseline; justify-content: space-between; white-space: nowrap; gap: 8px; }
   .week-cell-day { font-size: 11.5px; letter-spacing: 1.5px; color: var(--ink-faint); }
   .week-cell-date { font-family: var(--font-num); font-size: 16px; font-weight: 600; }
   .week-cell-bar { height: 3px; border-radius: 3px; width: 28px; }
@@ -775,8 +782,51 @@
     <div class="hero">
       <div class="eyebrow" id="greetEyebrow">歡迎回來</div>
       <h1 id="greetTitle">早安，今天也是美好的一天 ☕</h1>
-      <p>從下方快速前往各系統，或使用左側／底部導覽列。</p>
     </div>
+
+    <!-- ===== 今日營運概況 Dashboard ===== -->
+    <div class="section-title">今日營運概況</div>
+    <div class="grid" style="margin-bottom: 38px;">
+      
+      <!-- 1. 營業目標卡片 (來自 backups) -->
+      <div class="card dashboard-card">
+        <div class="card-top">
+          <div class="card-name">本月營業目標達成率</div>
+        </div>
+        <div>
+          <div class="stat-value" id="revProgress">--%</div>
+          <div style="font-size:12px; color:var(--ink-soft); margin-top:4px;">
+            目前：<span id="revTotal">--</span> / 目標：<span id="revTarget">--</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="revProgressBar" style="width:0%;"></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 2. 今日排班與站位 (來自 ecoleCafe) -->
+      <div class="card dashboard-card">
+        <div class="card-top">
+          <div class="card-name">今日排班與站位</div>
+        </div>
+        <ul class="task-list" id="shiftList">
+          <li style="color:var(--ink-faint); list-style:none; margin-left:-20px;">資料載入中...</li>
+        </ul>
+        <div id="shiftNote" style="font-size: 12px; color: var(--ink-faint); margin-top: 8px; display: none;"></div>
+      </div>
+      
+      <!-- 3. 今日待辦事項卡片 (來自 backups) -->
+      <div class="card dashboard-card">
+        <div class="card-top">
+          <div class="card-name">今日待辦事項</div>
+        </div>
+        <ul class="task-list" id="taskList">
+          <li style="color:var(--ink-faint); list-style:none; margin-left:-20px;">資料載入中...</li>
+        </ul>
+      </div>
+
+    </div>
+    <!-- ===================================== -->
 
     <div class="section-title">本週記事</div>
     <div id="weekGrid" class="week-grid"></div>
@@ -935,9 +985,9 @@
   const DEFAULT_CONFIG = {
     password:'0000',
     buttons:[
-      {id:'b1', icon:'📋', name:'交班系統', url:'https://example.com/handover', color:'rose', target:'_blank'},
-      {id:'b2', icon:'🗓️', name:'班表系統', url:'https://example.com/schedule', color:'sage', target:'_blank'},
-      {id:'b3', icon:'🕒', name:'打卡出勤系統', url:'https://example.com/attendance', color:'blue', target:'_blank'}
+      {id:'b1', icon:'📋', name:'交班', url:'https://example.com/handover', color:'rose', target:'_blank'},
+      {id:'b2', icon:'🗓️', name:'班表', url:'https://example.com/schedule', color:'sage', target:'_blank'},
+      {id:'b3', icon:'🕒', name:'出勤', url:'https://example.com/attendance', color:'blue', target:'_blank'}
     ],
     notes:{}
   };
@@ -960,7 +1010,9 @@
   }
 
   function pad2(n){ return String(n).padStart(2,'0'); }
+  // 回傳格式如 "2026-08-06"，即您的檔案名稱
   function dateKey(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+  
   function getWeekDates(base){
     const d = new Date(base);
     const day = d.getDay(); 
@@ -1194,7 +1246,7 @@
       row.className = 'row-item';
       row.innerHTML = `
         <input class="ri-icon-input" type="text" maxlength="4" value="${escapeAttr(b.icon)}" data-f="icon">
-        <input class="ri-name" type="text" placeholder="按鈕名稱，例如：交班系統" value="${escapeAttr(b.name)}" data-f="name">
+        <input class="ri-name" type="text" placeholder="按鈕名稱，例如：交班" value="${escapeAttr(b.name)}" data-f="name">
         <div class="ri-actions">
           <div class="swatches"></div>
           <button class="ri-del" title="刪除">🗑</button>
@@ -1535,7 +1587,7 @@
     }
   };
 
-  // 自動讀取雲端「共用」資料（任何人開啟網頁都會執行）
+  // 自動讀取雲端「共用」管理主頁按鈕設定
   async function autoLoadFromCloud() {
     try {
       const doc = await db.collection('ecoleConfig').doc(SHARED_DOC_ID).get();
@@ -1544,15 +1596,14 @@
         config = normalizeConfig(cloudData);
         await saveConfig(config);
         render();
-        toast('☁️ 已自動套用雲端最新共用設定');
+        toast('☁️ 已自動套用最新選單與按鈕設定');
       }
     } catch (e) {
       console.error(e);
-      // 若尚未設定資料庫或沒權限讀取，這裡就不顯示錯誤以免干擾一般使用者
     }
   }
 
-  // 手動存檔至雲端「共用」檔案
+  // 手動存檔主頁按鈕設定至雲端
   cloudSaveBtn.onclick = async () => {
     if (!currentUser) {
        toast('請先登入 Google 帳號才能更新雲端');
@@ -1570,9 +1621,134 @@
     }
   };
 
+  // ==========================================
+  // 3. 營運儀表板 - 即時監聽多系統資料夾
+  // ==========================================
+  function subscribeToDashboard() {
+    const todayStr = dateKey(new Date()); 
+    
+    // ----------------------------------------
+    // [監聽一] 交班系統 (backups)
+    // ----------------------------------------
+    try {
+      db.collection('backups').doc(todayStr).onSnapshot(doc => {
+        const taskList = document.getElementById('taskList');
+        
+        if (doc.exists) {
+          const data = doc.data();
+          
+          // --- 處理營業額與目標 ---
+          const res = data.reservations || {};
+          const total = parseFloat(res.reToyal) || 0;
+          const target = parseFloat(res.revMonthTarget) || 0;
+          
+          let percent = 0;
+          if (target > 0) percent = (total / target) * 100;
+          
+          let barPercent = percent > 100 ? 100 : percent; 
+          const pctStr = target > 0 ? percent.toFixed(1) + '%' : '0%';
+          
+          document.getElementById('revProgress').textContent = pctStr;
+          document.getElementById('revTotal').textContent = total.toLocaleString();
+          document.getElementById('revTarget').textContent = target.toLocaleString();
+          document.getElementById('revProgressBar').style.width = barPercent + '%';
+          
+          // --- 處理待辦事項 ---
+          const tasks = data.tasks || [];
+          taskList.innerHTML = '';
+          
+          if (tasks.length === 0) {
+            taskList.innerHTML = '<li style="color:var(--ink-faint); list-style:none; margin-left:-20px;">今日目前無待辦事項</li>';
+          } else {
+            tasks.forEach(t => {
+              const li = document.createElement('li');
+              let text = typeof t === 'string' ? t : (t.text || t.title || t.name || JSON.stringify(t));
+              li.textContent = escapeHtml(text);
+              taskList.appendChild(li);
+            });
+          }
+        } else {
+          document.getElementById('revProgress').textContent = '0%';
+          document.getElementById('revTotal').textContent = '0';
+          document.getElementById('revTarget').textContent = '0';
+          document.getElementById('revProgressBar').style.width = '0%';
+          taskList.innerHTML = '<li style="color:var(--ink-faint); list-style:none; margin-left:-20px;">尚無今日交班資料紀錄</li>';
+        }
+      }, error => {
+        console.error("讀取交班系統失敗:", error);
+        document.getElementById('taskList').innerHTML = '<li style="color:#B5544A; list-style:none; margin-left:-20px;">讀取失敗，請確認資料庫權限</li>';
+      });
+    } catch (err) {
+      console.error(err);
+    }
+
+    // ----------------------------------------
+    // [監聽二] 班表系統 (ecoleCafe)
+    // ----------------------------------------
+    try {
+      db.collection('ecoleCafe').doc(todayStr).onSnapshot(doc => {
+        const shiftList = document.getElementById('shiftList');
+        const shiftNote = document.getElementById('shiftNote');
+
+        if (doc.exists) {
+          const data = doc.data();
+          let displayTexts = [];
+
+          // 優先讀取站位資訊 (stationData)
+          if (data.stationData && typeof data.stationData === 'object' && Object.keys(data.stationData).length > 0) {
+            for (let key in data.stationData) {
+              let val = data.stationData[key];
+              if (Array.isArray(val)) val = val.join('、');
+              else if (typeof val === 'object') val = JSON.stringify(val);
+              displayTexts.push(`${key}：${val}`);
+            }
+          }
+          // 如果沒有站位，但有人員名單 (employees)
+          else if (data.employees) {
+            let emps = Array.isArray(data.employees) ? data.employees : [data.employees];
+            emps.forEach(e => {
+              let name = typeof e === 'string' ? e : (e.name || JSON.stringify(e));
+              displayTexts.push(`人員：${name}`);
+            });
+          }
+
+          // 渲染清單
+          shiftList.innerHTML = '';
+          if (displayTexts.length > 0) {
+            displayTexts.forEach(txt => {
+              const li = document.createElement('li');
+              li.textContent = escapeHtml(txt);
+              shiftList.appendChild(li);
+            });
+          } else {
+            shiftList.innerHTML = '<li style="color:var(--ink-faint); list-style:none; margin-left:-20px;">今日目前無人員排班與站位</li>';
+          }
+
+          // 處理日期備註 (noteDate)
+          if (data.noteDate) {
+            let noteStr = typeof data.noteDate === 'string' ? data.noteDate : JSON.stringify(data.noteDate);
+            shiftNote.textContent = '備註：' + noteStr;
+            shiftNote.style.display = 'block';
+          } else {
+            shiftNote.style.display = 'none';
+          }
+
+        } else {
+          shiftList.innerHTML = '<li style="color:var(--ink-faint); list-style:none; margin-left:-20px;">尚無今日班表與站位紀錄</li>';
+          shiftNote.style.display = 'none';
+        }
+      }, error => {
+        console.error("讀取班表系統失敗:", error);
+        document.getElementById('shiftList').innerHTML = '<li style="color:#B5544A; list-style:none; margin-left:-20px;">讀取失敗，請確認資料庫權限</li>';
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
 
   // ==========================================
-  // 3. PWA 更新通知邏輯 (Service Worker)
+  // 4. PWA 更新通知邏輯 (Service Worker)
   // ==========================================
   let newWorker;
   if ('serviceWorker' in navigator) {
@@ -1610,9 +1786,10 @@
     updateClock();
     setInterval(updateClock, 30000);
     
-    // 初始化時不論是否登入，皆嘗試自動讀取雲端共用檔案
+    // 初始化時自動讀取共用設定與即時儀表板
     if (window.firebase) {
       autoLoadFromCloud();
+      subscribeToDashboard(); // 啟動即時監聽 backups 與 ecoleCafe 資料夾
     }
   })();
 
