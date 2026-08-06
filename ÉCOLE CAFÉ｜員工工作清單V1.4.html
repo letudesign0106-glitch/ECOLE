@@ -47,9 +47,6 @@ button{font-family:'Inter',sans-serif;cursor:pointer;}
 input,select,textarea{font-family:'Inter',sans-serif;}
 ::selection{background:var(--ochre-bg);}
 
-.paper-lines{
-  background-image: repeating-linear-gradient(180deg, transparent, transparent 27px, var(--line) 28px);
-}
 ::-webkit-scrollbar{width:8px;height:8px;}
 ::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:4px;}
 
@@ -225,6 +222,14 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 .modal p{font-size:13px;color:var(--ink-soft);line-height:1.65;margin:12px 0 0;}
 .modal .close-x{ position:absolute;top:14px;right:16px;border:none;background:none;font-size:18px;color:var(--ink-soft);cursor:pointer; }
 
+.google-btn{
+  width:100%; background:#4285F4; color:#fff; border:none; border-radius:var(--radius);
+  padding:12px; font-size:13.5px; font-weight:600; letter-spacing:0.04em;
+  display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;
+}
+.google-btn:hover{ background:#3367D6; }
+.google-btn svg{ width:18px; height:18px; fill:#fff; }
+
 .report-box{
   margin:16px 20px 20px;border:1px solid var(--line-strong);border-radius:3px;
   background:var(--bg);padding:16px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;
@@ -314,12 +319,20 @@ input,select,textarea{font-family:'Inter',sans-serif;}
   <div class="main" id="main"></div>
 </div>
 
-<!-- ===================== IDENTITY MODAL ===================== -->
+<!-- ===================== IDENTITY MODAL (Google Login & Profile Switch) ===================== -->
 <div class="modal-bg" id="identity-modal-bg">
   <div class="modal">
-    <h3>切換身分與名字</h3>
-    <p>請輸入您的名字並選擇執勤身分：</p>
+    <h3>帳號登入與身分設定</h3>
+    <p>使用 Google 帳號登入以連線至共用雲端資料庫，或手動設定本地身分：</p>
     <div style="margin-top: 14px;">
+      
+      <button id="google-signin-btn" class="google-btn" style="margin-bottom:16px;">
+        <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+        使用 Google 帳號登入
+      </button>
+
+      <div style="text-align:center; font-size:11px; color:var(--ink-soft); margin-bottom:16px;">— 或手動設定本地身分 —</div>
+
       <label style="font-size:11px; text-transform:uppercase; color:var(--ink-soft); display:block; margin-bottom:6px;">您的名字</label>
       <input type="text" id="id-modal-name" class="name-input" placeholder="例如：小玉" style="width:100%; border:1px solid var(--line-strong); border-radius:var(--radius); padding:10px; margin-bottom:14px;">
       
@@ -353,6 +366,13 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 
 <script>
 /* ============================================================
+   防白畫面與全域錯誤攔截
+   ============================================================ */
+window.addEventListener('error', function(event) {
+  console.error('全域錯誤攔截:', event.message, event.filename, event.lineno);
+});
+
+/* ============================================================
    PWA UPDATE LOGIC
    ============================================================ */
 let newWorker;
@@ -381,7 +401,7 @@ document.getElementById('pwa-update-toast').addEventListener('click', () => {
 });
 
 /* ============================================================
-   FIREBASE DATABASE CONFIGURATION (共用雲端資料庫)
+   FIREBASE DATABASE & AUTH CONFIGURATION (共用雲端資料庫與驗證)
    ============================================================ */
     const firebaseConfig = {
             apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
@@ -394,16 +414,18 @@ document.getElementById('pwa-update-toast').addEventListener('click', () => {
 };
 
 let db = null;
+let auth = null;
 let useFirebase = false;
 
 try {
-  if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+  if (typeof firebase !== 'undefined' && firebaseConfig.apiKey !== "YOUR_API_KEY") {
     firebase.initializeApp(firebaseConfig);
     db = firebase.database();
+    auth = firebase.auth();
     useFirebase = true;
   }
 } catch(e) {
-  console.warn("Firebase 初始化失敗，將使用本機儲存模式", e);
+  console.warn("Firebase 初始化失敗，將使用本機與跨分頁同步儲存模式", e);
 }
 
 /* ============================================================
@@ -619,7 +641,7 @@ let session = {
   role: localStorage.getItem('ecole_role') || 'counter'
 };
 
-let state = null;   
+let state = blankState();   
 let currentView = 'dashboard';
 let currentModule = 'counter';
 let currentPeriod = null;
@@ -641,6 +663,7 @@ function generateId() {
 }
 function toast(msg){
   const t = document.getElementById('toast');
+  if(!t) return;
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(toast._h);
@@ -675,51 +698,68 @@ function getTasksFor(mod, pid) {
 /* --- 自動讀取資料庫 (雲端即時同步與本機載入) --- */
 async function loadState(){
   const key = 'day:'+todayKey();
-  if (useFirebase) {
+  if (useFirebase && db) {
     try {
       const snap = await db.ref('ledger/' + key).once('value');
       const val = snap.val();
       state = val ? val : blankState();
     } catch(e) {
-      console.error(e);
-      state = blankState();
+      console.error('載入雲端資料失敗，切換本機備份', e);
+      loadLocalState(key);
     }
   } else {
-    try{
-      const r = localStorage.getItem(key);
-      state = r ? JSON.parse(r) : blankState();
-    }catch(e){
-      state = blankState();
-    }
+    loadLocalState(key);
   }
+  if(!state.tasksConfig) state.tasksConfig = JSON.parse(JSON.stringify(DEFAULT_TASKS));
   if(state.date !== todayKey()) state = blankState();
   if(!state.trainees) state.trainees = {};
   if(!state.prep) state.prep = {};
 }
 
-/* --- 自動存檔機制 --- */
+function loadLocalState(key){
+  try{
+    const r = localStorage.getItem(key);
+    state = r ? JSON.parse(r) : blankState();
+  }catch(e){
+    state = blankState();
+  }
+}
+
+/* --- 自動存檔機制 (即時寫入資料庫) --- */
 let saveTimer=null;
 async function saveState(){
   const key = 'day:'+todayKey();
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async ()=>{
-    if (useFirebase) {
+    if (useFirebase && db) {
       try{ 
         await db.ref('ledger/' + key).set(state); 
       } catch(e){ 
-        console.error('firebase save error', e); 
+        console.error('雲端自動存檔失敗', e); 
+        localStorage.setItem(key, JSON.stringify(state));
       }
     } else {
       try{ 
         localStorage.setItem(key, JSON.stringify(state)); 
       } catch(e){ 
-        console.error('local save error', e); 
+        console.error('本機自動存檔失敗', e); 
       }
     }
   }, 200);
 }
 
+// 監聽本機跨分頁同步
+window.addEventListener('storage', (e) => {
+  if (e.key === 'day:' + todayKey() && e.newValue) {
+    try {
+      state = JSON.parse(e.newValue);
+      render();
+    } catch(err) {}
+  }
+});
+
 function taskState(id){
+  if(!state.tasks) state.tasks = {};
   return state.tasks[id] || {status:'red', note:'', time:'', by:''};
 }
 function setTaskStatus(id, status){
@@ -730,48 +770,93 @@ function setTaskStatus(id, status){
 
 /* ---------------- Startup Initialization ---------------- */
 async function initApp() {
-  await loadState();
-  state.presence[session.name] = {role: session.role, time: nowLabel()};
-  saveState();
-  
-  updateUserInfoUI();
-  
-  document.getElementById('admin-nav-group').style.display = session.role==='admin' ? 'block' : 'none';
-  if(['counter','barista','kitchen'].includes(session.role)){
-    currentModule = session.role;
-  }
-  setView('dashboard');
-  setInterval(tick, 1000);
-  setInterval(checkReminders, 60000);
-  tick();
+  try {
+    await loadState();
+    if(!state.presence) state.presence = {};
+    state.presence[session.name] = {role: session.role, time: nowLabel()};
+    saveState();
+    
+    updateUserInfoUI();
+    
+    const adminGroup = document.getElementById('admin-nav-group');
+    if(adminGroup) adminGroup.style.display = session.role==='admin' ? 'block' : 'none';
+    if(['counter','barista','kitchen'].includes(session.role)){
+      currentModule = session.role;
+    }
+    setView('dashboard');
+    setInterval(tick, 1000);
+    setInterval(checkReminders, 60000);
+    tick();
 
-  // 若使用 Firebase，開啟即時資料庫自動讀取監聽（讓所有登入者同步顯示彼此的變更）
-  if (useFirebase) {
-    const key = 'day:' + todayKey();
-    db.ref('ledger/' + key).on('value', (snapshot) => {
-      const val = snapshot.val();
-      if (val) {
-        state = val;
-        render(); // 自動刷新畫面載入最新雲端資料
-      }
-    });
-    document.getElementById('sync-status').textContent = '● 雲端資料庫同步中';
-  } else {
-    document.getElementById('sync-status').textContent = '● 本機儲存模式';
-  }
+    // 若使用 Firebase，開啟即時資料庫自動讀取監聽
+    if (useFirebase && db) {
+      const key = 'day:' + todayKey();
+      db.ref('ledger/' + key).on('value', (snapshot) => {
+        const val = snapshot.val();
+        if (val) {
+          state = val;
+          if(!state.tasksConfig) state.tasksConfig = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+          render();
+        }
+      });
+      const syncEl = document.getElementById('sync-status');
+      if(syncEl) syncEl.textContent = '● 雲端資料庫即時同步中';
+    } else {
+      const syncEl = document.getElementById('sync-status');
+      if(syncEl) syncEl.textContent = '● 本機與多視窗同步就緒';
+    }
 
-  // 綁定身分切換視窗事件
-  document.getElementById('user-avatar-btn').addEventListener('click', openIdentityModal);
-  document.getElementById('id-modal-cancel').addEventListener('click', closeIdentityModal);
-  document.getElementById('id-modal-save').addEventListener('click', saveIdentityModal);
-  document.getElementById('identity-modal-bg').addEventListener('click', (e) => {
-    if(e.target.id === 'identity-modal-bg') closeIdentityModal();
-  });
+    // 綁定頭像點擊與登入視窗事件
+    const avatarBtn = document.getElementById('user-avatar-btn');
+    if(avatarBtn) avatarBtn.addEventListener('click', openIdentityModal);
+    
+    const modalCancel = document.getElementById('id-modal-cancel');
+    if(modalCancel) modalCancel.addEventListener('click', closeIdentityModal);
+    
+    const modalSave = document.getElementById('id-modal-save');
+    if(modalSave) modalSave.addEventListener('click', saveIdentityModal);
+    
+    const googleSignInBtn = document.getElementById('google-signin-btn');
+    if(googleSignInBtn) {
+      googleSignInBtn.addEventListener('click', async () => {
+        if (!useFirebase || !auth) {
+          return toast('尚未設定 Firebase API Key，無法進行 Google 登入');
+        }
+        try {
+          const provider = new firebase.auth.GoogleAuthProvider();
+          const result = await auth.signInWithPopup(provider);
+          const user = result.user;
+          session.name = user.displayName || 'Google 用戶';
+          localStorage.setItem('ecole_name', session.name);
+          updateUserInfoUI();
+          closeIdentityModal();
+          toast('Google 登入成功！已連線至雲端資料庫');
+          await loadState();
+          render();
+        } catch(e) {
+          console.error(e);
+          toast('Google 登入失敗：' + (e.message || '請確認 Firebase 設定'));
+        }
+      });
+    }
+
+    const modalBg = document.getElementById('identity-modal-bg');
+    if(modalBg) {
+      modalBg.addEventListener('click', (e) => {
+        if(e.target.id === 'identity-modal-bg') closeIdentityModal();
+      });
+    }
+  } catch(err) {
+    console.error('系統初始化異常:', err);
+  }
 }
 
 function updateUserInfoUI() {
-  document.getElementById('who-name').textContent = session.name;
-  document.getElementById('who-role').textContent = ROLES.find(r=>r.id===session.role)?.name || session.role;
+  const whoName = document.getElementById('who-name');
+  const whoRole = document.getElementById('who-role');
+  if(whoName) whoName.textContent = session.name;
+  if(whoRole) whoRole.textContent = ROLES.find(r=>r.id===session.role)?.name || session.role;
+  
   const avatarBtn = document.getElementById('user-avatar-btn');
   if(avatarBtn) {
     avatarBtn.textContent = session.name ? session.name.substring(0,1).toUpperCase() : 'U';
@@ -779,18 +864,26 @@ function updateUserInfoUI() {
 }
 
 function openIdentityModal() {
-  document.getElementById('id-modal-name').value = session.name;
-  document.getElementById('id-modal-role').value = session.role;
-  document.getElementById('identity-modal-bg').classList.add('open');
+  const nameInput = document.getElementById('id-modal-name');
+  const roleSelect = document.getElementById('id-modal-role');
+  const modalBg = document.getElementById('identity-modal-bg');
+  if(nameInput) nameInput.value = session.name;
+  if(roleSelect) roleSelect.value = session.role;
+  if(modalBg) modalBg.classList.add('open');
 }
 
 function closeIdentityModal() {
-  document.getElementById('identity-modal-bg').classList.remove('open');
+  const modalBg = document.getElementById('identity-modal-bg');
+  if(modalBg) modalBg.classList.remove('open');
 }
 
 function saveIdentityModal() {
-  const nameVal = document.getElementById('id-modal-name').value.trim();
-  const roleVal = document.getElementById('id-modal-role').value;
+  const nameInput = document.getElementById('id-modal-name');
+  const roleSelect = document.getElementById('id-modal-role');
+  if(!nameInput || !roleSelect) return;
+  
+  const nameVal = nameInput.value.trim();
+  const roleVal = roleSelect.value;
   if(!nameVal) {
     toast('請輸入名字');
     return;
@@ -801,7 +894,8 @@ function saveIdentityModal() {
   localStorage.setItem('ecole_role', session.role);
   
   updateUserInfoUI();
-  document.getElementById('admin-nav-group').style.display = session.role==='admin' ? 'block' : 'none';
+  const adminGroup = document.getElementById('admin-nav-group');
+  if(adminGroup) adminGroup.style.display = session.role==='admin' ? 'block' : 'none';
   if(['counter','barista','kitchen'].includes(session.role)){
     currentModule = session.role;
   }
@@ -811,13 +905,15 @@ function saveIdentityModal() {
 }
 
 /* ---------------- Nav ---------------- */
-document.querySelectorAll('.nav-item').forEach(el=>{
-  el.addEventListener('click', ()=>{
-    const v = el.dataset.view;
+document.addEventListener('click', (e) => {
+  const navItem = e.target.closest('.nav-item');
+  if(navItem) {
+    const v = navItem.dataset.view;
     if(['counter','barista','kitchen'].includes(v)) currentModule = v;
     setView(v);
-  });
+  }
 });
+
 function setView(v){
   currentView = v;
   document.querySelectorAll('.nav-item').forEach(el=>{
@@ -850,13 +946,28 @@ function periodProgress(mod, pid){
 
 /* ---------------- Modal ---------------- */
 function openModal(tag, title, body){
-  document.getElementById('modal-tag').textContent = tag||'MANUEL';
-  document.getElementById('modal-title').textContent = title;
-  document.getElementById('modal-body').textContent = body;
-  document.getElementById('modal-bg').classList.add('open');
+  const tagEl = document.getElementById('modal-tag');
+  const titleEl = document.getElementById('modal-title');
+  const bodyEl = document.getElementById('modal-body');
+  const modalBg = document.getElementById('modal-bg');
+  if(tagEl) tagEl.textContent = tag||'MANUEL';
+  if(titleEl) titleEl.textContent = title;
+  if(bodyEl) bodyEl.textContent = body;
+  if(modalBg) modalBg.classList.add('open');
 }
-document.getElementById('modal-close').onclick = ()=>document.getElementById('modal-bg').classList.remove('open');
-document.getElementById('modal-bg').addEventListener('click', e=>{ if(e.target.id==='modal-bg') e.currentTarget.classList.remove('open'); });
+
+const modalClose = document.getElementById('modal-close');
+if(modalClose) modalClose.onclick = ()=> {
+  const modalBg = document.getElementById('modal-bg');
+  if(modalBg) modalBg.classList.remove('open');
+};
+
+const modalBgEl = document.getElementById('modal-bg');
+if(modalBgEl) {
+  modalBgEl.addEventListener('click', e=>{ 
+    if(e.target.id==='modal-bg') e.currentTarget.classList.remove('open'); 
+  });
+}
 
 function checkReminders(){
   if(!session) return;
@@ -879,6 +990,7 @@ function checkReminders(){
    ============================================================ */
 function render(){
   const main = document.getElementById('main');
+  if(!main) return;
   if(currentView==='dashboard') return renderDashboard(main);
   if(['counter','barista','kitchen'].includes(currentView)) return renderModule(main, currentView);
   if(currentView==='training') return renderTraining(main);
@@ -891,7 +1003,7 @@ function topbar(title){
     <div><h1>${title}</h1><div class="hint">${session.name} · ${ROLES.find(r=>r.id===session.role)?.name||session.role}</div></div>
     <div class="topbar-right">
       <div class="clock mono"><span class="live-dot"></span><span id="clock-el"></span></div>
-      <div class="user-avatar-btn" id="user-avatar-btn" title="點擊切換身分與名字">${session.name ? session.name.substring(0,1).toUpperCase() : 'U'}</div>
+      <div class="user-avatar-btn" id="user-avatar-btn" title="點擊切換身分與登入">${session.name ? session.name.substring(0,1).toUpperCase() : 'U'}</div>
     </div>
   </div>`;
 }
@@ -953,6 +1065,8 @@ function renderModule(main, mod){
 
   const pid = currentPeriod || activePeriodId();
 
+  if(!state.mode) state.mode = {day:null, night:null};
+
   if(mod==='counter'){
     html += `<div class="section-card">
       <div class="mode-toggles">
@@ -966,6 +1080,8 @@ function renderModule(main, mod){
         </button>
       </div></div>`;
   }
+
+  if(!state.cash) state.cash = {petty:'', exchange:'', pettyBy:'', exchangeBy:''};
 
   if(mod==='counter' && (pid==='opening'||pid==='closing')){
     html += `<div class="section-card">
@@ -985,6 +1101,7 @@ function renderModule(main, mod){
   }
 
   if(mod==='barista' && pid==='opening'){
+    if(!state.baristaLogs) state.baristaLogs = [];
     html += `<div class="section-card">
       <div class="section-head"><h2>測豆校正紀錄</h2><span class="count mono">${state.baristaLogs.length} 筆</span></div>
       <div class="inv-grid">
@@ -1001,6 +1118,7 @@ function renderModule(main, mod){
     </div>`;
   }
 
+  if(!state.inventory) state.inventory = {};
   if(INVENTORY_ITEMS[mod] && pid==='mid'){
     html += `<div class="section-card">
       <div class="section-head"><h2>物料庫存快速盤點</h2></div>
@@ -1016,6 +1134,7 @@ function renderModule(main, mod){
     </div>`;
   }
 
+  if(!state.prep) state.prep = {};
   if(PREP_ITEMS[mod] && pid==='mid'){
     html += `<div class="section-card">
       <div class="section-head"><h2>備料進度追蹤（未達目標或設定待完成將同步至交接日報）</h2></div>
@@ -1130,6 +1249,7 @@ function bindTaskEvents(root){
     b.addEventListener('click', ()=>{
       const desc = prompt('請描述報修內容：');
       if(!desc) return;
+      if(!state.repairs) state.repairs = [];
       state.repairs.push({module:b.dataset.mod, desc, time: nowLabel()+' '+todayKey(), by: session.name, resolved:false});
       saveState(); toast('已回報'); render();
     });
@@ -1138,9 +1258,9 @@ function bindTaskEvents(root){
 
 function bindModuleEvents(root, mod){
   const petty = root.querySelector('#petty-input');
-  if(petty) petty.addEventListener('input', ()=>{ state.cash.petty = petty.value; state.cash.pettyBy=session.name; saveState(); render(); });
+  if(petty) petty.addEventListener('input', ()=>{ state.cash.petty = petty.value; state.cash.pettyBy=session.name; saveState(); });
   const ex = root.querySelector('#exchange-input');
-  if(ex) ex.addEventListener('input', ()=>{ state.cash.exchange = ex.value; state.cash.exchangeBy=session.name; saveState(); render(); });
+  if(ex) ex.addEventListener('input', ()=>{ state.cash.exchange = ex.value; state.cash.exchangeBy=session.name; saveState(); });
 
   const dayBtn = root.querySelector('#day-mode-btn');
   if(dayBtn) dayBtn.addEventListener('click', ()=>{ state.mode.day = timeShort(); saveState(); toast('日間模式啟動'); render(); });
@@ -1151,6 +1271,7 @@ function bindModuleEvents(root, mod){
   if(exSave) exSave.addEventListener('click', ()=>{
     const gi = root.querySelector('#ex-in').value, sec = root.querySelector('#ex-sec').value, go = root.querySelector('#ex-out').value, note = root.querySelector('#ex-note').value;
     if(!gi||!sec||!go){ toast('請填寫完整數據'); return; }
+    if(!state.baristaLogs) state.baristaLogs = [];
     state.baristaLogs.push({gramsIn:gi, seconds:sec, gramsOut:go, note, time:nowLabel(), by:session.name});
     saveState(); render();
   });
@@ -1215,7 +1336,7 @@ function buildReportText(){
   });
   
   lines.push('');
-  const pendingPreps = Object.entries(state.prep).filter(([k,v])=>{
+  const pendingPreps = Object.entries(state.prep || {}).filter(([k,v])=>{
     const isUnderDone = Number(v.doneQty) < Number(v.targetQty) || (v.targetQty > 0 && v.doneQty === '');
     return v.status === 'pending' || isUnderDone;
   });
@@ -1224,25 +1345,25 @@ function buildReportText(){
   if(pendingPreps.length){
     pendingPreps.forEach(([k,v])=>{
       const [mod, item] = k.split(':');
-      lines.push(`[${MODULE_LABEL[mod]}] ${item} (目標:${v.targetQty||'—'}, 已備:${v.doneQty||0}${v.unit||''})`);
+      lines.push(`[${MODULE_LABEL[mod]||mod}] ${item} (目標:${v.targetQty||'—'}, 已備:${v.doneQty||0}${v.unit||''})`);
     });
   } else {
     lines.push('無');
   }
 
   lines.push('');
-  const needOrder = Object.entries(state.inventory).filter(([k,v])=>v==='order');
+  const needOrder = Object.entries(state.inventory || {}).filter(([k,v])=>v==='order');
   lines.push('— 需叫貨 —');
   lines.push(needOrder.length ? needOrder.map(([k])=>k).join('、') : '無');
 
   lines.push('');
   lines.push('— 設備報修 —');
-  const openRepairs = state.repairs.filter(r=>!r.resolved);
+  const openRepairs = (state.repairs || []).filter(r=>!r.resolved);
   lines.push(openRepairs.length ? openRepairs.map(r=>`[${MODULE_LABEL[r.module]||r.module}] ${r.desc}（${r.by}）`).join('\n') : '無');
 
   lines.push('');
   lines.push('— 備註事項 —');
-  lines.push(state.notes.length ? state.notes.map(n=>n.text+'（'+n.by+'）').join('\n') : '無');
+  lines.push((state.notes || []).length ? state.notes.map(n=>n.text+'（'+n.by+'）').join('\n') : '無');
   return lines.join('\n');
 }
 
@@ -1267,23 +1388,35 @@ function renderReport(main){
   </div>`;
   main.innerHTML = html;
   bindAvatarClick(main);
-  document.getElementById('report-box').textContent = buildReportText();
-  main.querySelector('#note-save').addEventListener('click', ()=>{
-    const v = main.querySelector('#note-input').value.trim();
-    if(!v) return;
-    state.notes.push({text:v, by:session.name, time:nowLabel()});
-    saveState(); render();
-  });
-  main.querySelector('#copy-report').addEventListener('click', ()=>{
-    navigator.clipboard?.writeText(buildReportText()).then(()=>toast('已複製'));
-  });
+  const reportBox = document.getElementById('report-box');
+  if(reportBox) reportBox.textContent = buildReportText();
+  
+  const noteSave = main.querySelector('#note-save');
+  if(noteSave) {
+    noteSave.addEventListener('click', ()=>{
+      const input = main.querySelector('#note-input');
+      const v = input ? input.value.trim() : '';
+      if(!v) return;
+      if(!state.notes) state.notes = [];
+      state.notes.push({text:v, by:session.name, time:nowLabel()});
+      saveState(); render();
+    });
+  }
+  
+  const copyReport = main.querySelector('#copy-report');
+  if(copyReport) {
+    copyReport.addEventListener('click', ()=>{
+      navigator.clipboard?.writeText(buildReportText()).then(()=>toast('已複製'));
+    });
+  }
 }
 
 /* ---------- Training Module ---------- */
 let currentTrainee = null;
 
 function renderTraining(main){
-  const traineeNames = Object.keys(state.trainees || {});
+  if(!state.trainees) state.trainees = {};
+  const traineeNames = Object.keys(state.trainees);
   if(!currentTrainee && traineeNames.length > 0) currentTrainee = traineeNames[0];
 
   let html = topbar('新進人員訓練紀錄');
@@ -1306,7 +1439,8 @@ function renderTraining(main){
   if(!currentTrainee) {
     main.innerHTML = html + `<div class="empty-note">請先選擇或新增新進人員以開始訓練紀錄。</div>`;
     bindAvatarClick(main);
-    main.querySelector('#btn-add-trainee').addEventListener('click', handleAddTrainee);
+    const addBtn = main.querySelector('#btn-add-trainee');
+    if(addBtn) addBtn.addEventListener('click', handleAddTrainee);
     return;
   }
 
@@ -1363,12 +1497,16 @@ function renderTraining(main){
   main.innerHTML = html;
   bindAvatarClick(main);
 
-  main.querySelector('#btn-add-trainee').addEventListener('click', handleAddTrainee);
+  const addTraineeBtn = main.querySelector('#btn-add-trainee');
+  if(addTraineeBtn) addTraineeBtn.addEventListener('click', handleAddTrainee);
   
-  main.querySelector('#trainee-select').addEventListener('change', (e) => {
-    currentTrainee = e.target.value;
-    render();
-  });
+  const traineeSelect = main.querySelector('#trainee-select');
+  if(traineeSelect) {
+    traineeSelect.addEventListener('change', (e) => {
+      currentTrainee = e.target.value;
+      render();
+    });
+  }
 
   const printBtn = main.querySelector('#btn-print-pdf');
   if(printBtn) printBtn.addEventListener('click', () => { window.print(); });
@@ -1376,17 +1514,20 @@ function renderTraining(main){
   main.querySelectorAll('[data-tr-task]').forEach(cb => {
     cb.addEventListener('change', e => {
       const id = cb.dataset.trTask;
+      if(!state.trainees[currentTrainee]) state.trainees[currentTrainee] = {};
       if(!state.trainees[currentTrainee][id]) state.trainees[currentTrainee][id] = {};
       state.trainees[currentTrainee][id].checked = cb.checked;
       
       if(cb.checked) {
         if(!state.trainees[currentTrainee][id].date) {
            state.trainees[currentTrainee][id].date = todayKey();
-           main.querySelector(`[data-tr-date="${id}"]`).value = todayKey();
+           const dateInp = main.querySelector(`[data-tr-date="${id}"]`);
+           if(dateInp) dateInp.value = todayKey();
         }
         if(!state.trainees[currentTrainee][id].trainer) {
            state.trainees[currentTrainee][id].trainer = session.name;
-           main.querySelector(`[data-tr-trainer="${id}"]`).value = session.name;
+           const trainerInp = main.querySelector(`[data-tr-trainer="${id}"]`);
+           if(trainerInp) trainerInp.value = session.name;
         }
       }
       saveState(); render();
@@ -1470,6 +1611,7 @@ function renderAdmin(main){
     </div>
   </div>`;
 
+  if(!state.repairs) state.repairs = [];
   html += `<div class="section-card">
     <div class="section-head"><h2>報修紀錄</h2></div>
     ${state.repairs.length? `<ul class="list-simple">${state.repairs.slice().reverse().map((r,i)=>{
@@ -1482,51 +1624,63 @@ function renderAdmin(main){
   main.innerHTML = html;
   bindAvatarClick(main);
   
-  main.querySelector('#btn-export-json').addEventListener('click', () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
-    const dl = document.createElement('a');
-    dl.setAttribute("href", dataStr);
-    dl.setAttribute("download", `ecole_cafe_backup_${todayKey()}.json`);
-    dl.click();
-    toast('已成功匯出 JSON 資料');
-  });
+  const exportBtn = main.querySelector('#btn-export-json');
+  if(exportBtn) {
+    exportBtn.addEventListener('click', () => {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+      const dl = document.createElement('a');
+      dl.setAttribute("href", dataStr);
+      dl.setAttribute("download", `ecole_cafe_backup_${todayKey()}.json`);
+      dl.click();
+      toast('已成功匯出 JSON 資料');
+    });
+  }
 
-  main.querySelector('#import-json-file').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const parsed = JSON.parse(event.target.result);
-        state = parsed;
-        saveState();
-        render();
-        toast('JSON 資料匯入成功！');
-      } catch(err) {
-        toast('JSON 格式錯誤，匯入失敗');
-        console.error(err);
-      }
-    };
-    reader.readAsText(file);
-  });
+  const importFile = main.querySelector('#import-json-file');
+  if(importFile) {
+    importFile.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const parsed = JSON.parse(event.target.result);
+          state = parsed;
+          saveState();
+          render();
+          toast('JSON 資料匯入成功！');
+        } catch(err) {
+          toast('JSON 格式錯誤，匯入失敗');
+          console.error(err);
+        }
+      };
+      reader.readAsText(file);
+    });
+  }
 
   const listContainer = main.querySelector('#task-editor-list');
   const tasks = getTasksFor(adminEditMod, adminEditPid);
   
-  if(!tasks.length) listContainer.innerHTML = `<div class="hint">無任務</div>`;
-  else {
-    listContainer.innerHTML = tasks.map((t, i) => `
-      <div class="editor-row">
-        <input type="text" class="mini-input" style="width:60px;" data-efield="time" data-idx="${i}" value="${t.time||''}" placeholder="時間">
-        <input type="text" class="mini-input wide" data-efield="text" data-idx="${i}" value="${t.text}" placeholder="任務內容">
-        <label class="chip-toggle"><input type="checkbox" data-efield="check" data-idx="${i}" ${t.needCheck!==false?'checked':''}> 需打勾</label>
-        <button class="btn small danger" data-del-idx="${i}">刪</button>
-      </div>
-    `).join('');
+  if(!tasks.length) {
+    if(listContainer) listContainer.innerHTML = `<div class="hint">無任務</div>`;
+  } else {
+    if(listContainer) {
+      listContainer.innerHTML = tasks.map((t, i) => `
+        <div class="editor-row">
+          <input type="text" class="mini-input" style="width:60px;" data-efield="time" data-idx="${i}" value="${t.time||''}" placeholder="時間">
+          <input type="text" class="mini-input wide" data-efield="text" data-idx="${i}" value="${t.text}" placeholder="任務內容">
+          <label class="chip-toggle"><input type="checkbox" data-efield="check" data-idx="${i}" ${t.needCheck!==false?'checked':''}> 需打勾</label>
+          <button class="btn small danger" data-del-idx="${i}">刪</button>
+        </div>
+      `).join('');
+    }
   }
 
-  main.querySelector('#edit-mod').addEventListener('change', e=>{ adminEditMod = e.target.value; render(); });
-  main.querySelector('#edit-pid').addEventListener('change', e=>{ adminEditPid = e.target.value; render(); });
+  const editMod = main.querySelector('#edit-mod');
+  if(editMod) editMod.addEventListener('change', e=>{ adminEditMod = e.target.value; render(); });
+  
+  const editPid = main.querySelector('#edit-pid');
+  if(editPid) editPid.addEventListener('change', e=>{ adminEditPid = e.target.value; render(); });
   
   main.querySelectorAll('[data-efield]').forEach(el => {
     el.addEventListener('change', e => {
@@ -1552,14 +1706,17 @@ function renderAdmin(main){
     });
   });
 
-  main.querySelector('#btn-add-task').addEventListener('click', ()=>{
-    if(!state.tasksConfig[adminEditMod]) state.tasksConfig[adminEditMod] = {};
-    if(!state.tasksConfig[adminEditMod][adminEditPid]) state.tasksConfig[adminEditMod][adminEditPid] = [];
-    state.tasksConfig[adminEditMod][adminEditPid].push({
-      id: generateId(), time: '—', text: '新任務', needCheck: true
+  const addTaskBtn = main.querySelector('#btn-add-task');
+  if(addTaskBtn) {
+    addTaskBtn.addEventListener('click', ()=>{
+      if(!state.tasksConfig[adminEditMod]) state.tasksConfig[adminEditMod] = {};
+      if(!state.tasksConfig[adminEditMod][adminEditPid]) state.tasksConfig[adminEditMod][adminEditPid] = [];
+      state.tasksConfig[adminEditMod][adminEditPid].push({
+        id: generateId(), time: '—', text: '新任務', needCheck: true
+      });
+      saveState(); render();
     });
-    saveState(); render();
-  });
+  }
 
   main.querySelectorAll('[data-resolve]').forEach(b=>{
     b.addEventListener('click', ()=>{
