@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ÉCOLE CAFÉ 交班系統</title>
+    <title>ÉCOLE CAFÉ 智慧交班系統</title>
     <meta name="theme-color" content="#111111">
     <link rel="apple-touch-icon" href="data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23111'/><text x='50' y='65' fill='white' font-size='50' text-anchor='middle'>E</text></svg>">
     
@@ -324,7 +324,7 @@
         </div>
 
         <div class="card">
-            <div class="section-title">├── 💰 營業額與出勤資訊</div>
+            <div class="section-title">├── 💰 營業額資訊</div>
             <div class="grid-2" style="margin-top: 12px; margin-bottom: 12px;">
                 <div>
                     <label>日營業額</label>
@@ -345,7 +345,7 @@
                     <input type="text" id="rev-month-cum" placeholder="例如: 48728" readonly style="background: #f9f9f9;">
                 </div>
             </div>
-            <div class="grid-2" style="margin-bottom: 12px;">
+            <div class="grid-2">
                 <div>
                     <label>本月目標</label>
                     <input type="text" id="rev-month-target" value="700000" placeholder="例如: 700000" oninput="calcAchievementRate()">
@@ -353,12 +353,6 @@
                 <div>
                     <label>達成率 (%) (自動計算)</label>
                     <input type="text" id="rev-achieve-rate" placeholder="例如: 6.9" readonly style="background: #f9f9f9;">
-                </div>
-            </div>
-            <div class="grid-2">
-                <div>
-                    <label>本日出勤 (無填寫不顯示)</label>
-                    <input type="text" id="attendance-summary" placeholder="例如: 3正1工">
                 </div>
             </div>
         </div>
@@ -568,7 +562,6 @@
         const loginBtn = document.getElementById('google-login-btn');
         if (user) {
             loginBtn.innerText = `${user.displayName || '已登入'} (登出)`;
-            // 重新開啟網頁系統且確認已登入時，自動讀取最新雲端資料庫並匯入（僅自動執行一次）
             if (!hasAutoRestored) {
                 hasAutoRestored = true;
                 window.restoreFromCloud(true);
@@ -898,7 +891,6 @@
             revNight: document.getElementById('rev-night').value,
             revTotal: document.getElementById('rev-total').value,
             revMonthTarget: document.getElementById('rev-month-target').value,
-            attendance: document.getElementById('attendance-summary').value,
             reservations: Array.from(document.querySelectorAll('.reservation-input')).map(i => i.value),
             alignments: Array.from(document.querySelectorAll('#alignment-list .row-group')).map(row => ({
                 val: row.querySelector('.alignment-input').value,
@@ -986,7 +978,7 @@
         const dateVal = window.currentDateVal;
         if (!dateVal) return;
 
-        ['shift-manager','station-bar','station-counter','station-kitchen','rev-day','rev-night','rev-total','attendance-summary'].forEach(id => {
+        ['shift-manager','station-bar','station-counter','station-kitchen','rev-day','rev-night','rev-total'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
@@ -1005,7 +997,6 @@
             document.getElementById('rev-night').value = dayData.revNight || '';
             document.getElementById('rev-total').value = dayData.revTotal || '';
             document.getElementById('rev-month-target').value = dayData.revMonthTarget || '700000';
-            document.getElementById('attendance-summary').value = dayData.attendance || '';
 
             (dayData.reservations || []).forEach(val => addReservationRow(val));
             (dayData.alignments || []).forEach(item => {
@@ -1054,7 +1045,18 @@
 
     window.addTaskRow = function(assignee = '', desc = '', done = false) {
         const div = document.createElement('div'); div.className = 'row-group'; div.style.alignItems = 'stretch';
-        div.innerHTML = `<div style="display: flex; flex-direction: column; gap: 8px; flex: 1;"><div style="display: flex; gap: 8px; align-items: center;"><input type="text" class="task-assignee" list="staff-options" value="${assignee}" placeholder="負責人" style="flex: 1;"><label class="checkbox-label"><input type="checkbox" class="task-done" ${done ? 'checked' : ''}> 已完成</label></div><div><input type="text" class="task-desc" value="${desc}" placeholder="交辦事項內容"></div></div><button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>`;
+        div.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="text" class="task-assignee" list="staff-options" value="${assignee}" placeholder="負責人" style="flex: 1;">
+                    <label class="checkbox-label"><input type="checkbox" class="task-done" ${done ? 'checked' : ''}> 已完成</label>
+                </div>
+                <div>
+                    <textarea class="task-desc" placeholder="交辦事項內容" style="min-height: 50px;">${desc}</textarea>
+                </div>
+            </div>
+            <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>
+        `;
         document.getElementById('task-list').appendChild(div);
     }
 
@@ -1062,8 +1064,8 @@
         const div = document.createElement('div'); div.className = 'row-group'; div.style.alignItems = 'stretch';
         div.innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
-                <input type="text" class="discussion-topic" value="${topic}" placeholder="請輸入討論主題...">
-                <input type="text" class="discussion-result" value="${result}" placeholder="請輸入討論結果...">
+                <textarea class="discussion-topic" placeholder="請輸入討論主題..." style="min-height: 50px;">${topic}</textarea>
+                <textarea class="discussion-result" placeholder="請輸入討論結果..." style="min-height: 50px; background: #f9f9f9;">${result}</textarea>
             </div>
             <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>
         `;
@@ -1076,18 +1078,37 @@
         div.innerHTML = `<div style="display: flex; flex-direction: column; gap: 8px; flex: 1;"><textarea class="incident-sit-input" placeholder="現場狀況..." style="min-height: 60px;">${sit}</textarea><textarea class="incident-res-input" placeholder="解決方式..." style="min-height: 60px;">${res}</textarea></div><button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch; margin-left: 8px; background: transparent;">×</button>`;
         document.getElementById('incident-list').appendChild(div);
     }
+
     window.addShortageRow = function(val = '') {
-        const div = document.createElement('div'); div.className = 'row-group';
-        div.innerHTML = `<input type="text" class="shortage-item" value="${val}" placeholder="請輸入缺貨商品..."><button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`; document.getElementById('shortage-list').appendChild(div);
+        const div = document.createElement('div'); div.className = 'row-group'; div.style.alignItems = 'stretch';
+        div.innerHTML = `
+            <textarea class="shortage-item" placeholder="請輸入缺貨商品..." style="min-height: 50px; flex: 1;">${val}</textarea>
+            <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>
+        `; 
+        document.getElementById('shortage-list').appendChild(div);
     }
+
     window.addOrderRow = function(val = '', done = false) {
-        const div = document.createElement('div'); div.className = 'row-group';
-        div.innerHTML = `<input type="text" class="order-item" value="${val}" placeholder="請輸入需叫貨項目"><label class="checkbox-label"><input type="checkbox" class="order-done" ${done ? 'checked' : ''}> 已處理</label><button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`; document.getElementById('order-list').appendChild(div);
+        const div = document.createElement('div'); div.className = 'row-group'; div.style.alignItems = 'stretch';
+        div.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                <textarea class="order-item" placeholder="請輸入需叫貨項目" style="min-height: 50px;">${val}</textarea>
+                <label class="checkbox-label"><input type="checkbox" class="order-done" ${done ? 'checked' : ''}> 已處理</label>
+            </div>
+            <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>
+        `; 
+        document.getElementById('order-list').appendChild(div);
     }
+
     window.addPromoRow = function(val = '') {
-        const div = document.createElement('div'); div.className = 'row-group';
-        div.innerHTML = `<input type="text" class="promo-input" value="${val}" placeholder="請輸入推銷品項..."><button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`; document.getElementById('promo-list').appendChild(div);
+        const div = document.createElement('div'); div.className = 'row-group'; div.style.alignItems = 'stretch';
+        div.innerHTML = `
+            <textarea class="promo-input" placeholder="請輸入推銷品項..." style="min-height: 50px; flex: 1;">${val}</textarea>
+            <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>
+        `; 
+        document.getElementById('promo-list').appendChild(div);
     }
+
     window.removeRow = function(btn) { 
         saveUndoState();
         btn.closest('.row-group').remove(); 
@@ -1118,17 +1139,15 @@
         const revMonthCum = document.getElementById('rev-month-cum').value.trim();
         const revMonthTarget = document.getElementById('rev-month-target').value.trim();
         const revAchieveRate = document.getElementById('rev-achieve-rate').value.trim();
-        const attendance = document.getElementById('attendance-summary').value.trim();
 
-        if (revDay || revNight || revTotal || revMonthCum || revMonthTarget || revAchieveRate || attendance) {
-            briefing += `\n\n[營收與出勤]`;
+        if (revDay || revNight || revTotal || revMonthCum || revMonthTarget || revAchieveRate) {
+            briefing += `\n\n[營收資訊]`;
             if (revDay) briefing += `\n日  ${revDay}`;
             if (revNight) briefing += `\n夜  ${revNight}`;
             if (revTotal) briefing += `\n本日總計  ${revTotal}`;
             if (revMonthCum) briefing += `\n本月累計  ${revMonthCum}`;
             if (revMonthTarget) briefing += `\n本月目標  ${revMonthTarget}`;
             if (revAchieveRate) briefing += `\n達成率 ${revAchieveRate} %`;
-            if (attendance) briefing += `\n本日出勤  ${attendance}`;
             briefing += `\n——————————`;
         }
 
