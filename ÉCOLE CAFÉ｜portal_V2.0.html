@@ -282,11 +282,10 @@
   .progress-bar-bg { width: 100%; height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 12px; }
   .progress-bar-fill { height: 100%; background: var(--c-sage); transition: width 0.8s ease; border-radius: 999px; }
   
-  /* 優化列表顯示空間 */
   .task-list { margin: 12px 0 0; padding-left: 20px; font-size: 14px; color: var(--ink-soft); line-height: 1.8; }
   .task-list li { padding-left: 4px; word-break: break-word; }
 
-  /* 優化網格寬度，讓卡片有足夠空間不會跳行 */
+  /* 調整網格最小寬度至 280px，確保站位欄位寬敞不跳行 */
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -1614,7 +1613,7 @@
   };
 
   // ==========================================
-  // 3. 營運儀表板 - 即時監聽與深度智慧解析 (修復多日重複、強制計算營收)
+  // 3. 營運儀表板 - 即時監聽與精準日期過濾解析
   // ==========================================
   function subscribeToDashboard() {
     const todayObj = new Date();
@@ -1622,23 +1621,21 @@
     const prevDateStr = getPreviousDateKey(todayObj); 
     
     // ----------------------------------------
-    // [功能一] 智慧重新計算本月「真實累計營業額」
-    // (抓取本月 1 號到昨天的每一筆資料加總，絕對精準)
+    // [功能一] 本月營業額自動累計與達成率計算
     // ----------------------------------------
     async function calculateMonthlyRevenue() {
       try {
         const prevObj = new Date(todayObj);
-        prevObj.setDate(prevObj.getDate() - 1); // 結算至昨日
+        prevObj.setDate(prevObj.getDate() - 1); 
         
-        const monthPrefix = `${prevObj.getFullYear()}-${pad2(prevObj.getMonth() + 1)}`; // 例: 2026-08
+        const monthPrefix = `${prevObj.getFullYear()}-${pad2(prevObj.getMonth() + 1)}`;
         const startDate = `${monthPrefix}-01`;
-        const endDate = dateKey(prevObj); // 例: 2026-08-05
+        const endDate = dateKey(prevObj);
         
         let calculatedCum = 0;
         let target = 700000;
         let foundTarget = false;
 
-        // 查詢本月份每天的獨立備份文件進行累加
         const snap = await db.collection('backups')
           .where(firebase.firestore.FieldPath.documentId(), '>=', startDate)
           .where(firebase.firestore.FieldPath.documentId(), '<=', endDate)
@@ -1647,16 +1644,13 @@
         snap.forEach(doc => {
           if(doc.id === 'shared_ecole_cafe_backup') return;
           const data = doc.data();
-          // 將當日營業額累加
           calculatedCum += (parseFloat(data.revTotal) || parseFloat(data.dailyRevenue) || parseFloat(data.realRev) || 0);
-          // 若有設定目標，抓取最新的目標值
           if(!foundTarget && data.revMonthTarget) {
             target = parseFloat(data.revMonthTarget);
             foundTarget = true;
           }
         });
 
-        // 為了確保萬無一失，也同步比對 shared_ecole_cafe_backup 內的日常追蹤紀錄
         const sharedDoc = await db.collection('backups').doc('shared_ecole_cafe_backup').get();
         if (sharedDoc.exists) {
           const sData = sharedDoc.data();
@@ -1671,11 +1665,9 @@
                }
              }
           }
-          // 取兩邊計算中較大/較完整的數值
           calculatedCum = Math.max(calculatedCum, sharedCum);
         }
 
-        // 渲染到畫面
         let percent = target > 0 ? (calculatedCum / target) * 100 : 0;
         let barPercent = percent > 100 ? 100 : percent; 
         
@@ -1685,11 +1677,10 @@
         document.getElementById('revProgressBar').style.width = barPercent + '%';
 
       } catch(err) {
-        console.log("計算累計營業額時發生錯誤:", err);
+        console.log("計算累計營業額錯誤:", err);
       }
     }
     
-    // 初始化時執行一次營收計算
     calculateMonthlyRevenue();
 
 
@@ -1731,12 +1722,11 @@
 
 
     // ----------------------------------------
-    // [功能三] 智慧排班抓取 (過濾掉其他日期的資料)
+    // [功能三] 今日排班與站位 (精準過濾今日人員)
     // ----------------------------------------
     try {
       let unsubscribeMain = null;
 
-      // 渲染畫面
       function renderShiftTexts(displayTexts) {
         const shiftList = document.getElementById('shiftList');
         shiftList.innerHTML = '';
@@ -1752,45 +1742,44 @@
         document.getElementById('shiftNote').style.display = 'none';
       }
 
-      // 【核心邏輯】：專門從龐大的月份表裡面，只挖出今天的排班，拋棄 1號、2號 等其他資料
+      // 精準只過濾並擷取「今日」的站位人員
       function extractOnlyTodaySchedule(dataObj, dateObj) {
-        let monthStr = dateKey(dateObj).substring(0, 7); // 例：2026-08
-        let dayStr = dateObj.getDate().toString();       // 例：6
-        let dayPadStr = pad2(dateObj.getDate());         // 例：06
-        let fullDateStr = dateKey(dateObj);              // 例：2026-08-06
+        let monthStr = `${dateObj.getFullYear()}-${pad2(dateObj.getMonth() + 1)}`; // 例: 2026-08
+        let dayStr = dateObj.getDate().toString();       // 例: 6
+        let dayPadStr = pad2(dateObj.getDate());         // 例: 06
+        let fullDateStr = dateKey(dateObj);              // 例: 2026-08-06
         
         let texts = [];
 
-        // 處理特定站位物件
-        function parseStations(stationNode) {
-          for (let stationName in stationNode) {
-            let val = stationNode[stationName];
-            
-            // 如果原本格式為： data["2026-08"]["晚廚"]["6"] = "龍"
-            if (typeof val === 'object' && val !== null) {
-              let todayPerson = val[fullDateStr] || val[dayStr] || val[dayPadStr];
-              if (todayPerson) {
-                texts.push(`${stationName}：${todayPerson}`);
+        function parseNode(node, prefix = '') {
+          if (!node) return;
+          if (typeof node === 'object' && !Array.isArray(node)) {
+            // 如果物件裡面包含日期鍵值（例如 6 或 06 或 2026-08-06）
+            if (node[fullDateStr] !== undefined || node[dayStr] !== undefined || node[dayPadStr] !== undefined) {
+              let val = node[fullDateStr] !== undefined ? node[fullDateStr] : (node[dayStr] !== undefined ? node[dayStr] : node[dayPadStr]);
+              if (val) {
+                let cleanVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
+                if (cleanVal.trim()) texts.push(`${prefix}：${cleanVal}`);
               }
-            } 
-            // 如果格式是單純平面化 (Fallback)
-            else if (typeof val === 'string' && val.trim() !== '') {
-               texts.push(`${stationName}：${val}`);
+            } else {
+              // 遞迴向下尋找站位與日期
+              for (let k in node) {
+                let nextPrefix = prefix ? `${prefix} - ${k}` : k;
+                parseNode(node[k], nextPrefix);
+              }
             }
+          } else if (typeof node === 'string' && node.trim() !== '') {
+            texts.push(`${prefix}：${node}`);
           }
         }
 
-        if (dataObj[monthStr] && typeof dataObj[monthStr] === 'object') {
-           parseStations(dataObj[monthStr]); // 解析該月份
-        } else if (dataObj.stationData) {
-           parseStations(dataObj.stationData);
-        } else if (dataObj[fullDateStr]) {
-           parseStations(dataObj[fullDateStr]);
-        }
+        // 尋找當月資料包或直接尋找全域節點
+        let targetData = dataObj[monthStr] || dataObj.stationData || dataObj[fullDateStr] || dataObj;
+        parseNode(targetData);
+        
         return texts;
       }
 
-      // 如果排班系統沒東西，備用方案去抓交班系統的值班表
       function fallbackToBackups() {
         db.collection('backups').doc('shared_ecole_cafe_backup').get().then(backupDoc => {
           let displayTexts = [];
@@ -1808,18 +1797,31 @@
         }).catch(() => renderShiftTexts([]));
       }
 
-      // 監聽排班大表
-      db.collection('ecoleCafe').doc('main_schedule').onSnapshot(mainDoc => {
-         if (mainDoc.exists) {
-             let extracted = extractOnlyTodaySchedule(mainDoc.data(), todayObj);
-             if (extracted.length > 0) {
-                 renderShiftTexts(extracted);
-             } else {
-                 fallbackToBackups(); // 大表裡沒今天的資料，找備份
-             }
-         } else {
-             fallbackToBackups();
-         }
+      // 優先讀取今日專屬文件，若無則讀取大表
+      db.collection('ecoleCafe').doc(todayStr).onSnapshot(dayDoc => {
+        if (dayDoc.exists) {
+          let extracted = extractOnlyTodaySchedule(dayDoc.data(), todayObj);
+          if (extracted.length > 0) {
+            renderShiftTexts(extracted);
+            return;
+          }
+        }
+        
+        // 若今日無獨立文件，讀取 main_schedule 大表
+        if (!unsubscribeMain) {
+          unsubscribeMain = db.collection('ecoleCafe').doc('main_schedule').onSnapshot(mainDoc => {
+            if (mainDoc.exists) {
+              let extracted = extractOnlyTodaySchedule(mainDoc.data(), todayObj);
+              if (extracted.length > 0) {
+                renderShiftTexts(extracted);
+              } else {
+                fallbackToBackups();
+              }
+            } else {
+              fallbackToBackups();
+            }
+          });
+        }
       }, () => fallbackToBackups());
 
     } catch(e) { console.error(e); }
