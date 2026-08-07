@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ÉCOLE CAFÉ · 員工工作清單與訓練系統</title>
+<!-- 加入 PWA Manifest (直接以 Data URI 寫入，確保單檔也可支援 PWA 安裝) -->
+<link rel="manifest" href='data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22%C3%89COLE%20CAF%C3%89%20Staff%22%2C%22short_name%22%3A%22%C3%89COLE%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23F5F3EE%22%2C%22theme_color%22%3A%22%23221F1C%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMjIxRjFDIiBzdHJva2Utd2lkdGg9IjEuMyI%2BPHBhdGggZD0iTTQgOGgxM2EzIDMgMCAwIDEgMCA2aC0xIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNNCA4djdhMyAzIDAgMCAwIDMgM2g2YTMgMyAwIDAgMCAzLTN2LTEiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxwYXRoIGQ9Ik04IDNjMCAxLjItMSAxLjItMSAyLjRTMTEgNyAxMSA3IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4%3D%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D'>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- 引入 Firebase SDK -->
@@ -60,8 +62,85 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 }
 #pwa-update-toast:hover { background: #D4AF37; }
 
+/* ================= LOGIN SCREEN ================= */
+#login-screen{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+}
+.login-card{
+  width:100%;
+  max-width:460px;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:44px 40px 36px;
+  position:relative;
+}
+.crest{
+  width:56px;height:56px;
+  border:1.5px solid var(--ink);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 18px;
+}
+.crest svg{width:26px;height:26px;}
+.login-title{
+  text-align:center;
+  font-family:'Fraunces',serif;
+  font-size:28px;
+  font-weight:500;
+  letter-spacing:0.06em;
+  margin:0 0 2px;
+}
+.login-sub{
+  text-align:center;
+  font-size:11px;
+  letter-spacing:0.24em;
+  text-transform:uppercase;
+  color:var(--ink-soft);
+  margin:0 0 26px;
+}
+.login-divider{ height:1px;background:var(--line);margin:0 0 24px; }
+.login-status{
+  font-size:11px;text-align:center;color:var(--ink-soft);
+  background:var(--bg);border:1px solid var(--line);border-radius:3px;
+  padding:8px 10px;margin-bottom:22px;
+}
+.login-status.online{color:#4C5C43;background:var(--sage-bg);border-color:var(--sage);}
+.login-status.offline{color:#7A5E1E;background:var(--ochre-bg);border-color:var(--ochre);}
+.role-label{
+  font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);
+  margin-bottom:10px;display:block;
+}
+.role-grid{ display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:22px; }
+.role-btn{
+  border:1px solid var(--line-strong);background:var(--paper);border-radius:var(--radius);
+  padding:13px 10px;text-align:left;transition:border-color .15s, background .15s;cursor:pointer;
+}
+.role-btn .rn{display:block;font-weight:600;font-size:13.5px;}
+.role-btn .rd{display:block;font-size:11px;color:var(--ink-soft);margin-top:2px;}
+.role-btn:hover{border-color:var(--slate);}
+.role-btn.selected{border-color:var(--ink);background:var(--sage-bg);}
+.name-input{
+  width:100%;border:1px solid var(--line-strong);border-radius:var(--radius);
+  padding:11px 12px;font-size:13.5px;background:var(--paper);margin-bottom:18px;
+}
+.name-input:focus{outline:none;border-color:var(--ink);}
+.enter-btn{
+  width:100%;background:var(--ink);color:#fff;border:none;border-radius:var(--radius);
+  padding:13px;font-size:13.5px;font-weight:600;letter-spacing:0.04em;cursor:pointer;
+}
+.enter-btn:hover{background:#332F2B;}
+.enter-btn:disabled{background:var(--line-strong);cursor:not-allowed;}
+.login-foot{ text-align:center;margin-top:16px;font-size:11px;color:var(--ink-soft); }
+
 /* ================= APP SHELL ================= */
-#app{display:grid;min-height:100vh;grid-template-columns:216px 1fr;}
+#app{display:none;min-height:100vh;grid-template-columns:216px 1fr;}
+#app.active{display:grid;}
 .rail{
   background:var(--ink); color:#EDEAE2; padding:24px 18px; display:flex;flex-direction:column;
   position:sticky;top:0;height:100vh;
@@ -212,6 +291,10 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 .editor-row:last-child{ border-bottom:none; }
 .editor-row input[type="text"]{ flex:1; min-width:160px; }
 
+/* Admin Editor Flexbox enhancements (B. 管理者頁面手機適配) */
+.editor-controls-row { display:flex; gap:8px; align-items:flex-start; width:100%; flex-wrap:wrap; }
+.editor-details-row { display:flex; gap:6px; align-items:center; width:100%; padding-left:46px; flex-wrap:wrap; margin-top:6px; }
+
 .modal-bg{
   position:fixed;inset:0;background:rgba(34,31,28,0.5); display:none;align-items:center;justify-content:center;z-index:50;padding:20px;
 }
@@ -246,18 +329,20 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 .hint{font-size:11px;color:var(--ink-soft);margin-top:2px;}
 
 .print-header { display: none; }
+
+/* ================= PRINT MEDIA ================= (A. 滿版連續不縮排列印) */
 @media print {
+  @page { margin: 10mm; size: auto; }
+  html, body { width: 100% !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  #app { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+  .main { padding: 0 !important; max-width: 100% !important; margin: 0 !important; width: 100% !important; box-sizing: border-box; }
   .rail, .modal-bg, .toast, .topbar, .print-hide, #pwa-update-toast { display: none !important; }
-  #app { display: block; }
-  .main { padding: 0; max-width: 100%; margin: 0; }
-  /* 修改：取消卡片的防換頁設定，讓內容可以跨頁連續印出 */
-  .section-card { box-shadow: none; border: 1px solid #ccc; margin-bottom:15px; break-inside: auto; page-break-inside: auto; border-radius:0; }
-  /* 確保標題與表格列不被橫向切斷 */
+  
+  .section-card { box-shadow: none !important; border: 1px solid #ccc !important; margin-bottom: 20px !important; border-radius: 0 !important; width: 100% !important; break-inside: auto; page-break-inside: auto; }
   .section-head, .print-sub-header { page-break-after: avoid; break-after: avoid; background-color: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .task-row { page-break-inside: avoid; break-inside: avoid; }
-  body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 11pt; }
+  .task-row { page-break-inside: avoid; break-inside: avoid; width: 100%; padding: 10px 15px !important; border-bottom: 1px solid #eee; }
   .print-header { display: block; font-size: 22px; margin-bottom: 20px; font-weight: bold; border-bottom: 2px solid var(--ink); padding-bottom: 10px; }
-  .print-only-inline { display: block !important; }
+  .print-only-inline { display: inline-block !important; }
 }
 
 @media (max-width:820px){
@@ -271,12 +356,52 @@ input,select,textarea{font-family:'Inter',sans-serif;}
   .main{padding:20px 16px 50px;}
   .period-rail{flex-direction:column;}
   .period-tab{border-right:none;border-bottom:1px solid var(--line);}
+  
+  /* 手機版 Admin 編輯器響應式修正 */
+  .editor-details-row { padding-left: 0; }
+  .editor-controls-row input[type="text"], .editor-controls-row textarea { flex: 1 1 100%; min-width: 100%; margin-top: 4px; }
+  .editor-details-row input { flex: 1 1 100%; min-width: 100%; margin-top: 4px; }
+  .editor-details-row span { flex: 1 1 100%; }
 }
 </style>
 </head>
 <body>
 
 <div id="pwa-update-toast">發現系統新版本！點擊此處進行更新 🚀</div>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="crest">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#221F1C" stroke-width="1.3">
+        <path d="M4 8h13a3 3 0 0 1 0 6h-1" stroke-linecap="round"/>
+        <path d="M4 8v7a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3v-1" stroke-linecap="round"/>
+        <path d="M8 3c0 1.2-1 1.2-1 2.4S8 7 8 7" stroke-linecap="round"/>
+        <path d="M11 3c0 1.2-1 1.2-1 2.4S11 7 11 7" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="login-title">ÉCOLE CAFÉ</div>
+    <div class="login-sub">Coffee · Food · Connect — 值班登入</div>
+    <div class="login-divider"></div>
+
+    <div class="login-status" id="login-status">正在檢查資料庫連線⋯</div>
+
+    <button id="login-google-btn" class="google-btn" style="margin-bottom:18px;">
+      <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      使用 Google 帳號登入
+    </button>
+    <div style="text-align:center; font-size:11px; color:var(--ink-soft); margin-bottom:18px;">— 或手動設定本地身分 —</div>
+
+    <span class="role-label">01 · 選擇身分</span>
+    <div class="role-grid" id="login-role-grid"></div>
+
+    <span class="role-label">02 · 你的名字</span>
+    <input type="text" id="login-name-input" class="name-input" placeholder="例如：Wendy">
+
+    <button class="enter-btn" id="login-enter-btn" disabled>進入今日工作清單</button>
+    <p class="login-foot">資料儲存於本店共享空間，所有登入人員皆可看到彼此的打勾與紀錄。若雲端資料庫未設定或無法連線，系統會自動改用本機／裝置間同步模式，不影響登入。</p>
+  </div>
+</div>
 
 <!-- ===================== APP ===================== -->
 <div id="app">
@@ -317,6 +442,7 @@ input,select,textarea{font-family:'Inter',sans-serif;}
       <div class="who" id="who-name">—</div>
       <div class="who-role" id="who-role">—</div>
       <div id="sync-status" style="font-size:10px; color:var(--sage); margin-top:4px;">● 系統就緒</div>
+      <button id="logout-btn" style="margin-top:10px;background:none;border:1px solid rgba(255,255,255,0.18);color:#D9D5C9;font-size:11px;padding:7px 10px;border-radius:3px;width:100%;cursor:pointer;">登出 / 切換身分</button>
     </div>
   </div>
 
@@ -377,17 +503,40 @@ window.addEventListener('error', function(event) {
 });
 
 /* ============================================================
-   PWA UPDATE LOGIC
+   PWA UPDATE LOGIC (D. 新增 PWA 動態寫入配置)
    ============================================================ */
 let newWorker;
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').then(reg => {
+  // 將 Service Worker 直接綁定進單一檔案進行暫存控制，不需要外部 SW.js
+  const swCode = `
+    const CACHE_NAME = 'ecole-cafe-cache-v1';
+    self.addEventListener('install', e => { self.skipWaiting(); });
+    self.addEventListener('activate', e => { e.waitUntil(clients.claim()); });
+    self.addEventListener('fetch', e => {
+      // 僅快取 GET 且非 Firebase API，確保資源分段讀取不過載
+      if(e.request.method !== 'GET' || e.request.url.includes('firebaseio.com') || e.request.url.includes('googleapis.com')) return;
+      e.respondWith(
+        caches.match(e.request).then(cached => {
+          return cached || fetch(e.request).then(res => {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+            return res;
+          }).catch(() => new Response('Network error & no cache available', {status: 503}));
+        })
+      );
+    });
+    self.addEventListener('message', e => { if(e.data.action === 'skipWaiting') self.skipWaiting(); });
+  `;
+  const swBlob = new Blob([swCode], {type: 'application/javascript'});
+  const swUrl = URL.createObjectURL(swBlob);
+
+  navigator.serviceWorker.register(swUrl).then(reg => {
     reg.addEventListener('updatefound', () => {
       newWorker = reg.installing;
       newWorker.addEventListener('statechange', () => {
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
           const updateToast = document.getElementById('pwa-update-toast');
-          updateToast.style.display = 'block';
+          if(updateToast) updateToast.style.display = 'block';
         }
       });
     });
@@ -400,9 +549,12 @@ if ('serviceWorker' in navigator) {
     window.location.reload();
   });
 }
-document.getElementById('pwa-update-toast').addEventListener('click', () => {
-  if (newWorker) newWorker.postMessage({ action: 'skipWaiting' });
-});
+const pwaToast = document.getElementById('pwa-update-toast');
+if(pwaToast) {
+  pwaToast.addEventListener('click', () => {
+    if (newWorker) newWorker.postMessage({ action: 'skipWaiting' });
+  });
+}
 
 /* ============================================================
    FIREBASE DATABASE & AUTH CONFIGURATION
@@ -430,6 +582,29 @@ try {
   }
 } catch(e) {
   console.warn("Firebase 初始化失敗，將使用本機與跨分頁同步儲存模式", e);
+  useFirebase = false;
+}
+
+function withTimeout(promise, ms, fallbackValue){
+  return new Promise((resolve)=>{
+    let done = false;
+    const timer = setTimeout(()=>{
+      if(!done){ done = true; resolve({timedOut:true, value: fallbackValue}); }
+    }, ms);
+    Promise.resolve(promise).then(v=>{
+      if(!done){ done = true; clearTimeout(timer); resolve({timedOut:false, value:v}); }
+    }).catch(e=>{
+      if(!done){ done = true; clearTimeout(timer); resolve({timedOut:false, error:e, value:fallbackValue}); }
+    });
+  });
+}
+
+async function testDbConnection(){
+  if(!useFirebase || !db) return {ok:false, reason:'not_configured'};
+  const r = await withTimeout(db.ref('.info/connected').once('value'), 4000, null);
+  if(r.timedOut) return {ok:false, reason:'timeout'};
+  if(r.error) return {ok:false, reason:'error'};
+  return {ok: !!(r.value && r.value.val && r.value.val()), reason:'checked'};
 }
 
 /* ============================================================
@@ -640,16 +815,16 @@ const DEFAULT_TASKS = {
 };
 
 /* ---------------- App state & Session ---------------- */
-let session = {
-  name: localStorage.getItem('ecole_name') || '值班夥伴',
-  role: localStorage.getItem('ecole_role') || 'counter'
-};
+let session = null; 
 
 let currentLedgerDate = todayKey(); 
 let state = blankStateForDate(todayKey());   
 let currentView = 'dashboard';
 let currentModule = 'counter';
 let currentPeriod = null;
+
+// C. 記憶體快取 (Memory Cache) - 限制 14 天防止過載
+const memoryStateCache = new Map();
 
 function todayKey(){
   const d = new Date();
@@ -717,22 +892,39 @@ function getPrepItems(mod) {
   return state.prepConfig[mod] || DEFAULT_PREP_ITEMS[mod] || [];
 }
 
-/* --- 自動讀取資料庫 (支援歷史日期與雲端同步) --- */
+/* --- 自動讀取資料庫 (包含記憶體分段讀取) --- */
 async function loadStateForDate(dateStr){
   currentLedgerDate = dateStr;
   const key = 'day:'+dateStr;
-  if (useFirebase && db) {
-    try {
-      const snap = await db.ref('ledger/' + key).once('value');
-      const val = snap.val();
-      state = val ? val : blankStateForDate(dateStr);
-    } catch(e) {
-      console.error('載入雲端資料失敗，切換本機備份', e);
+
+  // 1. 優先命中記憶體快取 (優化分段讀取)
+  if(memoryStateCache.has(key)) {
+    state = memoryStateCache.get(key);
+  } else {
+    if (useFirebase && db) {
+      const r = await withTimeout(db.ref('ledger/' + key).once('value'), 6000, null);
+      if(r.timedOut){
+        console.warn('雲端資料庫回應逾時，改用本機備份資料');
+        toast('⚠ 雲端連線逾時，已改用本機資料');
+        loadLocalState(key, dateStr);
+      } else if(r.error){
+        console.error('載入雲端資料失敗，切換本機備份', r.error);
+        loadLocalState(key, dateStr);
+      } else {
+        const val = r.value ? r.value.val() : null;
+        state = val ? val : blankStateForDate(dateStr);
+      }
+    } else {
       loadLocalState(key, dateStr);
     }
-  } else {
-    loadLocalState(key, dateStr);
+    // 寫入快取，並管理 LRU 大小限制
+    memoryStateCache.set(key, state);
+    if(memoryStateCache.size > 14) {
+       const firstKey = memoryStateCache.keys().next().value;
+       memoryStateCache.delete(firstKey);
+    }
   }
+
   if(!state.tasksConfig) state.tasksConfig = JSON.parse(JSON.stringify(DEFAULT_TASKS));
   if(!state.inventoryConfig) state.inventoryConfig = JSON.parse(JSON.stringify(DEFAULT_INVENTORY_ITEMS));
   if(!state.prepConfig) state.prepConfig = JSON.parse(JSON.stringify(DEFAULT_PREP_ITEMS));
@@ -755,13 +947,19 @@ let saveTimer=null;
 async function saveState(){
   const key = 'day:'+currentLedgerDate;
   state.date = currentLedgerDate;
+  
+  memoryStateCache.set(key, state);
+  if(memoryStateCache.size > 14) {
+     const firstKey = memoryStateCache.keys().next().value;
+     memoryStateCache.delete(firstKey);
+  }
+
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async ()=>{
     if (useFirebase && db) {
-      try{ 
-        await db.ref('ledger/' + key).set(state); 
-      } catch(e){ 
-        console.error('雲端自動存檔失敗', e); 
+      const r = await withTimeout(db.ref('ledger/' + key).set(state), 6000, null);
+      if(r.timedOut || r.error){
+        console.error('雲端自動存檔逾時或失敗，改存本機', r.error||'timeout');
         localStorage.setItem(key, JSON.stringify(state));
       }
     } else {
@@ -778,7 +976,8 @@ window.addEventListener('storage', (e) => {
   if (e.key === 'day:' + currentLedgerDate && e.newValue) {
     try {
       state = JSON.parse(e.newValue);
-      render();
+      memoryStateCache.set(e.key, state);
+      queueRender();
     } catch(err) {}
   }
 });
@@ -843,7 +1042,7 @@ async function initApp() {
           toast('Google 登入成功！已連線至雲端資料庫');
           await loadStateForDate(currentLedgerDate);
           setupFirebaseSync();
-          render();
+          queueRender();
         } catch(e) {
           console.error(e);
           toast('Google 登入失敗：' + (e.message || '請確認 Firebase 設定'));
@@ -877,10 +1076,11 @@ function setupFirebaseSync() {
           toast('🔄 雲端資料已有更新，已即時同步最新內容');
         }
         state = val;
+        memoryStateCache.set(key, state);
         if(!state.tasksConfig) state.tasksConfig = JSON.parse(JSON.stringify(DEFAULT_TASKS));
         if(!state.inventoryConfig) state.inventoryConfig = JSON.parse(JSON.stringify(DEFAULT_INVENTORY_ITEMS));
         if(!state.prepConfig) state.prepConfig = JSON.parse(JSON.stringify(DEFAULT_PREP_ITEMS));
-        render();
+        queueRender();
       }
       isFirst = false;
     });
@@ -942,7 +1142,7 @@ function saveIdentityModal() {
   }
   closeIdentityModal();
   toast('身分更新成功！');
-  render();
+  queueRender();
 }
 
 /* ---------------- Nav ---------------- */
@@ -960,7 +1160,7 @@ function setView(v){
   document.querySelectorAll('.nav-item').forEach(el=>{
     el.classList.toggle('active', el.dataset.view===v || (['counter','barista','kitchen'].includes(v)&&el.dataset.view===currentModule));
   });
-  render();
+  queueRender();
 }
 function tick(){
   const clock = document.getElementById('clock-el');
@@ -1028,8 +1228,18 @@ function checkReminders(){
 }
 
 /* ============================================================
-   RENDER
+   RENDER (配合 Debounce 與 RequestAnimationFrame 優化)
    ============================================================ */
+let renderRequested = false;
+function queueRender() {
+  if (renderRequested) return;
+  renderRequested = true;
+  requestAnimationFrame(() => {
+    renderRequested = false;
+    render();
+  });
+}
+
 function render(){
   const main = document.getElementById('main');
   if(!main) return;
@@ -1109,7 +1319,7 @@ function renderDashboard(main){
   bindAvatarClick(main);
   bindDateSelector(main);
   main.querySelectorAll('[data-period]').forEach(b=>{
-    b.addEventListener('click', ()=>{ currentPeriod = b.dataset.period; render(); });
+    b.addEventListener('click', ()=>{ currentPeriod = b.dataset.period; queueRender(); });
   });
 }
 
@@ -1250,7 +1460,7 @@ function renderModule(main, mod){
   bindAvatarClick(main);
   bindDateSelector(main);
   main.querySelectorAll('[data-period]').forEach(b=>{
-    b.addEventListener('click', ()=>{ currentPeriod = b.dataset.period; render(); });
+    b.addEventListener('click', ()=>{ currentPeriod = b.dataset.period; queueRender(); });
   });
 }
 
@@ -1307,7 +1517,7 @@ function bindDateSelector(root) {
       if(!selectedDate) return;
       await loadStateForDate(selectedDate);
       setupFirebaseSync();
-      render();
+      queueRender();
       toast('已切換至 ' + selectedDate + ' 歷史紀錄');
     });
   }
@@ -1320,7 +1530,7 @@ function bindTaskEvents(root){
       const cur = taskState(id).status;
       const next = cur==='red' ? 'yellow' : cur==='yellow' ? 'green' : 'red';
       setTaskStatus(id, next);
-      render();
+      queueRender();
     });
   });
   root.querySelectorAll('[data-manual]').forEach(b=>{
@@ -1335,7 +1545,7 @@ function bindTaskEvents(root){
       if(!desc) return;
       if(!state.repairs) state.repairs = [];
       state.repairs.push({module:b.dataset.mod, desc, time: nowLabel()+' '+currentLedgerDate, by: session.name, resolved:false});
-      saveState(); toast('已回報'); render();
+      saveState(); toast('已回報'); queueRender();
     });
   });
 }
@@ -1347,9 +1557,9 @@ function bindModuleEvents(root, mod){
   if(ex) ex.addEventListener('input', ()=>{ state.cash.exchange = ex.value; state.cash.exchangeBy=session.name; saveState(); });
 
   const dayBtn = root.querySelector('#day-mode-btn');
-  if(dayBtn) dayBtn.addEventListener('click', ()=>{ state.mode.day = timeShort(); saveState(); toast('日間模式啟動'); render(); });
+  if(dayBtn) dayBtn.addEventListener('click', ()=>{ state.mode.day = timeShort(); saveState(); toast('日間模式啟動'); queueRender(); });
   const nightBtn = root.querySelector('#night-mode-btn');
-  if(nightBtn) nightBtn.addEventListener('click', ()=>{ state.mode.night = timeShort(); saveState(); toast('夜間模式啟動'); render(); });
+  if(nightBtn) nightBtn.addEventListener('click', ()=>{ state.mode.night = timeShort(); saveState(); toast('夜間模式啟動'); queueRender(); });
 
   const exSave = root.querySelector('#ex-save');
   if(exSave) exSave.addEventListener('click', ()=>{
@@ -1357,12 +1567,12 @@ function bindModuleEvents(root, mod){
     if(!gi||!sec||!go){ toast('請填寫完整數據'); return; }
     if(!state.baristaLogs) state.baristaLogs = [];
     state.baristaLogs.push({gramsIn:gi, seconds:sec, gramsOut:go, note, time:nowLabel(), by:session.name});
-    saveState(); render();
+    saveState(); queueRender();
   });
 
   root.querySelectorAll('[data-inv-item]').forEach(seg=>{
     seg.querySelectorAll('button').forEach(btn=>{
-      btn.addEventListener('click', ()=>{ state.inventory[seg.dataset.invItem] = btn.dataset.v; saveState(); render(); });
+      btn.addEventListener('click', ()=>{ state.inventory[seg.dataset.invItem] = btn.dataset.v; saveState(); queueRender(); });
     });
   });
 
@@ -1372,7 +1582,7 @@ function bindModuleEvents(root, mod){
         const k = seg.dataset.prepSeg;
         if(!state.prep[k]) state.prep[k] = {targetQty:0, doneQty:0, unit:''};
         state.prep[k].status = btn.dataset.v; 
-        saveState(); render(); 
+        saveState(); queueRender(); 
       });
     });
   });
@@ -1502,7 +1712,7 @@ function renderReport(main){
       if(!v) return;
       if(!state.notes) state.notes = [];
       state.notes.push({text:v, by:session.name, time:nowLabel()});
-      saveState(); render();
+      saveState(); queueRender();
     });
   }
   
@@ -1619,7 +1829,7 @@ function renderTraining(main){
   if(traineeSelect) {
     traineeSelect.addEventListener('change', (e) => {
       currentTrainee = e.target.value;
-      render();
+      queueRender();
     });
   }
 
@@ -1645,7 +1855,7 @@ function renderTraining(main){
            if(trainerInp) trainerInp.value = session.name;
         }
       }
-      saveState(); render();
+      saveState(); queueRender();
     });
   });
 
@@ -1674,7 +1884,7 @@ function handleAddTrainee() {
     if(!state.trainees) state.trainees = {};
     if(!state.trainees[name]) state.trainees[name] = {};
     currentTrainee = name;
-    saveState(); render();
+    saveState(); queueRender();
   }
 }
 
@@ -1821,7 +2031,7 @@ function renderAdmin(main){
           const parsed = JSON.parse(event.target.result);
           state = parsed;
           saveState();
-          render();
+          queueRender();
           toast('JSON 資料匯入成功！');
         } catch(err) {
           toast('JSON 格式錯誤，匯入失敗');
@@ -1841,7 +2051,7 @@ function renderAdmin(main){
         if(!val) return;
         if(!state.inventoryConfig[m]) state.inventoryConfig[m] = [...DEFAULT_INVENTORY_ITEMS[m]];
         state.inventoryConfig[m].push(val);
-        saveState(); render();
+        saveState(); queueRender();
       });
     }
 
@@ -1853,7 +2063,7 @@ function renderAdmin(main){
         if(!val) return;
         if(!state.prepConfig[m]) state.prepConfig[m] = [...DEFAULT_PREP_ITEMS[m]];
         state.prepConfig[m].push(val);
-        saveState(); render();
+        saveState(); queueRender();
       });
     }
   });
@@ -1863,7 +2073,7 @@ function renderAdmin(main){
       const m = btn.dataset.delInv;
       const idx = Number(btn.dataset.idx);
       state.inventoryConfig[m].splice(idx, 1);
-      saveState(); render();
+      saveState(); queueRender();
     });
   });
 
@@ -1872,7 +2082,7 @@ function renderAdmin(main){
       const m = btn.dataset.delPrep;
       const idx = Number(btn.dataset.idx);
       state.prepConfig[m].splice(idx, 1);
-      saveState(); render();
+      saveState(); queueRender();
     });
   });
 
@@ -1883,9 +2093,10 @@ function renderAdmin(main){
     if(listContainer) listContainer.innerHTML = `<div class="hint">無任務</div>`;
   } else {
     if(listContainer) {
+      // 導入 Flex 響應式編輯器佈局 (Fix B)
       listContainer.innerHTML = tasks.map((t, i) => `
         <div class="editor-row" style="align-items:flex-start; flex-direction:column; gap:6px;">
-          <div style="display:flex; gap:8px; align-items:flex-start; width:100%;">
+          <div class="editor-controls-row">
             <div style="display:flex; flex-direction:column; gap:4px; flex-shrink:0; margin-top:2px;">
               <button class="icon-btn" style="padding:1px 6px; font-size:9px;" data-move-up="${i}" ${i===0?'disabled':''}>▲</button>
               <button class="icon-btn" style="padding:1px 6px; font-size:9px;" data-move-down="${i}" ${i===tasks.length-1?'disabled':''}>▼</button>
@@ -1895,8 +2106,8 @@ function renderAdmin(main){
             <label class="chip-toggle" style="flex-shrink:0; margin-top:4px;"><input type="checkbox" data-efield="check" data-idx="${i}" ${t.needCheck!==false?'checked':''}> 需打勾</label>
             <button class="btn small danger" data-del-idx="${i}" style="flex-shrink:0; margin-top:4px;">刪</button>
           </div>
-          <div style="display:flex; gap:6px; align-items:center; width:100%; padding-left:74px;">
-            <span style="font-size:11px; color:var(--ink-soft);">小按鈕設定：</span>
+          <div class="editor-details-row">
+            <span style="font-size:11px; color:var(--ink-soft); min-width: 70px;">小按鈕設定：</span>
             <input type="text" class="mini-input" style="width:70px;" data-efield="manual-tag" data-idx="${i}" value="${t.manual?.tag||''}" placeholder="標籤(P21)">
             <input type="text" class="mini-input" style="width:110px;" data-efield="manual-title" data-idx="${i}" value="${t.manual?.title||''}" placeholder="按鈕標題">
             <input type="text" class="mini-input wide" data-efield="manual-body" data-idx="${i}" value="${t.manual?.body||''}" placeholder="點擊彈出內文說明">
@@ -1907,10 +2118,10 @@ function renderAdmin(main){
   }
 
   const editMod = main.querySelector('#edit-mod');
-  if(editMod) editMod.addEventListener('change', e=>{ adminEditMod = e.target.value; render(); });
+  if(editMod) editMod.addEventListener('change', e=>{ adminEditMod = e.target.value; queueRender(); });
   
   const editPid = main.querySelector('#edit-pid');
-  if(editPid) editPid.addEventListener('change', e=>{ adminEditPid = e.target.value; render(); });
+  if(editPid) editPid.addEventListener('change', e=>{ adminEditPid = e.target.value; queueRender(); });
   
   main.querySelectorAll('[data-efield]').forEach(el => {
     el.addEventListener('change', e => {
@@ -1943,7 +2154,7 @@ function renderAdmin(main){
       const temp = arr[idx];
       arr[idx] = arr[idx - 1];
       arr[idx - 1] = temp;
-      saveState(); render();
+      saveState(); queueRender();
     });
   });
 
@@ -1955,7 +2166,7 @@ function renderAdmin(main){
       const temp = arr[idx];
       arr[idx] = arr[idx + 1];
       arr[idx + 1] = temp;
-      saveState(); render();
+      saveState(); queueRender();
     });
   });
 
@@ -1963,7 +2174,7 @@ function renderAdmin(main){
     b.addEventListener('click', e => {
       const idx = e.target.dataset.delIdx;
       state.tasksConfig[adminEditMod][adminEditPid].splice(idx, 1);
-      saveState(); render();
+      saveState(); queueRender();
     });
   });
 
@@ -1975,7 +2186,7 @@ function renderAdmin(main){
       state.tasksConfig[adminEditMod][adminEditPid].push({
         id: generateId(), time: '—', text: '新任務', needCheck: true
       });
-      saveState(); render();
+      saveState(); queueRender();
     });
   }
 
@@ -1983,13 +2194,161 @@ function renderAdmin(main){
     b.addEventListener('click', ()=>{
       const idx = Number(b.dataset.resolve);
       state.repairs[idx].resolved = !state.repairs[idx].resolved;
-      saveState(); render();
+      saveState(); queueRender();
     });
   });
 }
 
+/* ---------------- Login screen ---------------- */
+let selectedLoginRole = null;
+
+function buildLoginRoleGrid(){
+  const grid = document.getElementById('login-role-grid');
+  if(!grid) return;
+  grid.innerHTML = '';
+  ROLES.forEach(r=>{
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'role-btn';
+    b.innerHTML = `<span class="rn">${r.name}</span><span class="rd">${r.desc}</span>`;
+    b.addEventListener('click', ()=>{
+      document.querySelectorAll('#login-role-grid .role-btn').forEach(x=>x.classList.remove('selected'));
+      b.classList.add('selected');
+      selectedLoginRole = r.id;
+      checkLoginReady();
+    });
+    grid.appendChild(b);
+  });
+}
+
+function checkLoginReady(){
+  const nameInput = document.getElementById('login-name-input');
+  const enterBtn = document.getElementById('login-enter-btn');
+  if(!nameInput || !enterBtn) return;
+  const name = nameInput.value.trim();
+  enterBtn.disabled = !(name && selectedLoginRole);
+}
+
+async function updateLoginStatus(){
+  const statusEl = document.getElementById('login-status');
+  if(!statusEl) return;
+  if(!useFirebase){
+    statusEl.textContent = '● 尚未設定雲端資料庫，將使用本機／裝置間同步模式（不影響登入）';
+    statusEl.className = 'login-status offline';
+    return;
+  }
+  statusEl.textContent = '正在檢查資料庫連線⋯';
+  statusEl.className = 'login-status';
+  const result = await testDbConnection();
+  if(result.ok){
+    statusEl.textContent = '● 雲端資料庫連線正常';
+    statusEl.className = 'login-status online';
+  } else if(result.reason === 'timeout'){
+    statusEl.textContent = '● 雲端連線逾時，登入後將自動改用本機資料，不影響使用';
+    statusEl.className = 'login-status offline';
+  } else {
+    statusEl.textContent = '● 尚未連上雲端資料庫，登入後將自動改用本機資料，不影響使用';
+    statusEl.className = 'login-status offline';
+  }
+}
+
+async function completeLogin(name, role){
+  session = {name, role};
+  localStorage.setItem('ecole_name', name);
+  localStorage.setItem('ecole_role', role);
+
+  const loginScreen = document.getElementById('login-screen');
+  const app = document.getElementById('app');
+  if(loginScreen) loginScreen.style.display = 'none';
+  if(app) app.classList.add('active');
+
+  await initApp();
+}
+
+function initLoginScreen(){
+  buildLoginRoleGrid();
+  updateLoginStatus();
+
+  // 若之前登入過，預先帶入姓名與身分方便快速登入（仍需按下按鈕才會進入）
+  const savedName = localStorage.getItem('ecole_name');
+  const savedRole = localStorage.getItem('ecole_role');
+  const nameInput = document.getElementById('login-name-input');
+  if(nameInput && savedName) nameInput.value = savedName;
+  if(savedRole){
+    const match = document.querySelectorAll('#login-role-grid .role-btn')[ROLES.findIndex(r=>r.id===savedRole)];
+    if(match){ match.classList.add('selected'); selectedLoginRole = savedRole; }
+  }
+  checkLoginReady();
+
+  if(nameInput) nameInput.addEventListener('input', checkLoginReady);
+
+  const enterBtn = document.getElementById('login-enter-btn');
+  if(enterBtn){
+    enterBtn.addEventListener('click', async ()=>{
+      const name = document.getElementById('login-name-input').value.trim();
+      if(!name || !selectedLoginRole) return;
+      enterBtn.disabled = true;
+      enterBtn.textContent = '登入中⋯';
+      try{
+        await completeLogin(name, selectedLoginRole);
+      }catch(e){
+        console.error('登入失敗', e);
+        toast('登入時發生錯誤，已改用本機資料模式重試');
+        try{ await completeLogin(name, selectedLoginRole); }catch(e2){ console.error(e2); }
+      }finally{
+        enterBtn.disabled = false;
+        enterBtn.textContent = '進入今日工作清單';
+      }
+    });
+  }
+
+  const googleBtn = document.getElementById('login-google-btn');
+  if(googleBtn){
+    googleBtn.addEventListener('click', async ()=>{
+      if(!useFirebase || !auth){
+        toast('尚未設定 Firebase API Key，無法使用 Google 登入，請改用下方手動登入');
+        return;
+      }
+      if(!selectedLoginRole){
+        toast('請先選擇身分，再使用 Google 登入');
+        return;
+      }
+      try{
+        const provider = new firebase.auth.GoogleAuthProvider();
+        const result = await auth.signInWithPopup(provider);
+        const user = result.user;
+        const name = user.displayName || 'Google 用戶';
+        await completeLogin(name, selectedLoginRole);
+      }catch(e){
+        console.error(e);
+        toast('Google 登入失敗：' + (e.message || '請確認 Firebase 設定，或改用手動登入'));
+      }
+    });
+  }
+}
+
+function doLogout(){
+  session = null;
+  if(firebaseListenerRef){ try{ firebaseListenerRef.off(); }catch(e){} firebaseListenerRef = null; }
+  const loginScreen = document.getElementById('login-screen');
+  const app = document.getElementById('app');
+  if(app) app.classList.remove('active');
+  if(loginScreen) loginScreen.style.display = 'flex';
+  selectedLoginRole = null;
+  const nameInput = document.getElementById('login-name-input');
+  if(nameInput) nameInput.value = '';
+  document.querySelectorAll('#login-role-grid .role-btn').forEach(x=>x.classList.remove('selected'));
+  const enterBtn = document.getElementById('login-enter-btn');
+  if(enterBtn) enterBtn.disabled = true;
+  updateLoginStatus();
+}
+
+document.addEventListener('click', (e)=>{
+  if(e.target && e.target.id === 'logout-btn'){ doLogout(); }
+});
+
 /* ---------------- Boot ---------------- */
-initApp();
+initLoginScreen();
 </script>
 </body>
 </html>
