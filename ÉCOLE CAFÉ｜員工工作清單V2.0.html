@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ÉCOLE CAFÉ · 員工工作清單與訓練系統</title>
 <!-- 加入 PWA Manifest (直接以 Data URI 寫入，確保單檔也可支援 PWA 安裝) -->
-<link rel="manifest" href='data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22%C3%89COLE%20CAF%C3%89%20Staff%22%2C%22short_name%22%3A%22%C3%89COLE%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23F5F3EE%22%2C%22theme_color%22%3A%22%23221F1C%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMjIxRjFDIiBzdHJva2Utd2lkdGg9IjEuMyI%2BPHBhdGggZD0iTTQgOGgxM2EzIDMgMCAwIDEgMCA2aC0xIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNNCA4djdhMyAzIDAgMCAwIDMgM2g2YTMgMyAwIDAgMCAzLTN2LTEiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxwYXRoIGQ9Ik04IDNjMCAxLjItMS4yLTEgMS4yIDIuNFMxMSA3IDExIDciIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg%3D%3D%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D'>
+<link rel="manifest" href='data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22%C3%89COLE%20CAF%C3%89%20Staff%22%2C%22short_name%22%3A%22%C3%89COLE%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23F5F3EE%22%2C%22theme_color%22%3A%22%23221F1C%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMjIxRjFDIiBzdHJva2Utd2lkdGg9IjEuMyI%2BPHBhdGggZD0iTTQgOGgxM2EzIDMgMCAwIDEgMCA2aC0xIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNNCA4djdhMyAzIDAgMCAwIDMgM2g2YTMgMyAwIDAgMCAzLTN2LTEiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxwYXRo dD0iTS04IDNjMCAxLjItMS4yLTEgMS4yIDIuNFMxMSA3IDExIDciIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg%3D%3D%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D'>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- 引入 Firebase SDK -->
@@ -165,10 +165,20 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 .topbar{ display:flex;justify-content:space-between;align-items:flex-end; margin-bottom:26px;flex-wrap:wrap;gap:12px; position:relative; }
 .topbar h1{font-size:26px;font-weight:500;margin:0 0 4px;}
 
-.topbar-right { display:flex; align-items:center; gap:16px; }
+.topbar-right { display:flex; align-items:center; gap:12px; }
 .clock{ font-family:'IBM Plex Mono',monospace;font-size:13px; color:var(--ink-soft); display:flex;align-items:center;gap:8px; }
 .clock .live-dot{width:6px;height:6px;border-radius:50%;background:var(--sage);animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+
+/* 莫蘭迪色圓形同步按鈕 */
+.sync-circle-btn {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--sage-bg); border: 1px solid var(--line-strong);
+  color: var(--ink); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background .15s, transform .15s;
+  box-shadow: var(--shadow); font-size: 16px;
+}
+.sync-circle-btn:hover { background: var(--sage); color: #fff; transform: scale(1.05); }
 
 .user-avatar-btn {
   width: 42px; height: 42px; border-radius: 50%;
@@ -394,7 +404,7 @@ input,select,textarea{font-family:'Inter',sans-serif;}
     <input type="text" id="login-name-input" class="name-input" placeholder="例如：Wendy">
 
     <button class="enter-btn" id="login-enter-btn" disabled>進入今日工作清單</button>
-    <p class="login-foot">資料統一儲存於雲端共用資料庫，所有登入人員皆可即時同步彼此的打勾與紀錄。</p>
+    <p class="login-foot">資料統一儲存於雲端共用資料庫，所有登入人員皆可即時同步彼此的打勾與紀錄.</p>
   </div>
 </div>
 
@@ -448,7 +458,7 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 <div class="modal-bg" id="identity-modal-bg">
   <div class="modal">
     <h3>帳號登入與身分設定</h3>
-    <p>使用 Google 帳號登入以連線至共用雲端資料庫，或手動設定本地身分：</p>
+    <p>切換身分（若選擇管理員需輸入管理員密碼）：</p>
     <div style="margin-top: 14px;">
       
       <button id="google-signin-btn" class="google-btn" style="margin-bottom:16px;">
@@ -552,14 +562,15 @@ if(pwaToast) {
 /* ============================================================
    FIREBASE DATABASE & AUTH CONFIGURATION
    ============================================================ */
-    const firebaseConfig = {
-            apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
-            authDomain: "ecole-1f392.firebaseapp.com",
-            projectId: "ecole-1f392",
-            storageBucket: "ecole-1f392.firebasestorage.app",
-            messagingSenderId: "117812812078",
-            appId: "1:117812812078:web:41664b4e6f0a1c6aff42bf",
-            measurementId: "G-Q1SRBC7T5J"
+const firebaseConfig = {
+  apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
+  authDomain: "ecole-1f392.firebaseapp.com",
+  databaseURL: "https://ecole-1f392-default-rtdb.firebaseio.com",
+  projectId: "ecole-1f392",
+  storageBucket: "ecole-1f392.firebasestorage.app",
+  messagingSenderId: "117812812078",
+  appId: "1:117812812078:web:41664b4e6f0a1c6aff42bf",
+  measurementId: "G-Q1SRBC7T5J"
 };
 
 let db = null;
@@ -856,7 +867,8 @@ function blankState(){
     trainees: {}, 
     repairs: [],
     notes: [],
-    presence: {},      
+    presence: {},
+    adminPassword: 'admin888', // 預設管理員密碼
   };
 }
 function blankStateForDate(dStr){
@@ -945,6 +957,7 @@ function initApp() {
     if(!state.inventoryConfig) state.inventoryConfig = JSON.parse(JSON.stringify(DEFAULT_INVENTORY_ITEMS));
     if(!state.prepConfig) state.prepConfig = JSON.parse(JSON.stringify(DEFAULT_PREP_ITEMS));
     if(!state.presence) state.presence = {};
+    if(!state.adminPassword) state.adminPassword = 'admin888';
     state.presence[session.name] = {role: session.role, time: nowLabel()};
     saveState();
     
@@ -1034,6 +1047,7 @@ function setupFirebaseSync() {
         if(!state.tasksConfig) state.tasksConfig = JSON.parse(JSON.stringify(DEFAULT_TASKS));
         if(!state.inventoryConfig) state.inventoryConfig = JSON.parse(JSON.stringify(DEFAULT_INVENTORY_ITEMS));
         if(!state.prepConfig) state.prepConfig = JSON.parse(JSON.stringify(DEFAULT_PREP_ITEMS));
+        if(!state.adminPassword) state.adminPassword = 'admin888';
         queueRender();
       }
     });
@@ -1077,11 +1091,22 @@ function saveIdentityModal() {
   if(!nameInput || !roleSelect) return;
   
   const nameVal = nameInput.value.trim();
-  const roleVal = roleSelect.value;
+  let roleVal = roleSelect.value;
   if(!nameVal) {
     toast('請輸入名字');
     return;
   }
+
+  // 安全防護：若選擇管理員需驗證管理員密碼
+  if (roleVal === 'admin') {
+    const pwdInput = prompt('切換為管理員身分，請輸入管理員密碼：');
+    const correctPwd = state.adminPassword || 'admin888';
+    if (pwdInput !== correctPwd) {
+      toast('管理員密碼錯誤，拒絕切換權限');
+      return;
+    }
+  }
+
   session.name = nameVal;
   session.role = roleVal;
   localStorage.setItem('ecole_name', session.name);
@@ -1102,6 +1127,16 @@ document.addEventListener('click', (e) => {
   const navItem = e.target.closest('.nav-item');
   if(navItem) {
     const v = navItem.dataset.view;
+    if(v === 'admin' && session.role !== 'admin') {
+      const pwd = prompt('請輸入管理員密碼以進入後台：');
+      const correctPwd = state.adminPassword || 'admin888';
+      if(pwd !== correctPwd) {
+        return toast('密碼錯誤，拒絕進入後台');
+      }
+      session.role = 'admin';
+      const adminGroup = document.getElementById('admin-nav-group');
+      if(adminGroup) adminGroup.style.display = 'block';
+    }
     if(['counter','barista','kitchen'].includes(v)) currentModule = v;
     setView(v);
   }
@@ -1206,6 +1241,7 @@ function topbar(title){
         <span style="font-size:12px; color:var(--ink-soft);">檢視日期：</span>
         <input type="date" id="history-date-input" class="mini-input wide" style="width:140px;" value="${currentLedgerDate}">
       </div>
+      <button class="sync-circle-btn" id="manual-sync-btn" title="手動同步雲端資料">🔄</button>
       <div class="clock mono"><span class="live-dot"></span><span id="clock-el"></span></div>
       <div class="user-avatar-btn" id="user-avatar-btn" title="點擊切換身分與登入">${session.name ? session.name.substring(0,1).toUpperCase() : 'U'}</div>
     </div>
@@ -1266,6 +1302,7 @@ function renderDashboard(main){
   bindTaskEvents(main);
   bindAvatarClick(main);
   bindDateSelector(main);
+  bindSyncButton(main);
   main.querySelectorAll('[data-period]').forEach(b=>{
     b.addEventListener('click', ()=>{ currentPeriod = b.dataset.period; queueRender(); });
   });
@@ -1407,6 +1444,7 @@ function renderModule(main, mod){
   bindModuleEvents(main, mod);
   bindAvatarClick(main);
   bindDateSelector(main);
+  bindSyncButton(main);
   main.querySelectorAll('[data-period]').forEach(b=>{
     b.addEventListener('click', ()=>{ currentPeriod = b.dataset.period; queueRender(); });
   });
@@ -1454,6 +1492,39 @@ function bindAvatarClick(root) {
   const btn = root.querySelector('#user-avatar-btn');
   if(btn) {
     btn.addEventListener('click', openIdentityModal);
+  }
+}
+
+function bindSyncButton(root) {
+  const syncBtn = root.querySelector('#manual-sync-btn');
+  if(syncBtn) {
+    syncBtn.addEventListener('click', async () => {
+      if(!useFirebase || !db) {
+        return toast('目前為本機模式，無須雲端同步');
+      }
+      toast('正在同步最新雲端資料...');
+      const key = 'day:' + currentLedgerDate;
+      try {
+        const snapshot = await db.ref('ledger/' + key).once('value');
+        const val = snapshot.val();
+        if(val) {
+          state = val;
+          memoryStateCache.set(key, state);
+          if(!state.tasksConfig) state.tasksConfig = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+          if(!state.inventoryConfig) state.inventoryConfig = JSON.parse(JSON.stringify(DEFAULT_INVENTORY_ITEMS));
+          if(!state.prepConfig) state.prepConfig = JSON.parse(JSON.stringify(DEFAULT_PREP_ITEMS));
+          if(!state.adminPassword) state.adminPassword = 'admin888';
+          queueRender();
+          toast('雲端資料同步成功！');
+        } else {
+          toast('雲端尚無此日資料，已上傳目前本機資料');
+          await db.ref('ledger/' + key).set(state);
+        }
+      } catch(e) {
+        console.error(e);
+        toast('同步失敗，請檢查網路連線');
+      }
+    });
   }
 }
 
@@ -1651,6 +1722,7 @@ function renderReport(main){
   main.innerHTML = html;
   bindAvatarClick(main);
   bindDateSelector(main);
+  bindSyncButton(main);
   const reportBox = document.getElementById('report-box');
   if(reportBox) reportBox.textContent = buildReportText();
   
@@ -1702,6 +1774,7 @@ function renderTraining(main){
     main.innerHTML = html + `<div class="empty-note">請先選擇或新增新進人員以開始訓練紀錄。</div>`;
     bindAvatarClick(main);
     bindDateSelector(main);
+    bindSyncButton(main);
     const addBtn = main.querySelector('#btn-add-trainee');
     if(addBtn) addBtn.addEventListener('click', handleAddTrainee);
     return;
@@ -1770,6 +1843,7 @@ function renderTraining(main){
   main.innerHTML = html;
   bindAvatarClick(main);
   bindDateSelector(main);
+  bindSyncButton(main);
 
   const addTraineeBtn = main.querySelector('#btn-add-trainee');
   if(addTraineeBtn) addTraineeBtn.addEventListener('click', handleAddTrainee);
@@ -1842,12 +1916,24 @@ let adminEditPid = 'opening';
 
 function renderAdmin(main){
   if(session.role !== 'admin'){
-    main.innerHTML = `<div class="empty-note">權限不足（請點擊右上角頭像切換為「管理員」身分）</div>`; 
+    main.innerHTML = `<div class="empty-note">權限不足（請點擊右上角頭像切換為「管理員」身分並輸入密碼）</div>`; 
     bindAvatarClick(main);
     bindDateSelector(main);
+    bindSyncButton(main);
     return;
   }
   let html = topbar('管理總覽與設定');
+
+  // 密碼變更卡片
+  html += `<div class="section-card">
+    <div class="section-head"><h2>管理員密碼設定</h2></div>
+    <div class="inv-grid">
+      <div class="field-row">
+        <input type="password" id="admin-new-pwd-input" class="mini-input wide" placeholder="新管理員密碼">
+        <button class="btn small" id="btn-save-admin-pwd">更新密碼</button>
+      </div>
+    </div>
+  </div>`;
 
   html += `<div class="section-card">
     <div class="section-head"><h2>資料備份與還原 (JSON 匯入/匯出)</h2></div>
@@ -1955,7 +2041,23 @@ function renderAdmin(main){
   main.innerHTML = html;
   bindAvatarClick(main);
   bindDateSelector(main);
+  bindSyncButton(main);
   
+  const savePwdBtn = main.querySelector('#btn-save-admin-pwd');
+  if(savePwdBtn) {
+    savePwdBtn.addEventListener('click', () => {
+      const newPwdInput = main.querySelector('#admin-new-pwd-input');
+      const val = newPwdInput ? newPwdInput.value.trim() : '';
+      if(!val) {
+        return toast('請輸入新密碼');
+      }
+      state.adminPassword = val;
+      saveState();
+      toast('管理員密碼更新成功！');
+      newPwdInput.value = '';
+    });
+  }
+
   const exportBtn = main.querySelector('#btn-export-json');
   if(exportBtn) {
     exportBtn.addEventListener('click', () => {
@@ -2230,6 +2332,16 @@ function initLoginScreen(){
     enterBtn.addEventListener('click', async ()=>{
       const name = document.getElementById('login-name-input').value.trim();
       if(!name || !selectedLoginRole) return;
+      
+      // 登入時若選管理員需檢查密碼
+      if (selectedLoginRole === 'admin') {
+        const pwd = prompt('請輸入管理員密碼：');
+        const correctPwd = state.adminPassword || 'admin888';
+        if (pwd !== correctPwd) {
+          return toast('管理員密碼錯誤');
+        }
+      }
+
       enterBtn.disabled = true;
       enterBtn.textContent = '登入中⋯';
       try{
@@ -2254,6 +2366,13 @@ function initLoginScreen(){
       if(!selectedLoginRole){
         toast('請先選擇身分，再使用 Google 登入');
         return;
+      }
+      if (selectedLoginRole === 'admin') {
+        const pwd = prompt('請輸入管理員密碼：');
+        const correctPwd = state.adminPassword || 'admin888';
+        if (pwd !== correctPwd) {
+          return toast('管理員密碼錯誤');
+        }
       }
       try{
         const provider = new firebase.auth.GoogleAuthProvider();
