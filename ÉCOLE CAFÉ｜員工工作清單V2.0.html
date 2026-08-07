@@ -352,11 +352,11 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 }
 
 @media (max-width:820px){
-  #app{display:block;}
+  #app.active{ display:flex; flex-direction:column; }
   .rail{
-    position: sticky; top: 0; z-index: 40; height: auto;
-    flex-direction: row; align-items: center; padding: 10px 14px;
-    overflow-x: auto; white-space: nowrap; background: var(--ink);
+    position: sticky; top: 0; z-index: 40; height: auto; width: 100%;
+    flex-direction: row; align-items: center; justify-content: space-between;
+    padding: 10px 14px; overflow-x: auto; white-space: nowrap; background: var(--ink);
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   }
   .rail-brand{margin-bottom:0; margin-right:14px; flex-shrink:0;}
@@ -364,7 +364,7 @@ input,select,textarea{font-family:'Inter',sans-serif;}
   .nav-label{display:none;}
   .nav-item{white-space:nowrap; padding:6px 10px; font-size:12px;}
   .rail-foot{display:none;}
-  .main{padding:20px 16px 50px; max-width:100%;}
+  .main{padding:20px 16px 50px; max-width:100%; width:100%;}
   .period-rail{flex-direction:column;}
   .period-tab{border-right:none;border-bottom:1px solid var(--line);}
   
@@ -409,7 +409,7 @@ input,select,textarea{font-family:'Inter',sans-serif;}
     <input type="text" id="login-name-input" class="name-input" placeholder="例如：Wendy">
 
     <button class="enter-btn" id="login-enter-btn" disabled>進入今日工作清單</button>
-    <p class="login-foot">資料統一儲存於共用雲端資料庫，支援手動儲存與即時同步。</p>
+    <p class="login-foot">資料統一儲存於共用雲端資料庫夾中，支援手動儲存與即時同步。</p>
   </div>
 </div>
 
@@ -907,7 +907,7 @@ function loadLocalState(key, dateStr){
   }
 }
 
-/* --- 自動存檔與雲端即時共用同步 --- */
+/* --- 自動存檔與雲端即時共用同步（明確存放於 ecole_cafe/ledger 資料夾中） --- */
 let saveTimer=null;
 async function saveState(){
   const key = 'day:'+currentLedgerDate;
@@ -924,7 +924,7 @@ async function saveState(){
   saveTimer = setTimeout(async ()=>{
     if (useFirebase && db) {
       try {
-        await db.ref('ledger/' + key).set(state);
+        await db.ref('ecole_cafe/ledger/' + key).set(state);
       } catch(err) {
         console.error('Firebase 雲端同步儲存失敗:', err);
       }
@@ -1031,7 +1031,7 @@ function setupFirebaseSync() {
     if (firebaseListenerRef) {
       firebaseListenerRef.off();
     }
-    firebaseListenerRef = db.ref('ledger/' + key);
+    firebaseListenerRef = db.ref('ecole_cafe/ledger/' + key);
     
     firebaseListenerRef.once('value').then(snapshot => {
       const val = snapshot.val();
@@ -1504,14 +1504,14 @@ function bindSyncButton(root) {
   const saveBtn = root.querySelector('#manual-save-btn');
   if(saveBtn) {
     saveBtn.addEventListener('click', async () => {
-      toast('正在手動儲存至雲端與本機...');
+      toast('正在手動儲存至雲端資料庫與本機...');
       const key = 'day:' + currentLedgerDate;
       state.date = currentLedgerDate;
       try {
         localStorage.setItem(key, JSON.stringify(state));
         if (useFirebase && db) {
-          await db.ref('ledger/' + key).set(state);
-          toast('✅ 成功手動儲存並同步至雲端！');
+          await db.ref('ecole_cafe/ledger/' + key).set(state);
+          toast('✅ 成功手動儲存並同步至雲端資料庫！');
         } else {
           toast('✅ 成功手動儲存至本機！');
         }
@@ -1528,10 +1528,10 @@ function bindSyncButton(root) {
       if(!useFirebase || !db) {
         return toast('目前為本機模式，無須雲端同步');
       }
-      toast('正在同步最新雲端資料...');
+      toast('正在從雲端資料庫同步最新資料...');
       const key = 'day:' + currentLedgerDate;
       try {
-        const snapshot = await db.ref('ledger/' + key).once('value');
+        const snapshot = await db.ref('ecole_cafe/ledger/' + key).once('value');
         const val = snapshot.val();
         if(val) {
           state = val;
@@ -1544,7 +1544,7 @@ function bindSyncButton(root) {
           toast('✅ 雲端資料同步成功！');
         } else {
           toast('雲端尚無此日資料，已上傳目前本機資料');
-          await db.ref('ledger/' + key).set(state);
+          await db.ref('ecole_cafe/ledger/' + key).set(state);
         }
       } catch(e) {
         console.error(e);
