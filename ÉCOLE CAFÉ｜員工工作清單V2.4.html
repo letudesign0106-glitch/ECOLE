@@ -127,6 +127,8 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 .role-btn .rd{display:block;font-size:11px;color:var(--ink-soft);margin-top:2px;}
 .role-btn:hover{border-color:var(--slate);}
 .role-btn.selected{border-color:var(--ink);background:var(--sage-bg);}
+.role-btn.locked{opacity:0.45;cursor:not-allowed;}
+.role-btn.locked:hover{border-color:var(--line-strong);}
 .name-input{
   width:100%;border:1px solid var(--line-strong);border-radius:var(--radius);
   padding:11px 12px;font-size:13.5px;background:var(--paper);margin-bottom:18px;
@@ -172,15 +174,33 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 .clock .live-dot{width:6px;height:6px;border-radius:50%;background:var(--sage);animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
 
+/* 儲存按鈕群組（優化版：含狀態文字與上次儲存時間） */
+.save-group{
+  display:flex; align-items:center; gap:8px;
+  border:1px solid var(--line); background:var(--paper); border-radius:24px;
+  padding:5px 8px 5px 14px; box-shadow:var(--shadow);
+}
+.save-group .save-status-text{
+  font-size:11px; color:var(--ink-soft); white-space:nowrap; min-width:64px; text-align:right;
+}
+.save-group .save-status-text.pending{ color:var(--ochre); }
+.save-group .save-status-text.ok{ color:#4C5C43; }
+.save-group .save-status-text.err{ color:#7A3A28; }
+
 /* 莫蘭迪色圓形手動按鈕 (儲存與同步) */
 .sync-circle-btn {
-  width: 42px; height: 42px; border-radius: 50%;
+  width: 38px; height: 38px; border-radius: 50%;
   background: var(--sage-bg); border: 1px solid var(--line-strong);
   color: var(--ink); display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: background .15s, transform .15s;
-  box-shadow: var(--shadow); font-size: 16px;
+  cursor: pointer; transition: background .15s, transform .15s, opacity .15s;
+  font-size: 15px; position:relative;
 }
-.sync-circle-btn:hover { background: var(--sage); color: #fff; transform: scale(1.05); }
+.sync-circle-btn:hover { background: var(--sage); color: #fff; transform: scale(1.06); }
+.sync-circle-btn:active { transform: scale(0.94); }
+.sync-circle-btn.is-busy{ opacity:0.55; pointer-events:none; animation: spin 0.9s linear infinite; }
+.sync-circle-btn.is-ok{ background: var(--sage); color:#fff; }
+.sync-circle-btn.is-err{ background: var(--rust-bg); color:#7A3A28; border-color:var(--rust); }
+@keyframes spin{ from{ transform:rotate(0deg);} to{ transform:rotate(360deg);} }
 
 .user-avatar-btn {
   width: 42px; height: 42px; border-radius: 50%;
@@ -324,6 +344,7 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 }
 .google-btn:hover{ background:#3367D6; }
 .google-btn svg{ width:18px; height:18px; fill:#fff; }
+.google-btn:disabled{ background:#9db8ea; cursor:not-allowed; }
 
 .report-box{
   margin:16px 20px 20px;border:1px solid var(--line-strong);border-radius:3px;
@@ -386,7 +407,9 @@ input,select,textarea{font-family:'Inter',sans-serif;}
   .main{padding:20px 16px 50px; max-width:100%; width:100%;}
   .period-rail{flex-direction:column;}
   .period-tab{border-right:none;border-bottom:1px solid var(--line);}
-  
+  .save-group{ padding:4px 6px 4px 10px; }
+  .save-group .save-status-text{ display:none; }
+
   .editor-details-row { padding-left: 0; }
   .editor-controls-row input[type="text"], .editor-controls-row textarea { flex: 1 1 100%; min-width: 100%; margin-top: 4px; }
   .editor-details-row input { flex: 1 1 100%; min-width: 100%; margin-top: 4px; }
@@ -423,12 +446,13 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 
     <span class="role-label">01 · 選擇身分</span>
     <div class="role-grid" id="login-role-grid"></div>
+    <div class="hint" id="login-role-hint" style="margin:-14px 0 18px;"></div>
 
     <span class="role-label">02 · 你的名字</span>
     <input type="text" id="login-name-input" class="name-input" placeholder="例如：Wendy">
 
     <button class="enter-btn" id="login-enter-btn" disabled>進入今日工作清單</button>
-    <p class="login-foot">資料統一儲存於雲端 Task 資料夾中，支援即時同步與多裝置存取。</p>
+    <p class="login-foot">資料統一儲存於雲端 Task 資料夾中，支援即時同步與多裝置存取。管理員身分僅限經授權的 Google 帳號或本機管理密碼。</p>
   </div>
 </div>
 
@@ -482,7 +506,7 @@ input,select,textarea{font-family:'Inter',sans-serif;}
 <div class="modal-bg" id="identity-modal-bg">
   <div class="modal">
     <h3>帳號登入與身分設定</h3>
-    <p>切換身分（若選擇管理員需輸入管理員密碼）：</p>
+    <p>切換身分（若選擇管理員，需為 Firebase 授權清單中的 Google 帳號，或輸入本機管理員密碼）：</p>
     <div style="margin-top: 14px;">
       
       <button id="google-signin-btn" class="google-btn" style="margin-bottom:16px;">
@@ -585,6 +609,21 @@ if(pwaToast) {
 
 /* ============================================================
    FIREBASE DATABASE & AUTH CONFIGURATION
+   ============================================================
+   請至 Firebase Console 建立專案後，將下列設定改為你自己的專案金鑰。
+   必要設定步驟：
+   1. Firebase Console → Authentication → Sign-in method → 啟用「Google」與「匿名」兩種登入方式。
+      （匿名登入用於「手動設定本地身分」的員工帳號，讓資料庫規則可要求 auth != null）
+   2. Firebase Console → Realtime Database → 建立資料庫，並套用以下規則（範例）：
+      {
+        "rules": {
+          "Task": { ".read": "auth != null", ".write": "auth != null" },
+          "Config": {
+            "adminEmails": { ".read": "auth != null", ".write": "auth != null" }
+          }
+        }
+      }
+   3. 將下方 apiKey / authDomain / databaseURL / projectId 等改為你 Firebase 專案的實際值。
    ============================================================ */
     const firebaseConfig = {
             apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
@@ -632,6 +671,76 @@ async function testDbConnection(){
   if(r.timedOut) return {ok:false, reason:'timeout'};
   if(r.error) return {ok:false, reason:'error'};
   return {ok: !!(r.value && r.value.val && r.value.val()), reason:'checked'};
+}
+
+/* 確保匿名或已知使用者已完成 Firebase Auth 驗證，才能通過資料庫規則 auth != null 的限制 */
+let authReadyPromise = null;
+function ensureFirebaseAuth(){
+  if(!useFirebase || !auth) return Promise.resolve(null);
+  if(authReadyPromise) return authReadyPromise;
+  authReadyPromise = new Promise((resolve)=>{
+    const unsub = auth.onAuthStateChanged(async (user)=>{
+      if(user){
+        unsub();
+        resolve(user);
+      } else {
+        try{
+          const cred = await auth.signInAnonymously();
+          unsub();
+          resolve(cred.user);
+        }catch(e){
+          console.warn('匿名登入失敗，將以離線本機模式運作', e);
+          unsub();
+          resolve(null);
+        }
+      }
+    }, (err)=>{
+      console.warn('Firebase Auth 狀態監聽失敗', err);
+      resolve(null);
+    });
+  });
+  return authReadyPromise;
+}
+
+/* 讀取 Firebase「Config/adminEmails」授權清單，判斷指定 Google Email 是否具管理員資格 */
+async function isEmailAdmin(email){
+  if(!useFirebase || !db || !email) return false;
+  try{
+    const snap = await withTimeout(db.ref('Config/adminEmails').once('value'), 5000, null);
+    if(snap.timedOut || !snap.value) return false;
+    const val = snap.value.val ? snap.value.val() : null;
+    if(!val) return false;
+    const list = Array.isArray(val) ? val : Object.values(val);
+    return list.map(e=>String(e).trim().toLowerCase()).includes(String(email).trim().toLowerCase());
+  }catch(e){
+    console.error('管理員名單讀取失敗', e);
+    return false;
+  }
+}
+async function getAdminEmailList(){
+  if(!useFirebase || !db) return [];
+  try{
+    const snap = await db.ref('Config/adminEmails').once('value');
+    const val = snap.val();
+    if(!val) return [];
+    return Array.isArray(val) ? val.filter(Boolean) : Object.values(val).filter(Boolean);
+  }catch(e){ console.error(e); return []; }
+}
+async function addAdminEmail(email){
+  if(!useFirebase || !db || !email) return false;
+  const list = await getAdminEmailList();
+  const lower = list.map(e=>String(e).toLowerCase());
+  if(lower.includes(email.toLowerCase())) return true;
+  list.push(email.trim());
+  await db.ref('Config/adminEmails').set(list);
+  return true;
+}
+async function removeAdminEmail(email){
+  if(!useFirebase || !db || !email) return false;
+  const list = await getAdminEmailList();
+  const next = list.filter(e=>String(e).toLowerCase() !== email.toLowerCase());
+  await db.ref('Config/adminEmails').set(next);
+  return true;
 }
 
 /* ============================================================
@@ -846,6 +955,7 @@ let state = blankStateForDate(todayKey());
 let currentView = 'dashboard';
 let currentModule = 'counter';
 let currentPeriod = null;
+let lastSavedAt = null;
 
 const memoryStateCache = new Map();
 
@@ -899,6 +1009,26 @@ function blankStateForDate(dStr){
   st.date = dStr;
   return st;
 }
+function normalizeState(val){
+  const st = val || blankStateForDate(currentLedgerDate);
+  if(!st.tasksConfig) st.tasksConfig = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+  if(!st.inventoryConfig) st.inventoryConfig = JSON.parse(JSON.stringify(DEFAULT_INVENTORY_ITEMS));
+  if(!st.prepConfig) st.prepConfig = JSON.parse(JSON.stringify(DEFAULT_PREP_ITEMS));
+  if(!st.tasks) st.tasks = {};
+  if(!st.cash) st.cash = {petty:'', exchange:'', pettyBy:'', exchangeBy:''};
+  if(!st.equip) st.equip = {};
+  if(!st.mode) st.mode = {day:null, night:null};
+  if(!st.baristaLogs) st.baristaLogs = [];
+  if(!st.inventory) st.inventory = {};
+  if(!st.prep) st.prep = {};
+  if(!st.foodsafety) st.foodsafety = [];
+  if(!st.trainees) st.trainees = {};
+  if(!st.repairs) st.repairs = [];
+  if(!st.notes) st.notes = [];
+  if(!st.presence) st.presence = {};
+  if(!st.adminPassword) st.adminPassword = 'admin888';
+  return st;
+}
 
 function getTasksFor(mod, pid) {
   if(!state.tasksConfig) state.tasksConfig = JSON.parse(JSON.stringify(DEFAULT_TASKS));
@@ -919,13 +1049,78 @@ function getPrepItems(mod) {
 function loadLocalState(key, dateStr){
   try{
     const r = localStorage.getItem(key);
-    state = r ? JSON.parse(r) : blankStateForDate(dateStr);
+    state = r ? normalizeState(JSON.parse(r)) : blankStateForDate(dateStr);
   }catch(e){
     state = blankStateForDate(dateStr);
   }
 }
 
-/* --- 自動存檔與雲端即時共用同步（直接儲存於 Task 資料夾中） --- */
+/* ============================================================
+   雲端同步核心：使用 Firebase 多路徑 update() 進行「局部欄位」寫入，
+   避免多名員工同時操作時彼此的完整資料被整包覆蓋（A 項修正核心）。
+   ============================================================ */
+function setNestedPath(obj, path, value){
+  const parts = path.split('/');
+  let cur = obj;
+  for(let i=0;i<parts.length-1;i++){
+    if(cur[parts[i]] === undefined || cur[parts[i]] === null || typeof cur[parts[i]] !== 'object'){
+      cur[parts[i]] = {};
+    }
+    cur = cur[parts[i]];
+  }
+  cur[parts[parts.length-1]] = value;
+}
+
+let pendingCloudUpdates = {};
+let cloudUpdateTimer = null;
+function setSaveIndicator(status){
+  // status: 'pending' | 'ok' | 'err' | 'idle'
+  document.querySelectorAll('.save-status-text').forEach(el=>{
+    el.classList.remove('pending','ok','err');
+    if(status==='pending'){ el.textContent='同步中⋯'; el.classList.add('pending'); }
+    else if(status==='ok'){ el.textContent='已同步 '+timeShort(); el.classList.add('ok'); }
+    else if(status==='err'){ el.textContent='同步失敗'; el.classList.add('err'); }
+    else { el.textContent = lastSavedAt ? ('上次儲存 '+lastSavedAt) : '尚未儲存'; }
+  });
+}
+
+/* 局部欄位更新（自動即時同步用；每次互動呼叫） */
+function cloudUpdate(updates, opts={}){
+  const key = 'day:' + currentLedgerDate;
+  state.date = currentLedgerDate;
+  Object.entries(updates).forEach(([path, value])=>{
+    setNestedPath(state, path, value);
+  });
+  try{ localStorage.setItem(key, JSON.stringify(state)); }catch(e){ console.error('本機存檔失敗', e); }
+  memoryStateCache.set(key, state);
+
+  Object.assign(pendingCloudUpdates, updates);
+  clearTimeout(cloudUpdateTimer);
+  setSaveIndicator('pending');
+  cloudUpdateTimer = setTimeout(async ()=>{
+    const toSend = pendingCloudUpdates;
+    pendingCloudUpdates = {};
+    if(useFirebase && db){
+      try{
+        await ensureFirebaseAuth();
+        await db.ref('Task/'+key).update(toSend);
+        lastSavedAt = timeShort();
+        setSaveIndicator('ok');
+      }catch(err){
+        console.error('Firebase 局部同步失敗:', err);
+        setSaveIndicator('err');
+        toast('⚠ 雲端同步失敗，資料已保留在本機');
+      }
+    } else {
+      lastSavedAt = timeShort();
+      setSaveIndicator('ok');
+    }
+  }, 250);
+
+  if(!opts.silent) queueRender();
+}
+
+/* 全量存檔：僅用於初始化建立 / JSON 匯入等情境，一般互動請改用 cloudUpdate() */
 let saveTimer=null;
 async function saveState(){
   const key = 'day:'+currentLedgerDate;
@@ -939,13 +1134,21 @@ async function saveState(){
   }
 
   clearTimeout(saveTimer);
+  setSaveIndicator('pending');
   saveTimer = setTimeout(async ()=>{
     if (useFirebase && db) {
       try {
+        await ensureFirebaseAuth();
         await db.ref('Task/' + key).set(state);
+        lastSavedAt = timeShort();
+        setSaveIndicator('ok');
       } catch(err) {
         console.error('Firebase 雲端同步儲存失敗:', err);
+        setSaveIndicator('err');
       }
+    } else {
+      lastSavedAt = timeShort();
+      setSaveIndicator('ok');
     }
   }, 200);
 }
@@ -953,7 +1156,7 @@ async function saveState(){
 window.addEventListener('storage', (e) => {
   if (e.key === 'day:' + currentLedgerDate && e.newValue) {
     try {
-      state = JSON.parse(e.newValue);
+      state = normalizeState(JSON.parse(e.newValue));
       memoryStateCache.set(e.key, state);
       queueRender();
     } catch(err) {}
@@ -966,8 +1169,8 @@ function taskState(id){
 }
 function setTaskStatus(id, status){
   const cur = taskState(id);
-  state.tasks[id] = Object.assign({}, cur, {status, time: nowLabel(), by: session.name});
-  saveState();
+  const next = Object.assign({}, cur, {status, time: nowLabel(), by: session.name});
+  cloudUpdate({['tasks/'+id]: next});
 }
 
 let firebaseListenerRef = null;
@@ -976,13 +1179,8 @@ function initApp() {
   try {
     const key = 'day:' + currentLedgerDate;
     loadLocalState(key, currentLedgerDate);
-    if(!state.tasksConfig) state.tasksConfig = JSON.parse(JSON.stringify(DEFAULT_TASKS));
-    if(!state.inventoryConfig) state.inventoryConfig = JSON.parse(JSON.stringify(DEFAULT_INVENTORY_ITEMS));
-    if(!state.prepConfig) state.prepConfig = JSON.parse(JSON.stringify(DEFAULT_PREP_ITEMS));
     if(!state.presence) state.presence = {};
-    if(!state.adminPassword) state.adminPassword = 'admin888';
-    state.presence[session.name] = {role: session.role, time: nowLabel()};
-    saveState();
+    state.presence[session.name] = {role: session.role, time: nowLabel(), email: session.email || null};
     
     updateUserInfoUI();
     
@@ -1014,12 +1212,26 @@ function initApp() {
         if (!useFirebase || !auth) {
           return toast('尚未設定 Firebase API Key');
         }
+        googleSignInBtn.disabled = true;
         try {
           const provider = new firebase.auth.GoogleAuthProvider();
           const result = await auth.signInWithPopup(provider);
           const user = result.user;
+          const roleSelect = document.getElementById('id-modal-role');
+          const wantsAdmin = roleSelect && roleSelect.value === 'admin';
+          if(wantsAdmin){
+            const ok = await isEmailAdmin(user.email);
+            if(!ok){
+              toast('此 Google 帳號未被授權為管理員，請選擇其他身分');
+              if(roleSelect) roleSelect.value = 'counter';
+              googleSignInBtn.disabled = false;
+              return;
+            }
+          }
           session.name = user.displayName || 'Google 用戶';
+          session.email = user.email || null;
           localStorage.setItem('ecole_name', session.name);
+          if(session.email) localStorage.setItem('ecole_email', session.email);
           updateUserInfoUI();
           closeIdentityModal();
           toast('Google 登入成功！已連線至 Task 雲端資料庫');
@@ -1028,6 +1240,8 @@ function initApp() {
         } catch(e) {
           console.error(e);
           toast('Google 登入失敗');
+        } finally {
+          googleSignInBtn.disabled = false;
         }
       });
     }
@@ -1050,30 +1264,30 @@ function setupFirebaseSync() {
       firebaseListenerRef.off();
     }
     firebaseListenerRef = db.ref('Task/' + key);
-    
-    firebaseListenerRef.once('value').then(snapshot => {
-      const val = snapshot.val();
-      if (!val) {
-        firebaseListenerRef.set(state).catch(err => console.log('雲端初始化建立失敗', err));
-      } else {
-        state = val;
+    let initialized = false;
+
+    ensureFirebaseAuth().then(()=>{
+      firebaseListenerRef.on('value', (snapshot) => {
+        const val = snapshot.val();
+        if (!val) {
+          if(!initialized){
+            initialized = true;
+            firebaseListenerRef.set(state).catch(err => console.log('雲端初始化建立失敗', err));
+          }
+          return;
+        }
+        initialized = true;
+        state = normalizeState(val);
         memoryStateCache.set(key, state);
         queueRender();
-      }
+      }, (err)=>{
+        console.error('Firebase 監聽錯誤（可能是資料庫規則限制或網路問題）', err);
+        toast('⚠ 雲端連線中斷，暫時切換為本機模式');
+        const syncEl = document.getElementById('sync-status');
+        if(syncEl) syncEl.textContent = '● 連線中斷（本機模式）';
+      });
     });
 
-    firebaseListenerRef.on('value', (snapshot) => {
-      const val = snapshot.val();
-      if (val) {
-        state = val;
-        memoryStateCache.set(key, state);
-        if(!state.tasksConfig) state.tasksConfig = JSON.parse(JSON.stringify(DEFAULT_TASKS));
-        if(!state.inventoryConfig) state.inventoryConfig = JSON.parse(JSON.stringify(DEFAULT_INVENTORY_ITEMS));
-        if(!state.prepConfig) state.prepConfig = JSON.parse(JSON.stringify(DEFAULT_PREP_ITEMS));
-        if(!state.adminPassword) state.adminPassword = 'admin888';
-        queueRender();
-      }
-    });
     const syncEl = document.getElementById('sync-status');
     if(syncEl) syncEl.textContent = '● Task 雲端資料庫同步中';
   } else {
@@ -1108,7 +1322,7 @@ function closeIdentityModal() {
   if(modalBg) modalBg.classList.remove('open');
 }
 
-function saveIdentityModal() {
+async function saveIdentityModal() {
   const nameInput = document.getElementById('id-modal-name');
   const roleSelect = document.getElementById('id-modal-role');
   if(!nameInput || !roleSelect) return;
@@ -1121,11 +1335,18 @@ function saveIdentityModal() {
   }
 
   if (roleVal === 'admin') {
-    const pwdInput = prompt('切換為管理員身分，請輸入管理員密碼：');
-    const correctPwd = state.adminPassword || 'admin888';
-    if (pwdInput !== correctPwd) {
-      toast('管理員密碼錯誤，拒絕切換權限');
-      return;
+    // 優先以已登入的 Google 帳號比對 Firebase 授權清單
+    let authorized = false;
+    if(session.email){
+      authorized = await isEmailAdmin(session.email);
+    }
+    if(!authorized){
+      const pwdInput = prompt('此帳號未在管理員 Google 授權清單中。\n若持有本機管理員密碼可在此輸入以切換（備援機制）：');
+      const correctPwd = state.adminPassword || 'admin888';
+      if (pwdInput !== correctPwd) {
+        toast('管理員密碼錯誤，拒絕切換權限');
+        return;
+      }
     }
   }
 
@@ -1145,15 +1366,21 @@ function saveIdentityModal() {
   queueRender();
 }
 
-document.addEventListener('click', (e) => {
+document.addEventListener('click', async (e) => {
   const navItem = e.target.closest('.nav-item');
   if(navItem) {
     const v = navItem.dataset.view;
     if(v === 'admin' && session.role !== 'admin') {
-      const pwd = prompt('請輸入管理員密碼以進入後台：');
-      const correctPwd = state.adminPassword || 'admin888';
-      if(pwd !== correctPwd) {
-        return toast('密碼錯誤，拒絕進入後台');
+      let authorized = false;
+      if(session.email){
+        authorized = await isEmailAdmin(session.email);
+      }
+      if(!authorized){
+        const pwd = prompt('請輸入管理員密碼以進入後台（或改用已授權的 Google 帳號登入）：');
+        const correctPwd = state.adminPassword || 'admin888';
+        if(pwd !== correctPwd) {
+          return toast('密碼錯誤，拒絕進入後台');
+        }
       }
       session.role = 'admin';
       const adminGroup = document.getElementById('admin-nav-group');
@@ -1229,7 +1456,7 @@ function checkReminders(){
     const lk = 'rem_'+t.id;
     const last = state[lk] || 0;
     if(Date.now() - last >= t.reminder*60000){
-      state[lk] = Date.now(); saveState();
+      cloudUpdate({[lk]: Date.now()}, {silent:true});
       toast('⏱ 提醒：'+t.text.split('：')[0]);
     }
   });
@@ -1263,8 +1490,11 @@ function topbar(title){
         <span style="font-size:12px; color:var(--ink-soft);">檢視日期：</span>
         <input type="date" id="history-date-input" class="mini-input wide" style="width:140px;" value="${currentLedgerDate}">
       </div>
-      <button class="sync-circle-btn" id="manual-save-btn" title="手動儲存並上傳至雲端">💾</button>
-      <button class="sync-circle-btn" id="manual-sync-btn" title="手動從雲端同步最新資料">🔄</button>
+      <div class="save-group">
+        <span class="save-status-text">${lastSavedAt ? ('上次儲存 '+lastSavedAt) : '尚未儲存'}</span>
+        <button class="sync-circle-btn" id="manual-save-btn" title="手動儲存並上傳至雲端">💾</button>
+        <button class="sync-circle-btn" id="manual-sync-btn" title="手動從雲端同步最新資料">🔄</button>
+      </div>
       <div class="clock mono"><span class="live-dot"></span><span id="clock-el"></span></div>
       <div class="user-avatar-btn" id="user-avatar-btn" title="點擊切換身分與登入">${session.name ? session.name.substring(0,1).toUpperCase() : 'U'}</div>
     </div>
@@ -1522,20 +1752,35 @@ function bindSyncButton(root) {
   const saveBtn = root.querySelector('#manual-save-btn');
   if(saveBtn) {
     saveBtn.addEventListener('click', async () => {
-      toast('正在手動儲存至 Task 雲端資料庫與本機...');
+      saveBtn.classList.add('is-busy');
+      saveBtn.classList.remove('is-ok','is-err');
       const key = 'day:' + currentLedgerDate;
       state.date = currentLedgerDate;
       try {
         localStorage.setItem(key, JSON.stringify(state));
         if (useFirebase && db) {
+          await ensureFirebaseAuth();
           await db.ref('Task/' + key).set(state);
+          lastSavedAt = timeShort();
+          setSaveIndicator('ok');
+          saveBtn.classList.remove('is-busy');
+          saveBtn.classList.add('is-ok');
           toast('✅ 成功手動儲存並同步至 Task 雲端資料庫！');
         } else {
+          lastSavedAt = timeShort();
+          setSaveIndicator('ok');
+          saveBtn.classList.remove('is-busy');
+          saveBtn.classList.add('is-ok');
           toast('✅ 成功手動儲存至本機！');
         }
       } catch(e) {
         console.error(e);
+        saveBtn.classList.remove('is-busy');
+        saveBtn.classList.add('is-err');
+        setSaveIndicator('err');
         toast('❌ 儲存失敗，請檢查網路連線');
+      } finally {
+        setTimeout(()=>{ saveBtn.classList.remove('is-ok','is-err'); }, 1800);
       }
     });
   }
@@ -1546,27 +1791,33 @@ function bindSyncButton(root) {
       if(!useFirebase || !db) {
         return toast('目前為本機模式，無須雲端同步');
       }
-      toast('正在從 Task 雲端資料庫同步最新資料...');
+      syncBtn.classList.add('is-busy');
+      syncBtn.classList.remove('is-ok','is-err');
       const key = 'day:' + currentLedgerDate;
       try {
+        await ensureFirebaseAuth();
         const snapshot = await db.ref('Task/' + key).once('value');
         const val = snapshot.val();
         if(val) {
-          state = val;
+          state = normalizeState(val);
           memoryStateCache.set(key, state);
-          if(!state.tasksConfig) state.tasksConfig = JSON.parse(JSON.stringify(DEFAULT_TASKS));
-          if(!state.inventoryConfig) state.inventoryConfig = JSON.parse(JSON.stringify(DEFAULT_INVENTORY_ITEMS));
-          if(!state.prepConfig) state.prepConfig = JSON.parse(JSON.stringify(DEFAULT_PREP_ITEMS));
-          if(!state.adminPassword) state.adminPassword = 'admin888';
           queueRender();
+          syncBtn.classList.remove('is-busy');
+          syncBtn.classList.add('is-ok');
           toast('✅ 雲端資料同步成功！');
         } else {
-          toast('雲端尚無此日資料，已上傳目前本機資料');
           await db.ref('Task/' + key).set(state);
+          syncBtn.classList.remove('is-busy');
+          syncBtn.classList.add('is-ok');
+          toast('雲端尚無此日資料，已上傳目前本機資料');
         }
       } catch(e) {
         console.error(e);
+        syncBtn.classList.remove('is-busy');
+        syncBtn.classList.add('is-err');
         toast('❌ 同步失敗，請檢查網路連線');
+      } finally {
+        setTimeout(()=>{ syncBtn.classList.remove('is-ok','is-err'); }, 1800);
       }
     });
   }
@@ -1595,7 +1846,6 @@ function bindTaskEvents(root){
       const cur = taskState(id).status;
       const next = cur==='red' ? 'yellow' : cur==='yellow' ? 'green' : 'red';
       setTaskStatus(id, next);
-      queueRender();
     });
   });
   root.querySelectorAll('[data-manual]').forEach(b=>{
@@ -1609,35 +1859,40 @@ function bindTaskEvents(root){
       const desc = prompt('請描述報修內容：');
       if(!desc) return;
       if(!state.repairs) state.repairs = [];
-      state.repairs.push({module:b.dataset.mod, desc, time: nowLabel()+' '+currentLedgerDate, by: session.name, resolved:false});
-      saveState(); toast('已回報'); queueRender();
+      const next = state.repairs.concat([{module:b.dataset.mod, desc, time: nowLabel()+' '+currentLedgerDate, by: session.name, resolved:false}]);
+      cloudUpdate({repairs: next});
+      toast('已回報');
     });
   });
 }
 
 function bindModuleEvents(root, mod){
   const petty = root.querySelector('#petty-input');
-  if(petty) petty.addEventListener('input', ()=>{ state.cash.petty = petty.value; state.cash.pettyBy=session.name; saveState(); });
+  if(petty) petty.addEventListener('input', ()=>{
+    cloudUpdate({'cash/petty': petty.value, 'cash/pettyBy': session.name}, {silent:true});
+  });
   const ex = root.querySelector('#exchange-input');
-  if(ex) ex.addEventListener('input', ()=>{ state.cash.exchange = ex.value; state.cash.exchangeBy=session.name; saveState(); });
+  if(ex) ex.addEventListener('input', ()=>{
+    cloudUpdate({'cash/exchange': ex.value, 'cash/exchangeBy': session.name}, {silent:true});
+  });
 
   const dayBtn = root.querySelector('#day-mode-btn');
-  if(dayBtn) dayBtn.addEventListener('click', ()=>{ state.mode.day = timeShort(); saveState(); toast('日間模式啟動'); queueRender(); });
+  if(dayBtn) dayBtn.addEventListener('click', ()=>{ cloudUpdate({'mode/day': timeShort()}); toast('日間模式啟動'); });
   const nightBtn = root.querySelector('#night-mode-btn');
-  if(nightBtn) nightBtn.addEventListener('click', ()=>{ state.mode.night = timeShort(); saveState(); toast('夜間模式啟動'); queueRender(); });
+  if(nightBtn) nightBtn.addEventListener('click', ()=>{ cloudUpdate({'mode/night': timeShort()}); toast('夜間模式啟動'); });
 
   const exSave = root.querySelector('#ex-save');
   if(exSave) exSave.addEventListener('click', ()=>{
     const gi = root.querySelector('#ex-in').value, sec = root.querySelector('#ex-sec').value, go = root.querySelector('#ex-out').value, note = root.querySelector('#ex-note').value;
     if(!gi||!sec||!go){ toast('請填寫完整數據'); return; }
     if(!state.baristaLogs) state.baristaLogs = [];
-    state.baristaLogs.push({gramsIn:gi, seconds:sec, gramsOut:go, note, time:nowLabel(), by:session.name});
-    saveState(); queueRender();
+    const next = state.baristaLogs.concat([{gramsIn:gi, seconds:sec, gramsOut:go, note, time:nowLabel(), by:session.name}]);
+    cloudUpdate({baristaLogs: next});
   });
 
   root.querySelectorAll('[data-inv-item]').forEach(seg=>{
     seg.querySelectorAll('button').forEach(btn=>{
-      btn.addEventListener('click', ()=>{ state.inventory[seg.dataset.invItem] = btn.dataset.v; saveState(); queueRender(); });
+      btn.addEventListener('click', ()=>{ cloudUpdate({['inventory/'+seg.dataset.invItem]: btn.dataset.v}); });
     });
   });
 
@@ -1645,34 +1900,30 @@ function bindModuleEvents(root, mod){
     seg.querySelectorAll('button').forEach(btn=>{
       btn.addEventListener('click', ()=>{ 
         const k = seg.dataset.prepSeg;
-        if(!state.prep[k]) state.prep[k] = {targetQty:0, doneQty:0, unit:''};
-        state.prep[k].status = btn.dataset.v; 
-        saveState(); queueRender(); 
+        const cur = (state.prep && state.prep[k]) || {targetQty:0, doneQty:0, unit:''};
+        cloudUpdate({['prep/'+k]: Object.assign({}, cur, {status: btn.dataset.v})});
       });
     });
   });
   root.querySelectorAll('[data-prep-target]').forEach(inp=>{
     inp.addEventListener('change', ()=>{
       const k = inp.dataset.prepTarget;
-      if(!state.prep[k]) state.prep[k] = {status:'todo', doneQty:0, unit:''};
-      state.prep[k].targetQty = inp.value;
-      saveState();
+      const cur = (state.prep && state.prep[k]) || {status:'todo', doneQty:0, unit:''};
+      cloudUpdate({['prep/'+k]: Object.assign({}, cur, {targetQty: inp.value})}, {silent:true});
     });
   });
   root.querySelectorAll('[data-prep-done]').forEach(inp=>{
     inp.addEventListener('change', ()=>{
       const k = inp.dataset.prepDone;
-      if(!state.prep[k]) state.prep[k] = {status:'todo', targetQty:0, unit:''};
-      state.prep[k].doneQty = inp.value;
-      saveState();
+      const cur = (state.prep && state.prep[k]) || {status:'todo', targetQty:0, unit:''};
+      cloudUpdate({['prep/'+k]: Object.assign({}, cur, {doneQty: inp.value})}, {silent:true});
     });
   });
   root.querySelectorAll('[data-prep-unit]').forEach(inp=>{
     inp.addEventListener('change', ()=>{
       const k = inp.dataset.prepUnit;
-      if(!state.prep[k]) state.prep[k] = {status:'todo', targetQty:0, doneQty:0};
-      state.prep[k].unit = inp.value;
-      saveState();
+      const cur = (state.prep && state.prep[k]) || {status:'todo', targetQty:0, doneQty:0};
+      cloudUpdate({['prep/'+k]: Object.assign({}, cur, {unit: inp.value})}, {silent:true});
     });
   });
 }
@@ -1777,8 +2028,8 @@ function renderReport(main){
       const v = input ? input.value.trim() : '';
       if(!v) return;
       if(!state.notes) state.notes = [];
-      state.notes.push({text:v, by:session.name, time:nowLabel()});
-      saveState(); queueRender();
+      const next = state.notes.concat([{text:v, by:session.name, time:nowLabel()}]);
+      cloudUpdate({notes: next});
     });
   }
   
@@ -1906,41 +2157,29 @@ function renderTraining(main){
   main.querySelectorAll('[data-tr-task]').forEach(cb => {
     cb.addEventListener('change', e => {
       const id = cb.dataset.trTask;
-      if(!state.trainees[currentTrainee]) state.trainees[currentTrainee] = {};
-      if(!state.trainees[currentTrainee][id]) state.trainees[currentTrainee][id] = {};
-      state.trainees[currentTrainee][id].checked = cb.checked;
-      
-      if(cb.checked) {
-        if(!state.trainees[currentTrainee][id].date) {
-           state.trainees[currentTrainee][id].date = currentLedgerDate;
-           const dateInp = main.querySelector(`[data-tr-date="${id}"]`);
-           if(dateInp) dateInp.value = currentLedgerDate;
-        }
-        if(!state.trainees[currentTrainee][id].trainer) {
-           state.trainees[currentTrainee][id].trainer = session.name;
-           const trainerInp = main.querySelector(`[data-tr-trainer="${id}"]`);
-           if(trainerInp) trainerInp.value = session.name;
-        }
+      const cur = (state.trainees[currentTrainee] && state.trainees[currentTrainee][id]) || {};
+      const next = Object.assign({}, cur, {checked: cb.checked});
+      if(cb.checked){
+        if(!next.date) next.date = currentLedgerDate;
+        if(!next.trainer) next.trainer = session.name;
       }
-      saveState(); queueRender();
+      cloudUpdate({['trainees/'+currentTrainee+'/'+id]: next});
     });
   });
 
   main.querySelectorAll('[data-tr-date]').forEach(inp => {
     inp.addEventListener('change', e => {
       const id = inp.dataset.trDate;
-      if(!state.trainees[currentTrainee][id]) state.trainees[currentTrainee][id] = {};
-      state.trainees[currentTrainee][id].date = inp.value;
-      saveState();
+      const cur = (state.trainees[currentTrainee] && state.trainees[currentTrainee][id]) || {};
+      cloudUpdate({['trainees/'+currentTrainee+'/'+id]: Object.assign({}, cur, {date: inp.value})}, {silent:true});
     });
   });
 
   main.querySelectorAll('[data-tr-trainer]').forEach(inp => {
     inp.addEventListener('change', e => {
       const id = inp.dataset.trTrainer;
-      if(!state.trainees[currentTrainee][id]) state.trainees[currentTrainee][id] = {};
-      state.trainees[currentTrainee][id].trainer = inp.value;
-      saveState();
+      const cur = (state.trainees[currentTrainee] && state.trainees[currentTrainee][id]) || {};
+      cloudUpdate({['trainees/'+currentTrainee+'/'+id]: Object.assign({}, cur, {trainer: inp.value})}, {silent:true});
     });
   });
 }
@@ -1949,9 +2188,11 @@ function handleAddTrainee() {
   const name = prompt('請輸入新進人員姓名：');
   if(name && name.trim() !== '') {
     if(!state.trainees) state.trainees = {};
-    if(!state.trainees[name]) state.trainees[name] = {};
+    if(!state.trainees[name]){
+      cloudUpdate({['trainees/'+name]: {}});
+    }
     currentTrainee = name;
-    saveState(); queueRender();
+    queueRender();
   }
 }
 
@@ -1960,7 +2201,7 @@ let adminEditPid = 'opening';
 
 function renderAdmin(main){
   if(session.role !== 'admin'){
-    main.innerHTML = `<div class="empty-note">權限不足（請點擊右上角頭像切換為「管理員」身分並輸入密碼）</div>`; 
+    main.innerHTML = `<div class="empty-note">權限不足（請點擊右上角頭像切換為「管理員」身分：需為 Firebase 授權清單中的 Google 帳號，或輸入本機管理員密碼）</div>`; 
     bindAvatarClick(main);
     bindDateSelector(main);
     bindSyncButton(main);
@@ -1969,7 +2210,21 @@ function renderAdmin(main){
   let html = topbar('管理總覽與設定');
 
   html += `<div class="section-card">
-    <div class="section-head"><h2>管理員密碼設定</h2></div>
+    <div class="section-head"><h2>管理員 Google 帳號授權清單（Firebase：Config/adminEmails）</h2></div>
+    <div class="inv-grid">
+      <p class="hint" style="margin:0 0 10px;">只有下列 Google 帳號的 Email，登入時選擇「管理員」才會通過驗證；未在清單內的帳號僅能選擇其他身分（櫃檯／吧台／廚房／新進人員），或使用本機管理員密碼作為備援登入方式。</p>
+      <div id="admin-email-list" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
+        ${useFirebase ? '<span class="hint">載入中⋯</span>' : '<span class="hint">尚未設定 Firebase，無法使用 Google 帳號授權清單（僅能以本機密碼作為管理員入口）</span>'}
+      </div>
+      <div class="field-row">
+        <input type="email" id="new-admin-email-input" class="mini-input wide" placeholder="輸入要授權的 Google Email" ${useFirebase?'':'disabled'}>
+        <button class="btn small" id="btn-add-admin-email" ${useFirebase?'':'disabled'}>+ 新增授權</button>
+      </div>
+    </div>
+  </div>`;
+
+  html += `<div class="section-card">
+    <div class="section-head"><h2>本機管理員密碼設定（Firebase 未設定或需要備援時使用）</h2></div>
     <div class="inv-grid">
       <div class="field-row">
         <input type="password" id="admin-new-pwd-input" class="mini-input wide" placeholder="新管理員密碼">
@@ -2085,6 +2340,42 @@ function renderAdmin(main){
   bindAvatarClick(main);
   bindDateSelector(main);
   bindSyncButton(main);
+
+  if(useFirebase){
+    getAdminEmailList().then(list=>{
+      const wrap = main.querySelector('#admin-email-list');
+      if(!wrap) return;
+      if(!list.length){
+        wrap.innerHTML = '<span class="hint">目前尚無授權的管理員 Email，請於下方新增（新增後該帳號才可用 Google 登入選擇管理員身分）。</span>';
+        return;
+      }
+      wrap.innerHTML = list.map(email => `
+        <span class="tag" style="background:var(--ochre-bg); color:var(--ink); display:inline-flex; align-items:center; gap:6px; padding:4px 8px;">
+          ${email} <button class="icon-btn" style="border:none; padding:0; background:none; cursor:pointer;" data-del-admin-email="${email}">✕</button>
+        </span>
+      `).join('');
+      wrap.querySelectorAll('[data-del-admin-email]').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          await removeAdminEmail(btn.dataset.delAdminEmail);
+          toast('已移除管理員授權');
+          queueRender();
+        });
+      });
+    });
+  }
+
+  const addAdminEmailBtn = main.querySelector('#btn-add-admin-email');
+  if(addAdminEmailBtn){
+    addAdminEmailBtn.addEventListener('click', async ()=>{
+      const inp = main.querySelector('#new-admin-email-input');
+      const val = inp ? inp.value.trim() : '';
+      if(!val || !val.includes('@')){ toast('請輸入有效的 Email'); return; }
+      await addAdminEmail(val);
+      toast('已新增管理員授權：'+val);
+      inp.value = '';
+      queueRender();
+    });
+  }
   
   const savePwdBtn = main.querySelector('#btn-save-admin-pwd');
   if(savePwdBtn) {
@@ -2094,8 +2385,7 @@ function renderAdmin(main){
       if(!val) {
         return toast('請輸入新密碼');
       }
-      state.adminPassword = val;
-      saveState();
+      cloudUpdate({adminPassword: val});
       toast('管理員密碼更新成功！');
       newPwdInput.value = '';
     });
@@ -2121,7 +2411,7 @@ function renderAdmin(main){
       const reader = new FileReader();
       reader.onload = (event) => {
         try {
-          const parsed = JSON.parse(event.target.result);
+          const parsed = normalizeState(JSON.parse(event.target.result));
           state = parsed;
           saveState();
           queueRender();
@@ -2142,9 +2432,8 @@ function renderAdmin(main){
         const inp = main.querySelector(`#new-inv-${m}`);
         const val = inp ? inp.value.trim() : '';
         if(!val) return;
-        if(!state.inventoryConfig[m]) state.inventoryConfig[m] = [...DEFAULT_INVENTORY_ITEMS[m]];
-        state.inventoryConfig[m].push(val);
-        saveState(); queueRender();
+        const cur = state.inventoryConfig[m] || [...DEFAULT_INVENTORY_ITEMS[m]];
+        cloudUpdate({['inventoryConfig/'+m]: cur.concat([val])});
       });
     }
 
@@ -2154,9 +2443,8 @@ function renderAdmin(main){
         const inp = main.querySelector(`#new-prep-${m}`);
         const val = inp ? inp.value.trim() : '';
         if(!val) return;
-        if(!state.prepConfig[m]) state.prepConfig[m] = [...DEFAULT_PREP_ITEMS[m]];
-        state.prepConfig[m].push(val);
-        saveState(); queueRender();
+        const cur = state.prepConfig[m] || [...DEFAULT_PREP_ITEMS[m]];
+        cloudUpdate({['prepConfig/'+m]: cur.concat([val])});
       });
     }
   });
@@ -2165,8 +2453,9 @@ function renderAdmin(main){
     btn.addEventListener('click', () => {
       const m = btn.dataset.delInv;
       const idx = Number(btn.dataset.idx);
-      state.inventoryConfig[m].splice(idx, 1);
-      saveState(); queueRender();
+      const cur = (state.inventoryConfig[m] || []).slice();
+      cur.splice(idx, 1);
+      cloudUpdate({['inventoryConfig/'+m]: cur});
     });
   });
 
@@ -2174,8 +2463,9 @@ function renderAdmin(main){
     btn.addEventListener('click', () => {
       const m = btn.dataset.delPrep;
       const idx = Number(btn.dataset.idx);
-      state.prepConfig[m].splice(idx, 1);
-      saveState(); queueRender();
+      const cur = (state.prepConfig[m] || []).slice();
+      cur.splice(idx, 1);
+      cloudUpdate({['prepConfig/'+m]: cur});
     });
   });
 
@@ -2222,19 +2512,20 @@ function renderAdmin(main){
       if(!state.tasksConfig[adminEditMod]) state.tasksConfig[adminEditMod] = {};
       if(!state.tasksConfig[adminEditMod][adminEditPid]) state.tasksConfig[adminEditMod][adminEditPid] = [];
       
-      const t = state.tasksConfig[adminEditMod][adminEditPid][idx];
+      const arr = state.tasksConfig[adminEditMod][adminEditPid].slice();
+      const t = Object.assign({}, arr[idx]);
       if(field === 'time') t.time = e.target.value;
       if(field === 'text') t.text = e.target.value;
       if(field === 'check') t.needCheck = e.target.checked;
       if(field === 'manual-tag' || field === 'manual-title' || field === 'manual-body') {
-        if(!t.manual) t.manual = {tag:'', title:'', body:''};
-        if(field === 'manual-tag') t.manual.tag = e.target.value;
-        if(field === 'manual-title') t.manual.title = e.target.value;
-        if(field === 'manual-body') t.manual.body = e.target.value;
-        if(!t.manual.tag && !t.manual.title && !t.manual.body) t.manual = null;
+        const manual = Object.assign({tag:'', title:'', body:''}, t.manual || {});
+        if(field === 'manual-tag') manual.tag = e.target.value;
+        if(field === 'manual-title') manual.title = e.target.value;
+        if(field === 'manual-body') manual.body = e.target.value;
+        t.manual = (!manual.tag && !manual.title && !manual.body) ? null : manual;
       }
-      
-      saveState();
+      arr[idx] = t;
+      cloudUpdate({['tasksConfig/'+adminEditMod+'/'+adminEditPid]: arr}, {silent:true});
     });
   });
 
@@ -2242,31 +2533,32 @@ function renderAdmin(main){
     b.addEventListener('click', e => {
       const idx = Number(e.target.dataset.moveUp);
       if(idx <= 0) return;
-      const arr = state.tasksConfig[adminEditMod][adminEditPid];
+      const arr = state.tasksConfig[adminEditMod][adminEditPid].slice();
       const temp = arr[idx];
       arr[idx] = arr[idx - 1];
       arr[idx - 1] = temp;
-      saveState(); queueRender();
+      cloudUpdate({['tasksConfig/'+adminEditMod+'/'+adminEditPid]: arr});
     });
   });
 
   main.querySelectorAll('[data-move-down]').forEach(b => {
     b.addEventListener('click', e => {
       const idx = Number(e.target.dataset.moveDown);
-      const arr = state.tasksConfig[adminEditMod][adminEditPid];
+      const arr = state.tasksConfig[adminEditMod][adminEditPid].slice();
       if(idx >= arr.length - 1) return;
       const temp = arr[idx];
       arr[idx] = arr[idx + 1];
       arr[idx + 1] = temp;
-      saveState(); queueRender();
+      cloudUpdate({['tasksConfig/'+adminEditMod+'/'+adminEditPid]: arr});
     });
   });
 
   main.querySelectorAll('[data-del-idx]').forEach(b => {
     b.addEventListener('click', e => {
       const idx = e.target.dataset.delIdx;
-      state.tasksConfig[adminEditMod][adminEditPid].splice(idx, 1);
-      saveState(); queueRender();
+      const arr = state.tasksConfig[adminEditMod][adminEditPid].slice();
+      arr.splice(idx, 1);
+      cloudUpdate({['tasksConfig/'+adminEditMod+'/'+adminEditPid]: arr});
     });
   });
 
@@ -2274,19 +2566,18 @@ function renderAdmin(main){
   if(addTaskBtn) {
     addTaskBtn.addEventListener('click', ()=>{
       if(!state.tasksConfig[adminEditMod]) state.tasksConfig[adminEditMod] = {};
-      if(!state.tasksConfig[adminEditMod][adminEditPid]) state.tasksConfig[adminEditMod][adminEditPid] = [];
-      state.tasksConfig[adminEditMod][adminEditPid].push({
-        id: generateId(), time: '—', text: '新任務', needCheck: true
-      });
-      saveState(); queueRender();
+      const arr = (state.tasksConfig[adminEditMod][adminEditPid] || []).slice();
+      arr.push({ id: generateId(), time: '—', text: '新任務', needCheck: true });
+      cloudUpdate({['tasksConfig/'+adminEditMod+'/'+adminEditPid]: arr});
     });
   }
 
   main.querySelectorAll('[data-resolve]').forEach(b=>{
     b.addEventListener('click', ()=>{
       const idx = Number(b.dataset.resolve);
-      state.repairs[idx].resolved = !state.repairs[idx].resolved;
-      saveState(); queueRender();
+      const arr = state.repairs.slice();
+      arr[idx] = Object.assign({}, arr[idx], {resolved: !arr[idx].resolved});
+      cloudUpdate({repairs: arr});
     });
   });
 }
@@ -2306,6 +2597,8 @@ function buildLoginRoleGrid(){
       document.querySelectorAll('#login-role-grid .role-btn').forEach(x=>x.classList.remove('selected'));
       b.classList.add('selected');
       selectedLoginRole = r.id;
+      const hint = document.getElementById('login-role-hint');
+      if(hint) hint.textContent = (r.id === 'admin') ? '管理員身分僅限 Firebase 授權清單中的 Google 帳號，或輸入本機管理員密碼。' : '';
       checkLoginReady();
     });
     grid.appendChild(b);
@@ -2340,10 +2633,11 @@ async function updateLoginStatus(){
   }
 }
 
-async function completeLogin(name, role){
-  session = {name, role};
+async function completeLogin(name, role, email){
+  session = {name, role, email: email || null};
   localStorage.setItem('ecole_name', name);
   localStorage.setItem('ecole_role', role);
+  if(email) localStorage.setItem('ecole_email', email); else localStorage.removeItem('ecole_email');
 
   const loginScreen = document.getElementById('login-screen');
   const app = document.getElementById('app');
@@ -2356,16 +2650,18 @@ async function completeLogin(name, role){
 function initLoginScreen(){
   const savedName = localStorage.getItem('ecole_name');
   const savedRole = localStorage.getItem('ecole_role');
+  const savedEmail = localStorage.getItem('ecole_email');
   
   if(savedName && savedRole) {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').classList.add('active');
-    completeLogin(savedName, savedRole);
+    completeLogin(savedName, savedRole, savedEmail);
     return;
   }
 
   buildLoginRoleGrid();
   updateLoginStatus();
+  ensureFirebaseAuth();
 
   const nameInput = document.getElementById('login-name-input');
   if(nameInput) nameInput.addEventListener('input', checkLoginReady);
@@ -2377,7 +2673,7 @@ function initLoginScreen(){
       if(!name || !selectedLoginRole) return;
       
       if (selectedLoginRole === 'admin') {
-        const pwd = prompt('請輸入管理員密碼：');
+        const pwd = prompt('本機登入無法比對 Google 授權清單，請輸入管理員密碼：');
         const correctPwd = state.adminPassword || 'admin888';
         if (pwd !== correctPwd) {
           return toast('管理員密碼錯誤');
@@ -2387,7 +2683,7 @@ function initLoginScreen(){
       enterBtn.disabled = true;
       enterBtn.textContent = '登入中⋯';
       try{
-        completeLogin(name, selectedLoginRole);
+        completeLogin(name, selectedLoginRole, null);
       }catch(e){
         console.error('登入失敗', e);
         toast('登入時發生錯誤');
@@ -2409,22 +2705,26 @@ function initLoginScreen(){
         toast('請先選擇身分，再使用 Google 登入');
         return;
       }
-      if (selectedLoginRole === 'admin') {
-        const pwd = prompt('請輸入管理員密碼：');
-        const correctPwd = state.adminPassword || 'admin888';
-        if (pwd !== correctPwd) {
-          return toast('管理員密碼錯誤');
-        }
-      }
+      googleBtn.disabled = true;
       try{
         const provider = new firebase.auth.GoogleAuthProvider();
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
+        if(selectedLoginRole === 'admin'){
+          const ok = await isEmailAdmin(user.email);
+          if(!ok){
+            toast('此 Google 帳號未被授權為管理員，請選擇其他身分，或使用本機管理員密碼登入');
+            googleBtn.disabled = false;
+            return;
+          }
+        }
         const name = user.displayName || 'Google 用戶';
-        completeLogin(name, selectedLoginRole);
+        completeLogin(name, selectedLoginRole, user.email || null);
       }catch(e){
         console.error(e);
         toast('Google 登入失敗');
+      }finally{
+        googleBtn.disabled = false;
       }
     });
   }
@@ -2445,6 +2745,7 @@ function doLogout(){
   
   localStorage.removeItem('ecole_name');
   localStorage.removeItem('ecole_role');
+  localStorage.removeItem('ecole_email');
   selectedLoginRole = null;
   const nameInput = document.getElementById('login-name-input');
   if(nameInput) nameInput.value = '';
