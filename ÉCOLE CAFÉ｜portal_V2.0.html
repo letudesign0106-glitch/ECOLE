@@ -105,10 +105,14 @@
     color: var(--sidebar-text);
     display: flex;
     flex-direction: column;
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
+    bottom: 0;
     height: 100vh;
     padding: 30px 20px 22px;
+    z-index: 50;
+    overflow-y: auto;
   }
   .brand {
     display: flex;
@@ -222,6 +226,7 @@
     flex: 1;
     min-width: 0;
     padding: 34px 40px 100px;
+    margin-left: 264px;
   }
   .topbar {
     display: flex;
@@ -281,9 +286,6 @@
   .stat-value { font-family: var(--font-num); font-size: 32px; font-weight: 700; color: var(--ink); line-height: 1.2; }
   .progress-bar-bg { width: 100%; height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 12px; }
   .progress-bar-fill { height: 100%; background: var(--c-sage); transition: width 0.8s ease; border-radius: 999px; }
-  
-  .task-list { margin: 12px 0 0; padding-left: 20px; font-size: 14px; color: var(--ink-soft); line-height: 1.8; }
-  .task-list li { padding-left: 4px; word-break: break-word; }
 
   .grid {
     display: grid;
@@ -306,7 +308,7 @@
   }
   .card:hover { transform: translateY(-3px); box-shadow: var(--shadow-card); }
   
-  .dashboard-card { min-height: auto; justify-content: flex-start; gap: 8px; cursor: default; }
+  .dashboard-card { min-height: auto; justify-content: flex-start; gap: 8px; cursor: default; grid-column: 1 / -1; }
   .dashboard-card:hover { transform: none; box-shadow: var(--shadow-soft); }
 
   .card-top { display: flex; align-items: center; justify-content: space-between; }
@@ -317,6 +319,64 @@
   }
   .card-arrow { color: var(--ink-faint); font-size: 15px; }
   .card-name { font-size: 16px; font-weight: 700; letter-spacing: .2px; }
+
+  /* ---------- Gantt Chart Styles (排班條狀圖) ---------- */
+  .gantt-wrap {
+    width: 100%;
+    overflow-x: auto;
+    margin-top: 10px;
+    font-family: var(--font-num);
+  }
+  .gantt-table {
+    min-width: 650px;
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .gantt-header th {
+    font-size: 11px;
+    color: var(--ink-faint);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 6px;
+    text-align: center;
+    font-weight: 550;
+  }
+  .gantt-header th:first-child { text-align: left; width: 80px; }
+  .gantt-row td {
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--line);
+    vertical-align: middle;
+  }
+  .gantt-row td:first-child {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink);
+    padding-right: 10px;
+    white-space: nowrap;
+  }
+  .gantt-track {
+    position: relative;
+    height: 28px;
+    background: repeating-linear-gradient(90deg, transparent, transparent 4.16%, var(--line) 4.16%, var(--line) calc(4.16% + 1px));
+  }
+  .gantt-bar {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #4A453F;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    padding: 0 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .bar-green { background: #E2EAD8; border: 1px solid #C4D3B4; }
+  .bar-pink { background: #F2E4E1; border: 1px solid #D9B8B3; }
 
   .empty-state {
     border: 1px dashed var(--line);
@@ -704,8 +764,8 @@
   /* ---------- Responsive ---------- */
   @media (max-width: 699px){
     .sidebar { display: none; }
+    .main { margin-left: 0; padding: 22px 16px 96px; }
     .mobile-brand { display: flex; }
-    .main { padding: 22px 16px 96px; }
     .bottom-nav { display: block; }
     .topbar { margin-bottom: 26px; }
     .topbar-right { gap: 8px; }
@@ -804,25 +864,14 @@
         </div>
       </div>
       
-      <!-- 2. 今日排班與站位 -->
+      <!-- 2. 今日排班 (Gantt 條狀圖進度表同步) -->
       <div class="card dashboard-card">
         <div class="card-top">
-          <div class="card-name">今日排班與站位</div>
+          <div class="card-name">今日排班</div>
         </div>
-        <ul class="task-list" id="shiftList">
-          <li style="color:var(--ink-faint); list-style:none; margin-left:-20px;">資料載入中...</li>
-        </ul>
-        <div id="shiftNote" style="font-size: 12px; color: var(--ink-faint); margin-top: 8px; display: none;"></div>
-      </div>
-      
-      <!-- 3. 今日待辦事項卡片 -->
-      <div class="card dashboard-card">
-        <div class="card-top">
-          <div class="card-name">今日待辦事項</div>
+        <div id="ganttContainer" style="color:var(--ink-faint); font-size:13.5px; padding: 10px 0;">
+          資料載入中...
         </div>
-        <ul class="task-list" id="taskList">
-          <li style="color:var(--ink-faint); list-style:none; margin-left:-20px;">資料載入中...</li>
-        </ul>
       </div>
 
     </div>
@@ -1067,9 +1116,9 @@
 
     let greet = '早安，今天也是美好的一天 ☕';
     let eyebrow = '早班準備中';
-    if(h >= 11 && h < 14){ greet = '午安，別忘了喝口水休息 🌿'; eyebrow = '營運進行中'; }
-    else if(h >= 14 && h < 18){ greet = '午後時光，穩穩把每件事做好 🍃'; eyebrow = '午後時段'; }
-    else if(h >= 18 && h < 23){ greet = '晚安辛苦了，準備交接收班 🌙'; eyebrow = '晚班進行中'; }
+    if(h >= 11 && h < 14){ greet = '午安，別忘了喝口水休息一下 🌿'; eyebrow = '營運進行中'; }
+    else if(h >= 14 && h < 18){ greet = '午後時光，穩穩地把每件事做好 🍃'; eyebrow = '午後時段'; }
+    else if(h >= 18 && h < 23){ greet = '晚安，辛苦了，準備交接與收班 🌙'; eyebrow = '晚班進行中'; }
     else if(h >= 23 || h < 5){ greet = '深夜辛苦了，注意安全早點休息 ✨'; eyebrow = '深夜時段'; }
     document.getElementById('greetTitle').textContent = greet;
     document.getElementById('greetEyebrow').textContent = eyebrow;
@@ -1557,7 +1606,7 @@
       } else {
         authBtn.innerHTML = '🚪';
       }
-      authBtn.title = "登出 (" + user.email + ")";
+      authBtn.title = "登入 (" + user.email + ")";
       cloudSaveBtn.style.display = 'flex';
     } else {
       authBtn.style.backgroundImage = 'none';
@@ -1612,21 +1661,17 @@
   };
 
   // ==========================================
-  // 3. 營運儀表板 - 即時監聽與嚴格當日過濾
+  // 3. 營運儀表板 - 讀取 ecoleCafe -> main_schedule 條狀圖 (核心修正版)
   // ==========================================
   function subscribeToDashboard() {
     const todayObj = new Date();
-    const todayStr = dateKey(todayObj); 
-    const prevDateStr = getPreviousDateKey(todayObj); 
+    const todayStr = dateKey(todayObj); // e.g. "2026-08-10"
     
-    // ----------------------------------------
-    // [功能一] 本月營業額自動累計與達成率計算
-    // ----------------------------------------
+    // [功能一] 本月營業額自動計算
     async function calculateMonthlyRevenue() {
       try {
         const prevObj = new Date(todayObj);
         prevObj.setDate(prevObj.getDate() - 1); 
-        
         const monthPrefix = `${prevObj.getFullYear()}-${pad2(prevObj.getMonth() + 1)}`;
         const startDate = `${monthPrefix}-01`;
         const endDate = dateKey(prevObj);
@@ -1654,7 +1699,6 @@
         if (sharedDoc.exists) {
           const sData = sharedDoc.data();
           if(!foundTarget && sData.revMonthTarget) target = parseFloat(sData.revMonthTarget);
-          
           let sharedCum = 0;
           if (sData.dailyTracking) {
              for (let key in sData.dailyTracking) {
@@ -1674,154 +1718,243 @@
         document.getElementById('revTotal').textContent = calculatedCum.toLocaleString();
         document.getElementById('revTarget').textContent = target.toLocaleString();
         document.getElementById('revProgressBar').style.width = barPercent + '%';
-
       } catch(err) {
         console.log("計算累計營業額錯誤:", err);
       }
     }
-    
     calculateMonthlyRevenue();
 
-
-    // ----------------------------------------
-    // [功能二] 今日待辦事項
-    // ----------------------------------------
+    // [功能二] 讀取排班並繪製 Gantt 條狀圖
     try {
-      db.collection('backups').doc(todayStr).onSnapshot(doc => {
-        const taskList = document.getElementById('taskList');
-        let tasks = [];
-        if (doc.exists && doc.data().tasks) {
-          tasks = doc.data().tasks;
-        }
+      let employeeMap = {};
 
-        db.collection('backups').doc('shared_ecole_cafe_backup').get().then(sharedDoc => {
-          if (sharedDoc.exists) {
-            const sharedData = sharedDoc.data();
-            if (sharedData.dailyTracking && sharedData.dailyTracking[todayStr] && sharedData.dailyTracking[todayStr].tasks) {
-              if (tasks.length === 0) tasks = sharedData.dailyTracking[todayStr].tasks;
-            }
-            if (tasks.length === 0 && sharedData.tasks) tasks = sharedData.tasks;
-          }
-
-          taskList.innerHTML = '';
-          if (tasks.length === 0) {
-            taskList.innerHTML = '<li style="color:var(--ink-faint); list-style:none; margin-left:-20px;">今日目前無待辦事項</li>';
-          } else {
-            tasks.forEach(t => {
-              const li = document.createElement('li');
-              let text = typeof t === 'string' ? t : (t.desc ? (t.assignee ? `[${t.assignee}] ` : '') + t.desc : t.text || t.title || t.name || JSON.stringify(t));
-              if (t.done) li.style.textDecoration = 'line-through';
-              li.textContent = escapeHtml(text);
-              taskList.appendChild(li);
-            });
-          }
-        }).catch(() => {});
-      });
-    } catch(e) { console.error(e); }
-
-
-    // ----------------------------------------
-    // [功能三] 嚴格過濾「今日」排班與站位
-    // ----------------------------------------
-    try {
-      let unsubscribeMain = null;
-
-      function renderShiftTexts(displayTexts) {
-        const shiftList = document.getElementById('shiftList');
-        shiftList.innerHTML = '';
-        if (displayTexts && displayTexts.length > 0) {
-          displayTexts.forEach(txt => {
-            const li = document.createElement('li');
-            li.textContent = txt; 
-            shiftList.appendChild(li);
+      async function loadEmployeeMap() {
+        const map = {};
+        try {
+          const empSnap = await db.collection('employees').get();
+          empSnap.forEach(emp => {
+            const d = emp.data() || {};
+            const name = (d.name || d.title || '').toString().trim() || emp.id;
+            map[emp.id] = name;
+            if (d.code) map[String(d.code)] = name;
           });
-        } else {
-          shiftList.innerHTML = '<li style="color:var(--ink-faint); list-style:none; margin-left:-20px;">今日目前無人員排班與站位</li>';
+        } catch (e) {
+          // 忽略權限錯誤
         }
-        document.getElementById('shiftNote').style.display = 'none';
+        return map;
       }
 
-      // 嚴格只萃取今天日期的對應站位與人員
-      function extractOnlyTodaySchedule(dataObj, dateObj) {
-        let monthStr = `${dateObj.getFullYear()}-${pad2(dateObj.getMonth() + 1)}`; // 例: 2026-08
-        let dayStr = dateObj.getDate().toString();       // 例: 6
-        let dayPadStr = pad2(dateObj.getDate());         // 例: 06
-        let fullDateStr = dateKey(dateObj);              // 例: 2026-08-06
+      function mergeInlineEmployees(map, rawEmployees) {
+        if (!rawEmployees) return map;
+        if (Array.isArray(rawEmployees)) {
+          rawEmployees.forEach(emp => {
+            if (!emp || typeof emp !== 'object') return;
+            const idKey = emp.id || emp.code || emp.uid;
+            const nameVal = emp.name || emp.title;
+            if (idKey && nameVal) map[String(idKey)] = nameVal;
+          });
+        } else if (typeof rawEmployees === 'object') {
+          Object.keys(rawEmployees).forEach(k => {
+            const val = rawEmployees[k];
+            if (val && typeof val === 'object') {
+              const nameVal = val.name || val.title || k;
+              map[k] = nameVal;
+              if (val.code) map[String(val.code)] = nameVal;
+            } else if (typeof val === 'string') {
+              map[k] = val;
+            }
+          });
+        }
+        return map;
+      }
+
+      function getShiftTimes(shiftStr) {
+        const s = String(shiftStr || '').toUpperCase().trim();
+        const table = {
+          N1: { start: 11.5, end: 20.5 },
+          N2: { start: 13.0, end: 22.5 },
+          D1: { start: 8.0,  end: 17.0 },
+          D2: { start: 10.0, end: 18.0 },
+          D3: { start: 9.0,  end: 16.0 }
+        };
+        if (table[s]) return table[s];
+        for (const key in table) {
+          if (s.includes(key)) return table[key];
+        }
+        if (s.startsWith('N')) return { start: 12.0, end: 21.0 };
+        if (s.startsWith('D')) return { start: 9.0, end: 18.0 };
+        return null;
+      }
+
+      const OFF_MARKERS = new Set(['✕', '❌', '✗', '×', '休', '休假', 'OFF', 'O']);
+      const RESERVED_EMP_KEYS = new Set(['meta', 'settings', 'config', 'revMonthTarget']);
+
+      // 將時間字串 (如 "1130", "09:00", "9") 轉換為小數時制 (如 11.5, 9.0)
+      function hhmmToDecimal(timeStr) {
+        // 清除冒號，只留數字
+        const s = String(timeStr).replace(/:/g, '').trim();
+        let padded = s;
+        if (padded.length <= 2) padded = padded + '00'; // 支援縮寫如 "9" -> "900"
+        padded = padded.padStart(4, '0');
         
-        let texts = [];
+        const h = parseInt(padded.slice(0, -2), 10);
+        const mnt = parseInt(padded.slice(-2), 10);
+        if (isNaN(h) || isNaN(mnt)) return null;
+        return h + (mnt / 60);
+      }
 
-        // 遞迴檢索資料結構，只抓取符合今天日期的資料
-        function scanNode(node, prefix = '') {
-          if (!node) return;
-          if (typeof node === 'object' && !Array.isArray(node)) {
-            // 如果此層物件直接包含了今天的日期鍵值（例如 "6", "06", "2026-08-06"）
-            let targetVal = undefined;
-            if (node[fullDateStr] !== undefined) targetVal = node[fullDateStr];
-            else if (node[dayStr] !== undefined) targetVal = node[dayStr];
-            else if (node[dayPadStr] !== undefined) targetVal = node[dayPadStr];
+      // 🧠 核心升級：極度寬容的班表解析引擎
+      function parseShiftCell(raw) {
+        let str = String(raw == null ? '' : raw).trim();
+        if (!str) return null;
+        if (OFF_MARKERS.has(str) || OFF_MARKERS.has(str.toUpperCase())) return null;
 
-            if (targetVal !== undefined) {
-              if (targetVal !== null && String(targetVal).trim() !== '') {
-                texts.push(`${prefix}：${String(targetVal)}`);
-              }
-            } else {
-              // 繼續往下尋找
-              for (let k in node) {
-                let nextPrefix = prefix ? `${prefix} - ${k}` : k;
-                scanNode(node[k], nextPrefix);
-              }
+        // 統一符號與空格，方便解析 (例如 "PT 12:00~18:00" -> "PT 12:00-18:00")
+        str = str.replace(/\s+/g, ' ').replace(/[~～]/g, '-');
+
+        // 提取時間區間 (支援 1130-2030, 09:00-17:00, 9-18)
+        const timeRegex = /(\d{1,2}:?\d{0,2})\s*-\s*(\d{1,2}:?\d{0,2})/;
+        const matchTime = str.match(timeRegex);
+
+        if (matchTime) {
+          // 把時間從字串中移除，剩下的即為班別代碼 (如 "N1", "PT", "工讀")
+          let code = str.replace(matchTime[0], '').trim() || '上班';
+          
+          const startH = hhmmToDecimal(matchTime[1]);
+          const endH = hhmmToDecimal(matchTime[2]);
+
+          if (startH !== null && endH !== null) {
+            let finalEnd = endH;
+            if (finalEnd <= startH) {
+              if (startH >= 12) finalEnd += 24; // 跨夜
+              else finalEnd = startH + 8; // 異常防呆
             }
+            return { shift: code, start: startH, end: finalEnd };
           }
         }
 
-        // 定位資料來源
-        let sourceData = dataObj[monthStr] || dataObj.stationData || dataObj;
-        scanNode(sourceData);
-
-        return texts;
+        // 備援：只有班別代碼 (例如 "N1", "PT")
+        const times = getShiftTimes(str);
+        if (times) {
+          return { shift: str, start: times.start, end: times.end };
+        }
+        
+        return null; // 無法辨識的格式
       }
 
-      function fallbackToBackups() {
-        db.collection('backups').doc('shared_ecole_cafe_backup').get().then(backupDoc => {
-          let displayTexts = [];
-          if (backupDoc.exists) {
-            const bData = backupDoc.data();
-            const tracking = bData.dailyTracking && bData.dailyTracking[todayStr];
-            if (tracking) {
-              if (tracking.manager) displayTexts.push(`值班主管：${tracking.manager}`);
-              if (tracking.bar) displayTexts.push(`吧台：${tracking.bar}`);
-              if (tracking.counter) displayTexts.push(`櫃檯外場：${tracking.counter}`);
-              if (tracking.kitchen) displayTexts.push(`廚房：${tracking.kitchen}`);
-            }
-          }
-          renderShiftTexts(displayTexts);
-        }).catch(() => renderShiftTexts([]));
-      }
+      async function renderGanttChart() {
+        const container = document.getElementById('ganttContainer');
+        try {
+          const docSnap = await db.collection('ecoleCafe').doc('main_schedule').get();
 
-      db.collection('ecoleCafe').doc(todayStr).onSnapshot(dayDoc => {
-        if (dayDoc.exists) {
-          let extracted = extractOnlyTodaySchedule(dayDoc.data(), todayObj);
-          if (extracted.length > 0) {
-            renderShiftTexts(extracted);
+          if (!docSnap.exists) {
+            container.innerHTML = '<div style="color:var(--ink-faint); padding:6px 0;">今日無排班資料 (尚未建立班表)</div>';
             return;
           }
-        }
-        
-        if (!unsubscribeMain) {
-          unsubscribeMain = db.collection('ecoleCafe').doc('main_schedule').onSnapshot(mainDoc => {
-            if (mainDoc.exists) {
-              let extracted = extractOnlyTodaySchedule(mainDoc.data(), todayObj);
-              if (extracted.length > 0) {
-                renderShiftTexts(extracted);
-              } else {
-                fallbackToBackups();
+
+          const mainData = docSnap.data() || {};
+
+          if (!employeeMap || Object.keys(employeeMap).length === 0) {
+            employeeMap = await loadEmployeeMap();
+          }
+          const mergedMap = mergeInlineEmployees(Object.assign({}, employeeMap), mainData.employees);
+
+          const scheduleRoot = mainData.scheduleData;
+          if (!scheduleRoot || typeof scheduleRoot !== 'object') {
+            container.innerHTML = '<div style="color:var(--ink-faint); padding:6px 0;">今日無排班資料 (尚未建立 scheduleData)</div>';
+            return;
+          }
+
+          const monthKey = `${todayObj.getFullYear()}-${pad2(todayObj.getMonth() + 1)}`;
+          const dayKeyCandidates = [String(todayObj.getDate()), pad2(todayObj.getDate())];
+
+          const monthNode = scheduleRoot[monthKey];
+          if (!monthNode || typeof monthNode !== 'object') {
+            container.innerHTML = '<div style="color:var(--ink-faint); padding:6px 0;">今日無排班資料 (本月尚未建立班表)</div>';
+            return;
+          }
+
+          let shiftsList = [];
+          Object.keys(monthNode).forEach(empCode => {
+            if (RESERVED_EMP_KEYS.has(empCode)) return;
+            const empDayMap = monthNode[empCode];
+            if (!empDayMap || typeof empDayMap !== 'object') return;
+
+            let raw;
+            for (const dk of dayKeyCandidates) {
+              if (Object.prototype.hasOwnProperty.call(empDayMap, dk)) {
+                raw = empDayMap[dk];
+                break;
               }
-            } else {
-              fallbackToBackups();
             }
+            if (raw === undefined) return; 
+
+            const parsed = parseShiftCell(raw);
+            if (!parsed) return;
+
+            shiftsList.push({
+              name: mergedMap[empCode] || empCode,
+              shift: parsed.shift,
+              start: parsed.start,
+              end: parsed.end
+            });
           });
+
+          if (shiftsList.length === 0) {
+            container.innerHTML = '<div style="color:var(--ink-faint); padding:6px 0;">今日無排班人員 (全員休假或尚未排班)</div>';
+            return;
+          }
+
+          shiftsList.sort((a, b) => a.start - b.start);
+
+          let html = `
+            <div class="gantt-wrap">
+              <table class="gantt-table">
+                <tr class="gantt-header">
+                  <th>姓名</th>
+                  <th>6:00</th><th>8:00</th><th>10:00</th><th>12:00</th><th>14:00</th><th>16:00</th><th>18:00</th><th>20:00</th><th>22:00</th><th>24:00</th>
+                </tr>
+          `;
+
+          shiftsList.forEach((s, idx) => {
+            const startHour = Math.max(6, Math.min(24, s.start));
+            const endHour = Math.max(6, Math.min(24, s.end));
+            const leftPct = ((startHour - 6) / 18) * 100;
+            const widthPct = Math.max(0, ((endHour - startHour) / 18) * 100);
+            const barColorClass = idx % 2 === 0 ? 'bar-green' : 'bar-pink';
+
+            html += `
+              <tr class="gantt-row">
+                <td>${escapeHtml(s.name)}</td>
+                <td colspan="10">
+                  <div class="gantt-track">
+                    <div class="gantt-bar ${barColorClass}" style="left: ${leftPct}%; width: ${widthPct}%;" title="${escapeAttr(s.shift)}">
+                      ${escapeHtml(s.shift)}
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            `;
+          });
+
+          html += `</table></div>`;
+          container.innerHTML = html;
+
+        } catch(err) {
+          console.error("讀取排班條狀圖錯誤:", err);
+          container.innerHTML = '<div style="color:var(--ink-faint); padding:6px 0;">無法載入排班條狀圖資料</div>';
         }
-      }, () => fallbackToBackups());
+      }
+
+      db.collection('ecoleCafe').doc('main_schedule').onSnapshot(() => {
+        employeeMap = {}; 
+        renderGanttChart();
+      }, err => {
+        console.error('排班監聽錯誤:', err);
+        const container = document.getElementById('ganttContainer');
+        if (container) container.innerHTML = '<div style="color:var(--ink-faint); padding:6px 0;">排班資料連線失敗，請確認網路或權限設定</div>';
+      });
+      renderGanttChart();
 
     } catch(e) { console.error(e); }
   }
