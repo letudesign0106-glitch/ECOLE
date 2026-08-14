@@ -52,7 +52,7 @@
     --font-display: 'Cormorant Garamond', 'Noto Sans TC', serif;
     --font-body: 'Noto Sans TC', 'Inter', sans-serif;
     --font-num: 'Inter', 'Noto Sans TC', sans-serif;
-    --font-title: 'Microsoft JhengHei', '微軟正黑體', 'Noto Sans TC', sans-serif; /* 正黑體設定 */
+    --font-title: 'Microsoft JhengHei', '微軟正黑體', 'Noto Sans TC', sans-serif;
   }
 
   * { box-sizing: border-box; }
@@ -123,7 +123,7 @@
     margin-bottom: 22px;
   }
   .brand-text .brand-title {
-    font-family: var(--font-title); /* 設定為正黑體 */
+    font-family: var(--font-title);
     font-size: 26px;
     letter-spacing: 2px;
     font-weight: 700;
@@ -225,7 +225,7 @@
   }
   .mobile-brand { display: none; flex-direction: column; }
   .mobile-brand .brand-title { 
-    font-family: var(--font-title); /* 設定為正黑體 */
+    font-family: var(--font-title);
     font-size: 22px; 
     letter-spacing: 2px; 
     font-weight: 700; 
@@ -394,43 +394,53 @@
     cursor: pointer;
   }
 
-  /* ---------- Bottom nav (mobile) ---------- */
+  /* ---------- Bottom nav (mobile) 重構等距與滾動 ---------- */
   .bottom-nav {
     display: none;
     position: fixed;
     left: 0; right: 0; bottom: 0;
     background: var(--sidebar-bg);
-    padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+    padding: 8px 4px calc(8px + env(safe-area-inset-bottom));
     z-index: 40;
     box-shadow: 0 -4px 18px rgba(0,0,0,0.18);
   }
   .bottom-scroll {
     display: flex;
-    gap: 4px;
+    align-items: center;
+    width: 100%;
     overflow-x: auto;
     scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
   .bottom-scroll::-webkit-scrollbar { display: none; }
   .bottom-item {
-    flex: 0 0 auto;
-    min-width: 66px;
+    flex: 1 0 20%; /* 等距平分 (預設5個按鈕各佔 20%) */
+    min-width: 68px; /* 保障最小點擊寬度，超過數量自動開啟右滑 */
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 4px;
-    padding: 8px 6px;
+    padding: 6px 2px;
     border-radius: var(--radius-sm);
     color: var(--sidebar-text-soft);
     cursor: pointer;
   }
   .bottom-item .b-icon {
-    width: 34px; height: 34px; border-radius: 50%;
+    width: 36px; height: 36px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     font-size: 15px;
   }
   .bottom-item .b-icon svg { width: 18px; height: 18px; fill: currentColor; }
   
-  .bottom-item .b-name { font-size: 10.5px; letter-spacing: .2px; color: var(--sidebar-text); text-align: center; line-height: 1.2; }
+  .bottom-item .b-name { 
+    font-size: 10.5px; 
+    letter-spacing: .2px; 
+    color: var(--sidebar-text); 
+    text-align: center; 
+    line-height: 1.2;
+    white-space: nowrap; /* 保持單行不折行，確保圖示與文字對齊等距 */
+  }
   .bottom-item.settings .b-icon { background: transparent; border: 1px solid rgba(239,235,227,0.25); }
 
   /* ---------- Modal ---------- */
