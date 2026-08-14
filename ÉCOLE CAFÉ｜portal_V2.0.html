@@ -12,14 +12,14 @@
 <link rel="apple-touch-icon" href="/icon.png">
 <link rel="manifest" href="/manifest.json">
 
-<!-- Firebase v8 SDK (使用 CDN 引入以確保單一檔案相容性) -->
+<!-- Firebase v8 SDK -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #F4F2EE;
@@ -52,6 +52,7 @@
     --font-display: 'Cormorant Garamond', 'Noto Sans TC', serif;
     --font-body: 'Noto Sans TC', 'Inter', sans-serif;
     --font-num: 'Inter', 'Noto Sans TC', sans-serif;
+    --font-title: 'Microsoft JhengHei', '微軟正黑體', 'Noto Sans TC', sans-serif; /* 正黑體設定 */
   }
 
   * { box-sizing: border-box; }
@@ -116,38 +117,24 @@
   }
   .brand {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 0 4px 26px;
+    flex-direction: column;
+    padding: 0 4px 22px;
     border-bottom: 1px solid rgba(239,235,227,0.12);
     margin-bottom: 22px;
   }
-  .brand-mark {
-    width: 40px; height: 40px; flex-shrink: 0;
-    border-radius: 50%;
-    position: relative;
-    background: radial-gradient(circle at 35% 30%, var(--c-oat), var(--c-taupe) 70%);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15);
-  }
-  .brand-mark::after {
-    content: "";
-    position: absolute;
-    inset: 8px;
-    border-radius: 50%;
-    border: 1.5px solid rgba(38,36,31,0.35);
-  }
   .brand-text .brand-title {
-    font-family: var(--font-display);
-    font-size: 22px;
+    font-family: var(--font-title); /* 設定為正黑體 */
+    font-size: 26px;
     letter-spacing: 2px;
-    font-weight: 600;
+    font-weight: 700;
     line-height: 1.1;
+    color: var(--sidebar-text);
   }
   .brand-text .brand-sub {
-    font-size: 10.5px;
-    letter-spacing: 3px;
+    font-size: 11px;
+    letter-spacing: 3.5px;
     color: var(--sidebar-text-soft);
-    margin-top: 2px;
+    margin-top: 6px;
   }
 
   .nav-label {
@@ -183,7 +170,9 @@
   .nav-dot {
     width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
   }
-  .nav-item .nav-icon { font-size: 17px; width: 20px; text-align: center; flex-shrink: 0; }
+  .nav-item .nav-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 17px; }
+  .nav-item .nav-icon svg { width: 18px; height: 18px; fill: currentColor; }
+  
   .nav-item .nav-name { font-size: 14.5px; font-weight: 500; letter-spacing: .3px; flex: 1; }
   .nav-item .nav-go {
     font-size: 12px; color: var(--sidebar-text-soft); opacity: 0; transition: opacity .15s;
@@ -234,8 +223,13 @@
     justify-content: space-between;
     margin-bottom: 34px;
   }
-  .mobile-brand { display: none; align-items: center; gap: 10px; }
-  .mobile-brand .brand-title { font-family: var(--font-display); font-size: 20px; letter-spacing: 1.5px; font-weight: 600; }
+  .mobile-brand { display: none; flex-direction: column; }
+  .mobile-brand .brand-title { 
+    font-family: var(--font-title); /* 設定為正黑體 */
+    font-size: 22px; 
+    letter-spacing: 2px; 
+    font-weight: 700; 
+  }
   .topbar-right { display: flex; align-items: center; gap: 14px; }
   .clock {
     text-align: right;
@@ -312,15 +306,18 @@
   .dashboard-card:hover { transform: none; box-shadow: var(--shadow-soft); }
 
   .card-top { display: flex; align-items: center; justify-content: space-between; }
+  
   .card-icon {
     width: 44px; height: 44px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     font-size: 19px;
   }
+  .card-icon svg { width: 22px; height: 22px; fill: currentColor; }
+
   .card-arrow { color: var(--ink-faint); font-size: 15px; }
   .card-name { font-size: 16px; font-weight: 700; letter-spacing: .2px; }
 
-  /* ---------- Gantt Chart Styles (排班條狀圖) ---------- */
+  /* ---------- Gantt Chart Styles ---------- */
   .gantt-wrap {
     width: 100%;
     overflow-x: auto;
@@ -431,6 +428,8 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 15px;
   }
+  .bottom-item .b-icon svg { width: 18px; height: 18px; fill: currentColor; }
+  
   .bottom-item .b-name { font-size: 10.5px; letter-spacing: .2px; color: var(--sidebar-text); text-align: center; line-height: 1.2; }
   .bottom-item.settings .b-icon { background: transparent; border: 1px solid rgba(239,235,227,0.25); }
 
@@ -513,18 +512,25 @@
     border-radius: var(--radius-md);
     padding: 14px;
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: 60px 1fr auto;
     gap: 10px 12px;
     align-items: center;
   }
+  
   .row-item .ri-icon-input {
-    width: 46px; height: 46px;
+    width: 60px; height: 100%; min-height: 58px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--line);
     text-align: center;
-    font-size: 18px;
+    font-size: 11px;
+    padding: 6px 4px;
     grid-row: span 2;
+    resize: vertical;
+    font-family: var(--font-num);
+    background: var(--bg-soft);
   }
+  .row-item .ri-icon-input::placeholder { color: var(--ink-faint); font-size: 10px; }
+
   .row-item input[type=text], .row-item input[type=url] {
     width: 100%;
     border: 1px solid var(--line);
@@ -776,10 +782,10 @@
     .modal-body { padding: 16px; gap: 16px; }
 
     .row-item {
-      grid-template-columns: 46px 1fr;
+      grid-template-columns: 60px 1fr;
       gap: 10px;
     }
-    .row-item .ri-icon-input { grid-row: 1; grid-column: 1; }
+    .row-item .ri-icon-input { grid-row: 1; grid-column: 1; min-height: 40px; }
     .ri-name { grid-row: 1; grid-column: 2; }
     .ri-url { grid-row: 2; grid-column: 1 / -1; }
     .ri-actions {
@@ -802,7 +808,6 @@
   <!-- ============ Sidebar (desktop / tablet) ============ -->
   <aside class="sidebar">
     <div class="brand">
-      <div class="brand-mark"></div>
       <div class="brand-text">
         <div class="brand-title">ÉCOLE CAFÉ</div>
         <div class="brand-sub">MANAGEMENT</div>
@@ -823,7 +828,6 @@
   <main class="main">
     <div class="topbar">
       <div class="mobile-brand">
-        <div class="brand-mark" style="width:32px;height:32px;"></div>
         <div class="brand-title">ÉCOLE CAFÉ</div>
       </div>
       <div style="flex:1"></div>
@@ -848,7 +852,7 @@
     <div class="section-title">今日營運概況</div>
     <div class="grid" style="margin-bottom: 38px;">
       
-      <!-- 1. 營業目標卡片 (自動重新計算本月累計) -->
+      <!-- 1. 營業目標卡片 -->
       <div class="card dashboard-card">
         <div class="card-top">
           <div class="card-name">本月營業目標達成率 (自動結算)</div>
@@ -864,13 +868,13 @@
         </div>
       </div>
       
-      <!-- 2. 今日排班 (Gantt 條狀圖進度表同步) -->
+      <!-- 2. 今日排班 -->
       <div class="card dashboard-card">
         <div class="card-top">
           <div class="card-name">今日排班</div>
         </div>
         <div id="ganttContainer" style="color:var(--ink-faint); font-size:13.5px; padding: 10px 0;">
-          資料載入中...
+          請先登入系統以讀取資料
         </div>
       </div>
 
@@ -906,7 +910,7 @@
           <div>請輸入管理密碼以編輯介面</div>
           <input type="password" id="pwInput" inputmode="numeric" maxlength="12" placeholder="••••">
           <div class="lk-err" id="pwError"></div>
-          <div class="lk-hint">預設密碼為 0000，登入後可於下方修改</div>
+          <div class="lk-hint" id="pwHintTxt">登入後可於下方修改密碼</div>
           <button class="btn primary" id="pwSubmit" style="margin-top:6px;">進入編輯</button>
         </div>
       </div>
@@ -1019,7 +1023,6 @@
   let currentUser = null;
   // ==========================================
 
-
   const STORAGE_KEY = 'ecole_cafe_config_v1';
   const SHARED_DOC_ID = 'sharedData'; 
 
@@ -1030,13 +1033,16 @@
   const COLOR_KEYS = Object.keys(COLORS);
 
   const DEFAULT_CONFIG = {
-    password:'0000',
-    buttons:[
-      {id:'b1', icon:'📋', name:'交班', url:'https://example.com/handover', color:'rose', target:'_blank'},
-      {id:'b2', icon:'🗓️', name:'班表', url:'https://example.com/schedule', color:'sage', target:'_blank'},
-      {id:'b3', icon:'🕒', name:'出勤', url:'https://example.com/attendance', color:'blue', target:'_blank'}
+    password: '0106',
+    buttons: [
+      { id: 'b1', icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>', name: '交班', url: 'https://ecole-1f392.web.app/%C3%89COLE%20CAF%C3%89%EF%BD%9C%E4%BA%A4%E7%8F%AD%E7%B3%BB%E7%B5%B1v3.2.html', color: 'rose', target: '_blank' },
+      { id: 'b2', icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>', name: '班表', url: 'https://letudesign0106-glitch.github.io/ECOLE/%C3%89COLE%20CAF%C3%89%EF%BD%9C%E7%8F%AD%E8%A1%A8%E6%A8%A1%E6%93%AC%E5%99%A8V5.5.html', color: 'sage', target: '_blank' },
+      { id: 'bpwg09vd', icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>', name: '庫存備料', url: 'https://ecole-1f392.web.app/%C3%89COLE%20CAF%C3%89%EF%BD%9C%E5%82%99%E6%96%99%E8%BF%BD%E8%B9%A4%E7%B3%BB%E7%B5%B1V2.0.1.html', color: 'blue', target: '_blank' },
+      { id: 'bno6cf76', icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>', name: '工作SOP', url: 'https://ecole-1f392.web.app/%C3%89COLE%20CAF%C3%89%EF%BD%9C%E5%93%A1%E5%B7%A5%E5%B7%A5%E4%BD%9C%E6%B8%85%E5%96%AEV2.15.html', color: 'taupe', target: '_blank' }
     ],
-    notes:{}
+    notes: {
+      "2026-08-05": [ { text: "員工會議", id: "b9lck8gh" } ]
+    }
   };
 
   let config = null;
@@ -1044,6 +1050,38 @@
   let unlocked = false;
   let calState = null; 
   let pendingImport = null; 
+  let unsubGantt = null;
+
+  // --- SVG 防禦 XSS 引擎 ---
+  function sanitizeSVG(raw) {
+    if (!raw) return '';
+    const str = String(raw).trim();
+    if (!str.toLowerCase().includes('<svg')) return escapeHtml(str); 
+    
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(str, 'text/html');
+      const svg = doc.querySelector('svg');
+      
+      if (svg) {
+        const scripts = svg.querySelectorAll('script');
+        scripts.forEach(s => s.remove());
+        
+        const allElems = svg.querySelectorAll('*');
+        allElems.forEach(el => {
+          Array.from(el.attributes).forEach(attr => {
+            if (attr.name.toLowerCase().startsWith('on')) {
+              el.removeAttribute(attr.name);
+            }
+          });
+        });
+        return svg.outerHTML;
+      }
+    } catch(e) {
+      console.warn('SVG 解析錯誤，退回純文字模式');
+    }
+    return escapeHtml(str);
+  }
 
   function normalizeConfig(cfg){
     cfg = cfg || {};
@@ -1058,12 +1096,6 @@
 
   function pad2(n){ return String(n).padStart(2,'0'); }
   function dateKey(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
-  
-  function getPreviousDateKey(d = new Date()){
-    const prev = new Date(d);
-    prev.setDate(prev.getDate() - 1);
-    return dateKey(prev);
-  }
   
   function getWeekDates(base){
     const d = new Date(base);
@@ -1161,14 +1193,17 @@
       cardGrid.style.display = '';
     }
 
+    document.getElementById('pwHintTxt').textContent = `預設密碼為 ${DEFAULT_CONFIG.password}，登入後可於下方修改`;
+
     config.buttons.forEach(b=>{
       const hex = COLORS[b.color] || COLORS.rose;
+      const safeIconHTML = sanitizeSVG(b.icon || '📌'); 
 
       const li = document.createElement('li');
       li.className = 'nav-item';
       li.innerHTML = `
         <span class="nav-dot" style="background:${hex}"></span>
-        <span class="nav-icon">${escapeHtml(b.icon || '📌')}</span>
+        <span class="nav-icon">${safeIconHTML}</span>
         <span class="nav-name">${escapeHtml(b.name || '未命名')}</span>
         <span class="nav-go">前往 →</span>`;
       li.onclick = ()=> openUrl(b);
@@ -1177,7 +1212,7 @@
       const bi = document.createElement('div');
       bi.className = 'bottom-item';
       bi.innerHTML = `
-        <span class="b-icon" style="background:${hex}22; color:${hex};">${escapeHtml(b.icon || '📌')}</span>
+        <span class="b-icon" style="background:${hex}22; color:${hex};">${safeIconHTML}</span>
         <span class="b-name">${escapeHtml(b.name || '未命名')}</span>`;
       bi.onclick = ()=> openUrl(b);
       bottomNav.appendChild(bi);
@@ -1186,7 +1221,7 @@
       card.className = 'card';
       card.innerHTML = `
         <div class="card-top">
-          <div class="card-icon" style="background:${hex}22; color:${hex};">${escapeHtml(b.icon || '📌')}</div>
+          <div class="card-icon" style="background:${hex}22; color:${hex};">${safeIconHTML}</div>
           <div class="card-arrow">↗</div>
         </div>
         <div>
@@ -1198,7 +1233,7 @@
 
     const settingsItem = document.createElement('div');
     settingsItem.className = 'bottom-item settings';
-    settingsItem.innerHTML = `<span class="b-icon">⚙</span><span class="b-name">編輯</span>`;
+    settingsItem.innerHTML = `<span class="b-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg></span><span class="b-name">編輯</span>`;
     settingsItem.onclick = openEditor;
     bottomNav.appendChild(settingsItem);
 
@@ -1289,7 +1324,7 @@
       const row = document.createElement('div');
       row.className = 'row-item';
       row.innerHTML = `
-        <input class="ri-icon-input" type="text" maxlength="4" value="${escapeAttr(b.icon)}" data-f="icon">
+        <textarea class="ri-icon-input" placeholder="貼上 SVG 碼或 Emoji" data-f="icon">${escapeHtml(b.icon)}</textarea>
         <input class="ri-name" type="text" placeholder="按鈕名稱，例如：交班" value="${escapeAttr(b.name)}" data-f="name">
         <div class="ri-actions">
           <div class="swatches"></div>
@@ -1339,7 +1374,14 @@
   }
 
   document.getElementById('addRowBtn').onclick = ()=>{
-    draft.buttons.push({id:uid(), icon:'✨', name:'', url:'', color:COLOR_KEYS[draft.buttons.length % COLOR_KEYS.length], target:'_blank'});
+    draft.buttons.push({
+      id: uid(), 
+      icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 16h2v2h-2zm0-6h2v4h-2z"/></svg>', 
+      name: '', 
+      url: '', 
+      color: COLOR_KEYS[draft.buttons.length % COLOR_KEYS.length], 
+      target: '_blank'
+    });
     renderRows();
     setTimeout(()=>{
       const body = document.querySelector('.modal-body');
@@ -1465,7 +1507,7 @@
     draft.buttons.forEach(b=>{
       b.name = (b.name || '').trim() || '未命名';
       b.url = (b.url || '').trim();
-      b.icon = (b.icon || '📌').trim() || '📌';
+      b.icon = (b.icon || '').trim();
     });
     if(draft.notes){
       Object.keys(draft.notes).forEach(key=>{
@@ -1573,7 +1615,7 @@
   };
 
   document.getElementById('resetBtn').onclick = ()=>{
-    if(confirm('確定要還原為預設的三個按鈕，並清空所有記事嗎？此動作將覆蓋目前編輯中的內容。')){
+    if(confirm('確定要還原為預設設定，並清空所有記事嗎？此動作將覆蓋目前編輯中的內容。')){
       draft = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
       calState = null;
       pendingImport = null;
@@ -1591,7 +1633,7 @@
 
 
   // ==========================================
-  // 2. Firebase 同步與 Auth 邏輯 (共用資料庫)
+  // 2. Firebase 同步與 Auth 邏輯 (登入白名單安全機制)
   // ==========================================
   const authBtn = document.getElementById('authBtn');
   const cloudSaveBtn = document.getElementById('cloudSaveBtn');
@@ -1608,11 +1650,22 @@
       }
       authBtn.title = "登入 (" + user.email + ")";
       cloudSaveBtn.style.display = 'flex';
+      
+      autoLoadFromCloud();
+      subscribeToDashboard(); 
+
     } else {
       authBtn.style.backgroundImage = 'none';
       authBtn.innerHTML = '👤';
       authBtn.title = "管理員登入以覆蓋雲端";
       cloudSaveBtn.style.display = 'none';
+      
+      if(unsubGantt) { unsubGantt(); unsubGantt = null; }
+      document.getElementById('ganttContainer').innerHTML = '<div style="color:var(--ink-faint); padding:6px 0;">🔒 請點擊右上角登入系統以讀取排班資料</div>';
+      document.getElementById('revProgress').textContent = '--%';
+      document.getElementById('revTotal').textContent = '--';
+      document.getElementById('revTarget').textContent = '--';
+      document.getElementById('revProgressBar').style.width = '0%';
     }
   });
 
@@ -1639,7 +1692,7 @@
         toast('☁️ 已自動套用最新選單與按鈕設定');
       }
     } catch (e) {
-      console.error(e);
+      console.warn("讀取雲端選單失敗，可能是權限問題或尚未建立", e);
     }
   }
 
@@ -1654,20 +1707,19 @@
       toast('✅ 系統設定已成功更新至「共用雲端」');
     } catch (e) {
       console.error(e);
-      toast('雲端存檔失敗，請確認資料庫權限');
+      toast('雲端存檔失敗，請確認資料庫存取權限');
     } finally {
       cloudSaveBtn.style.opacity = '1';
     }
   };
 
   // ==========================================
-  // 3. 營運儀表板 - 讀取 ecoleCafe -> main_schedule 條狀圖 (核心修正版)
+  // 3. 營運儀表板 - 讀取與計算
   // ==========================================
   function subscribeToDashboard() {
     const todayObj = new Date();
-    const todayStr = dateKey(todayObj); // e.g. "2026-08-10"
+    const todayStr = dateKey(todayObj); 
     
-    // [功能一] 本月營業額自動計算
     async function calculateMonthlyRevenue() {
       try {
         const prevObj = new Date(todayObj);
@@ -1719,12 +1771,11 @@
         document.getElementById('revTarget').textContent = target.toLocaleString();
         document.getElementById('revProgressBar').style.width = barPercent + '%';
       } catch(err) {
-        console.log("計算累計營業額錯誤:", err);
+        console.warn("計算累計營業額受限:", err);
       }
     }
     calculateMonthlyRevenue();
 
-    // [功能二] 讀取排班並繪製 Gantt 條狀圖
     try {
       let employeeMap = {};
 
@@ -1789,12 +1840,10 @@
       const OFF_MARKERS = new Set(['✕', '❌', '✗', '×', '休', '休假', 'OFF', 'O']);
       const RESERVED_EMP_KEYS = new Set(['meta', 'settings', 'config', 'revMonthTarget']);
 
-      // 將時間字串 (如 "1130", "09:00", "9") 轉換為小數時制 (如 11.5, 9.0)
       function hhmmToDecimal(timeStr) {
-        // 清除冒號，只留數字
         const s = String(timeStr).replace(/:/g, '').trim();
         let padded = s;
-        if (padded.length <= 2) padded = padded + '00'; // 支援縮寫如 "9" -> "900"
+        if (padded.length <= 2) padded = padded + '00'; 
         padded = padded.padStart(4, '0');
         
         const h = parseInt(padded.slice(0, -2), 10);
@@ -1803,43 +1852,37 @@
         return h + (mnt / 60);
       }
 
-      // 🧠 核心升級：極度寬容的班表解析引擎
       function parseShiftCell(raw) {
         let str = String(raw == null ? '' : raw).trim();
         if (!str) return null;
         if (OFF_MARKERS.has(str) || OFF_MARKERS.has(str.toUpperCase())) return null;
 
-        // 統一符號與空格，方便解析 (例如 "PT 12:00~18:00" -> "PT 12:00-18:00")
         str = str.replace(/\s+/g, ' ').replace(/[~～]/g, '-');
 
-        // 提取時間區間 (支援 1130-2030, 09:00-17:00, 9-18)
         const timeRegex = /(\d{1,2}:?\d{0,2})\s*-\s*(\d{1,2}:?\d{0,2})/;
         const matchTime = str.match(timeRegex);
 
         if (matchTime) {
-          // 把時間從字串中移除，剩下的即為班別代碼 (如 "N1", "PT", "工讀")
           let code = str.replace(matchTime[0], '').trim() || '上班';
-          
           const startH = hhmmToDecimal(matchTime[1]);
           const endH = hhmmToDecimal(matchTime[2]);
 
           if (startH !== null && endH !== null) {
             let finalEnd = endH;
             if (finalEnd <= startH) {
-              if (startH >= 12) finalEnd += 24; // 跨夜
-              else finalEnd = startH + 8; // 異常防呆
+              if (startH >= 12) finalEnd += 24; 
+              else finalEnd = startH + 8; 
             }
             return { shift: code, start: startH, end: finalEnd };
           }
         }
 
-        // 備援：只有班別代碼 (例如 "N1", "PT")
         const times = getShiftTimes(str);
         if (times) {
           return { shift: str, start: times.start, end: times.end };
         }
         
-        return null; // 無法辨識的格式
+        return null; 
       }
 
       async function renderGanttChart() {
@@ -1941,18 +1984,18 @@
           container.innerHTML = html;
 
         } catch(err) {
-          console.error("讀取排班條狀圖錯誤:", err);
-          container.innerHTML = '<div style="color:var(--ink-faint); padding:6px 0;">無法載入排班條狀圖資料</div>';
+          console.warn("讀取排班條狀圖受限:", err);
+          container.innerHTML = '<div style="color:var(--ink-faint); padding:6px 0;">權限不足無法載入排班條狀圖資料</div>';
         }
       }
 
-      db.collection('ecoleCafe').doc('main_schedule').onSnapshot(() => {
+      unsubGantt = db.collection('ecoleCafe').doc('main_schedule').onSnapshot(() => {
         employeeMap = {}; 
         renderGanttChart();
       }, err => {
-        console.error('排班監聽錯誤:', err);
+        console.warn('排班監聽受限:', err);
         const container = document.getElementById('ganttContainer');
-        if (container) container.innerHTML = '<div style="color:var(--ink-faint); padding:6px 0;">排班資料連線失敗，請確認網路或權限設定</div>';
+        if (container) container.innerHTML = '<div style="color:var(--ink-faint); padding:6px 0;">🔒 權限不足，請確認是否以授權帳號登入</div>';
       });
       renderGanttChart();
 
@@ -1975,7 +2018,7 @@
             }
           });
         });
-      }).catch(err => console.log('SW Register Failed (本地無伺服器時請忽略此訊息)'));
+      }).catch(err => console.log('SW Register Failed'));
 
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -1998,11 +2041,6 @@
     render();
     updateClock();
     setInterval(updateClock, 30000);
-    
-    if (window.firebase) {
-      autoLoadFromCloud();
-      subscribeToDashboard(); 
-    }
   })();
 
 })();
