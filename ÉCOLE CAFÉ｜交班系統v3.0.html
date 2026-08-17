@@ -12,6 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
     <style>
+        /* CSS 樣式完全保持不變 */
         :root {
             --bg-color: #f4f4f4;
             --card-bg: #ffffff;
@@ -107,7 +108,6 @@
             border-color: var(--accent-color);
         }
 
-        /* 莫蘭迪配色按鈕設定 */
         .export-img-btn { background-color: #5b6770; color: white; border-color: #5b6770; }
         .export-img-btn:hover { background-color: #48525a; border-color: #48525a; }
         
@@ -165,9 +165,8 @@
             padding-left: 8px;
         }
 
-        .add-row-btn {
+        .add-row-btn, .carry-over-btn {
             background: transparent;
-            border: 1px dashed var(--accent-color);
             color: var(--accent-color);
             padding: 4px 12px;
             font-size: 0.8rem;
@@ -175,19 +174,9 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        .add-row-btn:hover { background: var(--accent-color); color: #fff; }
-
-        .carry-over-btn {
-            background: transparent;
-            border: 1px solid var(--accent-color);
-            color: var(--accent-color);
-            padding: 4px 12px;
-            font-size: 0.8rem;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .carry-over-btn:hover { background: var(--accent-color); color: #fff; }
+        .add-row-btn { border: 1px dashed var(--accent-color); }
+        .carry-over-btn { border: 1px solid var(--accent-color); }
+        .add-row-btn:hover, .carry-over-btn:hover { background: var(--accent-color); color: #fff; }
 
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         @media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
@@ -216,8 +205,7 @@
             background: #f0f0f0; border: 1px solid #dcdcdc; color: var(--text-main);
             padding: 2px 10px; font-size: 0.8rem; border-radius: 12px; cursor: pointer; transition: all 0.2s; user-select: none;
         }
-        .staff-pill:hover { background: var(--accent-color); color: #ffffff; border-color: var(--accent-color); }
-        .staff-pill.selected { background: var(--accent-color); color: #ffffff; border-color: var(--accent-color); }
+        .staff-pill:hover, .staff-pill.selected { background: var(--accent-color); color: #ffffff; border-color: var(--accent-color); }
 
         .remove-btn {
             background: transparent; border: 1px solid var(--border-color); color: #888;
@@ -262,17 +250,17 @@
             <!-- 1. 日期 -->
             <div class="date-input-wrapper">
                 <span>日期：</span>
-                <input type="date" id="briefing-date-picker" onchange="onDateChange()">
+                <input type="date" id="briefing-date-picker" onchange="window.onDateChange()">
             </div>
             
             <!-- 2. 登入 -->
-            <button type="button" class="action-icon-btn" id="google-login-btn" onclick="handleGoogleLogin()">Google 登入</button>
+            <button type="button" class="action-icon-btn" id="google-login-btn" onclick="window.handleGoogleLogin()">Google 登入</button>
             
             <!-- 3. 雲端儲存 -->
-            <button type="button" class="action-icon-btn" id="cloud-save-btn" onclick="manualCloudSave()">雲端儲存</button>
+            <button type="button" class="action-icon-btn" id="cloud-save-btn" onclick="window.manualCloudSave()">雲端儲存</button>
             
             <!-- 4. 雲端讀取 -->
-            <button type="button" class="action-icon-btn" id="cloud-restore-btn" onclick="restoreFromCloud()">雲端讀取</button>
+            <button type="button" class="action-icon-btn" id="cloud-restore-btn" onclick="window.restoreFromCloud()">雲端讀取</button>
             <span id="cloud-status"></span>
             
             <!-- 5. 人員配置 -->
@@ -286,7 +274,7 @@
             <input type="file" id="import-file" class="hidden-file-input" accept=".json" onchange="importJSON(event)">
             
             <!-- 8. 匯出圖表 -->
-            <button type="button" class="action-icon-btn export-img-btn" onclick="downloadWeeklyReportJPG()">匯出週報圖表</button>
+            <button type="button" class="action-icon-btn export-img-btn" onclick="window.downloadWeeklyReportJPG()">匯出週報圖表</button>
             
             <!-- 9. 返回 -->
             <button type="button" class="action-icon-btn" onclick="undoLastAction()">↩️ 返回上一步</button>
@@ -339,7 +327,7 @@
             <div class="grid-2" style="margin-bottom: 12px;">
                 <div>
                     <label>本日營收總計</label>
-                    <input type="text" id="rev-total" placeholder="例如: 26520" oninput="updateMonthlyCumulative()">
+                    <input type="text" id="rev-total" placeholder="例如: 26520" oninput="window.updateMonthlyCumulative()">
                 </div>
                 <div>
                     <label>本月業收累計 (自動計算)</label>
@@ -379,7 +367,7 @@
             <div class="section-header">
                 <div class="section-title">├── 📍 對齊項目</div>
                 <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); carryOverSection('alignment')">帶入前一日</button>
+                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); window.carryOverSection('alignment')">帶入前一日</button>
                     <button type="button" class="add-row-btn" onclick="saveUndoState(); addAlignmentRow('', '通用', 'top', true)">上方新增</button>
                     <button type="button" class="add-row-btn" onclick="saveUndoState(); addAlignmentRow('', '通用', 'bottom', true)">下方新增</button>
                     <button type="button" class="add-row-btn" style="color: var(--danger-color); border-color: var(--danger-color);" onclick="clearAlignments()">清空對齊項目</button>
@@ -392,7 +380,7 @@
             <div class="section-header">
                 <div class="section-title">├── 📍 主管交辦</div>
                 <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); carryOverSection('task')">帶入前一日</button>
+                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); window.carryOverSection('task')">帶入前一日</button>
                     <button type="button" class="add-row-btn" onclick="saveUndoState(); addTaskRow()">新增交辦</button>
                 </div>
             </div>
@@ -403,7 +391,7 @@
             <div class="section-header">
                 <div class="section-title">├── 📍 意見討論</div>
                 <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); carryOverSection('discussion')">帶入前一日</button>
+                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); window.carryOverSection('discussion')">帶入前一日</button>
                     <button type="button" class="add-row-btn" onclick="saveUndoState(); addDiscussionRow()">新增討論</button>
                 </div>
             </div>
@@ -422,7 +410,7 @@
             <div class="section-header">
                 <div class="section-title">├── 📍 缺貨商品</div>
                 <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); carryOverSection('shortage')">帶入前一日</button>
+                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); window.carryOverSection('shortage')">帶入前一日</button>
                     <button type="button" class="add-row-btn" onclick="saveUndoState(); addShortageRow()">新增品項</button>
                 </div>
             </div>
@@ -433,7 +421,7 @@
             <div class="section-header">
                 <div class="section-title">├── 📍 需叫貨項目</div>
                 <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); carryOverSection('order')">帶入前一日</button>
+                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); window.carryOverSection('order')">帶入前一日</button>
                     <button type="button" class="add-row-btn" onclick="saveUndoState(); addOrderRow()">新增叫貨</button>
                 </div>
             </div>
@@ -444,7 +432,7 @@
             <div class="section-header">
                 <div class="section-title">├── 📍 推銷品項</div>
                 <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); carryOverSection('promo')">帶入前一日</button>
+                    <button type="button" class="carry-over-btn" onclick="saveUndoState(); window.carryOverSection('promo')">帶入前一日</button>
                     <button type="button" class="add-row-btn" onclick="saveUndoState(); addPromoRow()">新增品項</button>
                 </div>
             </div>
@@ -547,7 +535,7 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
             apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
@@ -563,12 +551,12 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
     const provider = new GoogleAuthProvider();
-    const SHARED_DOC_ID = "shared_ecole_cafe_backup";
 
     let hasAutoRestored = false;
     // 雲端資料「讀取完成」狀態鎖：在讀取流程完成前，一律禁止任何寫入雲端的操作，
     // 避免頁面尚未讀完雲端資料時，被其他操作誤觸而把空白/舊資料覆蓋回共用雲端。
     window.isCloudLoaded = false;
+    window.cachedPrevMonthCum = 0; // 用於快取雲端月累計營業額
 
     // 檢查 Firebase 內 `systemConfig/whitelist` 的白名單機制
     async function checkWhitelist(email) {
@@ -650,19 +638,7 @@
                 
                 alert('Google 登入成功！');
             } catch (error) {
-                console.error("Google 登入失敗詳細錯誤:", error);
                 let errorMsg = error.message;
-                
-                if (error.code === 'auth/unauthorized-domain') {
-                    errorMsg = '網域未授權 (unauthorized-domain)。請至 Firebase Console -> Authentication -> Settings -> Authorized domains 加入您目前的網址。';
-                } else if (error.code === 'auth/popup-closed-by-user') {
-                    errorMsg = '登入彈跳視窗已被關閉。';
-                } else if (error.code === 'auth/popup-blocked') {
-                    errorMsg = '登入彈跳視窗遭到瀏覽器阻擋，請允許此網站彈出視窗。';
-                } else if (error.code === 'auth/operation-not-allowed') {
-                    errorMsg = 'Google 登入未在 Firebase 專案中啟用。';
-                }
-                
                 alert('Google 登入失敗：\n' + errorMsg);
             }
         }
@@ -681,13 +657,22 @@
         const statusSpan = document.getElementById('cloud-status');
         statusSpan.innerText = '☁️ 雲端同步中...';
         try {
-            if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal); 
+            const dateToSave = window.currentDateVal;
+            if (typeof saveCurrentDayData === 'function') saveCurrentDayData(dateToSave); 
+            
+            // 儲存：交班紀錄 (以日期為文件ID儲存)
+            const dailyData = window.globalDataStore.dailyTracking[dateToSave] || {};
             const dataToUpload = {
-                ...window.globalDataStore,
+                ...dailyData,
+                date: dateToSave, // 確保寫入日期欄位供查詢使用
                 updatedAt: new Date().toISOString(),
                 updatedBy: window.currentUser.email || window.currentUser.displayName
             };
-            await setDoc(doc(db, "backups", SHARED_DOC_ID), dataToUpload);
+            await setDoc(doc(db, "dailyTracking", dateToSave), dataToUpload);
+            
+            // 儲存：人員配置清單 (全域共用)
+            await setDoc(doc(db, "systemConfig", "employees"), { list: window.globalDataStore.employees });
+
             statusSpan.innerText = '✅ 儲存成功';
             setTimeout(() => { if (statusSpan.innerText === '✅ 儲存成功') statusSpan.innerText = ''; }, 3000);
             alert("資料已成功手動儲存至雲端！");
@@ -697,45 +682,330 @@
         }
     }
 
+    // 獲取該月直到昨日的累計雲端營業額
+    window.fetchMonthlyCumulative = async function() {
+        if (!window.currentUser || !window.currentDateVal) return;
+        const ym = window.currentDateVal.substring(0, 7);
+        const startDate = `${ym}-01`;
+        const prevDate = getPreviousDateStr(window.currentDateVal);
+        
+        let totalCum = 0;
+        try {
+            // 如果今天是1號，就不需撈取前面的天數
+            if (window.currentDateVal !== startDate) {
+                const q = query(collection(db, "dailyTracking"), 
+                                where("date", ">=", startDate), 
+                                where("date", "<=", prevDate));
+                const snap = await getDocs(q);
+                snap.forEach(doc => { totalCum += parseFloat(doc.data().revTotal || 0); });
+            }
+            window.cachedPrevMonthCum = totalCum;
+        } catch(e) {
+            console.warn("無法取得雲端月累計:", e);
+        }
+    }
+
     window.restoreFromCloud = async function(isSilent = false) {
         if (!window.currentUser) {
             if (!isSilent) alert('請先進行 Google 登入！');
             return;
         }
         try {
-            const docRef = doc(db, "backups", SHARED_DOC_ID);
-            const docSnap = await getDoc(docRef);
+            const statusSpan = document.getElementById('cloud-status');
+            if (statusSpan) statusSpan.innerText = '讀取雲端...';
 
             // 以下僅做資料讀取與畫面渲染，絕不呼叫任何雲端寫入函式（如 setDoc），
             // 因此不會有「頁面還沒讀完就把空白資料存回雲端」的風險。
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                if (data.employees) {
-                    window.globalDataStore.employees = data.employees;
-                    if (Array.isArray(data.employees) && data.employees.length > 0) {
-                        staffList = data.employees.map(e => e.name || e);
-                    }
-                }
-                if (data.dailyTracking) {
-                    window.globalDataStore.dailyTracking = data.dailyTracking;
-                }
-                
-                if (typeof syncStaffFromEmployees === 'function') syncStaffFromEmployees();
-                if (typeof loadStaffList === 'function') loadStaffList();
-                if (typeof renderStaffPills === 'function') renderStaffPills();
-                if (typeof loadDayData === 'function') loadDayData();
 
-                if (!isSilent) alert('已成功從雲端讀取最新的交班資料！');
-            } else {
-                if (!isSilent) alert('共用雲端目前尚無備份資料。');
+            // 1. 讀取全域員工清單
+            const empSnap = await getDoc(doc(db, "systemConfig", "employees"));
+            if (empSnap.exists() && empSnap.data().list) {
+                window.globalDataStore.employees = empSnap.data().list;
+                if (Array.isArray(window.globalDataStore.employees)) {
+                    staffList = window.globalDataStore.employees.map(e => e.name || e);
+                }
             }
+
+            // 2. 讀取當天日期的交班紀錄
+            const dailySnap = await getDoc(doc(db, "dailyTracking", window.currentDateVal));
+            if (dailySnap.exists()) {
+                window.globalDataStore.dailyTracking[window.currentDateVal] = dailySnap.data();
+            }
+
+            // 3. 抓取本月到昨日為止的累積營業額
+            await window.fetchMonthlyCumulative();
+            
+            // 畫面同步
+            if (typeof syncStaffFromEmployees === 'function') syncStaffFromEmployees();
+            if (typeof loadStaffList === 'function') loadStaffList();
+            if (typeof renderStaffPills === 'function') renderStaffPills();
+            if (typeof loadDayData === 'function') loadDayData();
+
+            if (statusSpan) statusSpan.innerText = '';
+            if (!isSilent) alert('已成功從雲端讀取最新的交班資料！');
+            
             // 讀取流程（無論雲端有無資料）已完整結束，才解鎖允許後續寫入雲端
             window.isCloudLoaded = true;
         } catch (error) {
             if (!isSilent) alert('雲端讀取失敗：' + error.message);
+            const statusSpan = document.getElementById('cloud-status');
+            if (statusSpan) statusSpan.innerText = '';
             // 讀取失敗也視為流程已結束，避免永久卡死無法儲存；錯誤已於上方提示使用者
             window.isCloudLoaded = true;
         }
+    }
+
+    window.onDateChange = async function() {
+        const pickerVal = document.getElementById('briefing-date-picker').value;
+        if (!pickerVal || pickerVal === window.currentDateVal) return;
+        saveCurrentDayData(window.currentDateVal); 
+        window.currentDateVal = pickerVal;
+        window.undoStack = [];
+        
+        // 切換日期時，若已登入則重新鎖住寫入並拉取雲端新日期的資料
+        if (window.currentUser) {
+            window.isCloudLoaded = false;
+            await window.restoreFromCloud(true);
+        } else {
+            loadDayData();
+        }
+    }
+
+    // 帶入前一日資料（直接讀取資料庫，不依賴本機快取）
+    window.carryOverSection = async function(type) {
+        if (!window.currentUser) return alert('請先進行 Google 登入，才能從雲端帶入前一日資料！');
+        
+        const prevDateStr = getPreviousDateStr(window.currentDateVal);
+        const docRef = doc(db, "dailyTracking", prevDateStr);
+        
+        try {
+            const docSnap = await getDoc(docRef);
+            if (!docSnap.exists()) return alert('雲端無前一日紀錄資料可帶入！');
+            const prevDay = docSnap.data();
+
+            if (type === 'alignment') {
+                if (prevDay.alignments && prevDay.alignments.length > 0) {
+                    prevDay.alignments.forEach(item => {
+                        const val = typeof item === 'string' ? item : item.val;
+                        const cat = typeof item === 'string' ? '通用' : (item.category || '通用');
+                        if (val && val.trim() !== '') addAlignmentRow(val, cat, 'bottom', false);
+                    });
+                    alert('已成功帶入前一日對齊項目！');
+                } else alert('前一日無對齊項目資料。');
+            } else if (type === 'task') {
+                if (prevDay.tasks && prevDay.tasks.length > 0) {
+                    let count = 0;
+                    prevDay.tasks.forEach(t => { if (!t.done) { addTaskRow(t.assignee, t.desc, false); count++; } });
+                    alert(`已成功帶入未完成交辦（共 ${count} 筆）！`);
+                } else alert('前一日無交辦資料。');
+            } else if (type === 'discussion') {
+                if (prevDay.discussions && prevDay.discussions.length > 0) {
+                    prevDay.discussions.forEach(d => {
+                        const topicVal = typeof d === 'string' ? d : d.topic;
+                        const resultVal = typeof d === 'string' ? '' : (d.result || '');
+                        if (topicVal && topicVal.trim() !== '') addDiscussionRow(topicVal, resultVal);
+                    });
+                    alert('已成功帶入意見討論！');
+                } else if (prevDay.discussions && typeof prevDay.discussions === 'string' && prevDay.discussions.trim() !== '') {
+                    addDiscussionRow(prevDay.discussions, '');
+                    alert('已成功帶入意見討論！');
+                } else alert('前一日無意見討論內容。');
+            } else if (type === 'shortage') {
+                if (prevDay.shortages && prevDay.shortages.length > 0) {
+                    prevDay.shortages.forEach(val => { if (val && val.trim() !== '') addShortageRow(val); }); alert('已成功帶入缺貨商品！');
+                } else alert('前一日無缺貨商品資料。');
+            } else if (type === 'order') {
+                if (prevDay.orders && prevDay.orders.length > 0) {
+                    let count = 0;
+                    prevDay.orders.forEach(o => {
+                        const itemVal = typeof o === 'string' ? o : o.item;
+                        const isDone = typeof o === 'string' ? false : o.done;
+                        if (!isDone && itemVal && itemVal.trim() !== '') { addOrderRow(itemVal, false); count++; }
+                    });
+                    alert(`已成功帶入未處理叫貨（共 ${count} 筆）！`);
+                } else alert('前一日無需叫貨資料。');
+            } else if (type === 'promo') {
+                if (prevDay.promos && prevDay.promos.length > 0) {
+                    prevDay.promos.forEach(val => { if (val && val.trim() !== '') addPromoRow(val); }); alert('已成功帶入推銷品項！');
+                } else alert('前一日無推銷品項資料。');
+            }
+        } catch(e) {
+            alert('從雲端帶入資料發生錯誤：' + e.message);
+        }
+    }
+
+    // 匯出週報圖表（直接使用 Firebase query 範圍搜尋）
+    window.downloadWeeklyReportJPG = async function() {
+        if (!window.currentUser) return alert('請登入以產生雲端週報！');
+        if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal); 
+        
+        const currentD = new Date(window.currentDateVal || new Date());
+        const day = currentD.getDay(); 
+        const diff = currentD.getDate() - day + (day === 0 ? -6 : 1); 
+        const monday = new Date(currentD.setDate(diff));
+        
+        let weekDates = [];
+        let weekLabels = [];
+
+        for (let i = 0; i < 7; i++) {
+            let d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            const y = d.getFullYear();
+            const m = String(d.getMonth()+1).padStart(2, '0');
+            const dt = String(d.getDate()).padStart(2, '0');
+            const dStr = `${y}-${m}-${dt}`;
+            
+            weekDates.push(dStr);
+            weekLabels.push(`${m}/${dt}`);
+        }
+
+        const startDate = weekDates[0];
+        const endDate = weekDates[6];
+
+        const statusSpan = document.getElementById('cloud-status');
+        if(statusSpan) statusSpan.innerText = '📊 產生週報中...';
+
+        let weekDataMap = {};
+        try {
+            const q = query(collection(db, "dailyTracking"), where("date", ">=", startDate), where("date", "<=", endDate));
+            const querySnapshot = await getDocs(q);
+            querySnapshot.forEach((docSnap) => { weekDataMap[docSnap.id] = docSnap.data(); });
+        } catch (e) {
+            console.error(e);
+            alert("讀取週報雲端資料失敗");
+            if(statusSpan) statusSpan.innerText = '';
+            return;
+        }
+        if(statusSpan) statusSpan.innerText = '';
+
+        let weekRevs = [];
+        let totalWeeklyRev = 0;
+
+        for (let i = 0; i < 7; i++) {
+            const dStr = weekDates[i];
+            let dailyRev = 0;
+            if (weekDataMap[dStr]) {
+                dailyRev = parseFloat(weekDataMap[dStr].revTotal) || 0;
+            }
+            weekRevs.push(dailyRev);
+            totalWeeklyRev += dailyRev;
+        }
+
+        document.getElementById('report-date-range').innerText = `統計區間：${weekDates[0].replace(/-/g,'/')} - ${weekDates[6].replace(/-/g,'/')}`;
+        document.getElementById('report-weekly-total-rev').innerText = `$${totalWeeklyRev.toLocaleString()}`;
+        const achieveRate = document.getElementById('rev-achieve-rate').value;
+        document.getElementById('report-month-rate').innerText = achieveRate ? `${achieveRate}%` : '0%';
+
+        let taskAlignText = '';
+        let weekTaskLines = [];
+        let weekAlignLines = [];
+
+        weekDates.forEach(dStr => {
+            const dayData = weekDataMap[dStr];
+            if (!dayData) return;
+            const [, mmLabel, ddLabel] = dStr.split('-');
+
+            if (dayData.tasks) {
+                dayData.tasks.forEach(t => {
+                    if (t.assignee || t.desc) {
+                        const doneStatus = t.done ? ` 【已完成 ${mmLabel}/${ddLabel}】` : '';
+                        weekTaskLines.push(`• [交辦] ${t.assignee || '未定'}: ${t.desc}${doneStatus}`);
+                    }
+                });
+            }
+            if (dayData.alignments) {
+                dayData.alignments.forEach(item => {
+                    const val = typeof item === 'string' ? item : item.val;
+                    const cat = typeof item === 'string' ? '通用' : (item.category || '通用');
+                    const isNew = typeof item === 'string' ? false : item.isNew;
+                    if (val && isNew) {
+                        weekAlignLines.push(`• [${cat}] ${val.split('\n')[0]}`);
+                    }
+                });
+            }
+        });
+
+        weekTaskLines = [...new Set(weekTaskLines)];
+        weekAlignLines = [...new Set(weekAlignLines)].slice(0, 3);
+
+        if (weekTaskLines.length > 0) taskAlignText += `【交辦事項（整週）】\n${weekTaskLines.join('\n')}\n\n`;
+        if (weekAlignLines.length > 0) taskAlignText += `【本週新增對齊項目】\n${weekAlignLines.join('\n')}`;
+
+        if(!taskAlignText) taskAlignText = '本週無交辦與對齊項目。';
+        document.getElementById('report-special-items').innerText = taskAlignText.trim();
+
+        let lastDiscDate = null;
+        let lastDiscLines = [];
+        for (let i = weekDates.length - 1; i >= 0; i--) {
+            const dStr = weekDates[i];
+            const dayData = weekDataMap[dStr];
+            if (!dayData || !dayData.discussions) continue;
+            const lines = dayData.discussions.map(d => {
+                const t = typeof d === 'string' ? d : d.topic;
+                const r = typeof d === 'string' ? '' : (d.result || '');
+                return t && t.trim() !== '' ? `• ${t}${r ? ` (結果: ${r})` : ''}` : '';
+            }).filter(Boolean);
+            if (lines.length > 0) {
+                lastDiscDate = dStr;
+                lastDiscLines = lines;
+                break;
+            }
+        }
+
+        let discText;
+        if (lastDiscLines.length > 0) {
+            const [, mmLast, ddLast] = lastDiscDate.split('-');
+            discText = `（${mmLast}/${ddLast}）\n` + lastDiscLines.join('\n');
+        } else {
+            discText = '本週無意見討論內容。';
+        }
+        document.getElementById('report-discussion-items').innerText = discText;
+
+        const ctx = document.getElementById('weeklyChart').getContext('2d');
+        if (window.weeklyChartInstance) { window.weeklyChartInstance.destroy(); }
+        
+        window.weeklyChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: weekLabels,
+                datasets: [{
+                    label: '日營業額',
+                    data: weekRevs,
+                    backgroundColor: '#5b6770',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        const container = document.getElementById('report-export-container');
+        container.style.top = '0'; container.style.left = '0'; container.style.zIndex = '-1';
+        
+        setTimeout(() => {
+            html2canvas(container, { scale: 2 }).then(canvas => {
+                container.style.top = '-9999px'; container.style.left = '-9999px';
+                const isMobileOrTablet = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 1024;
+                
+                canvas.toBlob(blob => {
+                    window.currentReportBlob = blob;
+                    if (isMobileOrTablet) {
+                        const imageUrl = URL.createObjectURL(blob);
+                        document.getElementById('report-preview-img').src = imageUrl;
+                        document.getElementById('report-preview-modal').style.display = 'flex';
+                    } else {
+                        const link = document.createElement('a');
+                        link.download = `ECOLE_CAFE_營運週報_${weekDates[0]}.jpg`;
+                        link.href = URL.createObjectURL(blob);
+                        link.click();
+                    }
+                }, 'image/jpeg', 0.9);
+            });
+        }, 800);
     }
 </script>
 
@@ -779,11 +1049,11 @@
 
     window.globalDataStore = { employees: [], dailyTracking: {} };
     window.currentDateVal = '';
-    let staffList = ['緎俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
-    let weeklyChartInstance = null;
-    let currentReportBlob = null;
+    let staffList = ['織俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
+    window.weeklyChartInstance = null;
+    window.currentReportBlob = null;
 
-    // ---------- 今日天氣（台北市自動抓取 + 人工複選） ----------
+    // ---------- 今日天氣 ----------
     const WEATHER_OPTIONS = ['晴空萬里', '烏雲密布', '滂沱大雨', '零星陣雨', '微風徐徐', '寒風刺骨'];
     let selectedWeatherTags = [];
     let autoWeatherText = '';
@@ -793,7 +1063,6 @@
         return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
     }
 
-    // WMO 天氣代碼 -> 中文描述（僅供顯示參考，不影響儲存的資料結構）
     function weatherCodeToText(code) {
         const map = {
             0: '晴朗', 1: '晴時多雲', 2: '多雲', 3: '陰天',
@@ -808,8 +1077,6 @@
         return map[code] || '天氣不明';
     }
 
-    // 使用 Open-Meteo 免金鑰公開氣象 API 取得台北市即時天氣，僅供參考顯示，
-    // 失敗時不影響其餘功能，也不會清空使用者已手動複選的天氣狀況。
     async function fetchTodayWeather() {
         const displayEl = document.getElementById('auto-weather-display');
         try {
@@ -864,9 +1131,6 @@
         loadDayData(); 
     };
 
-    // 頁面載入／重新整理時，這裡只做「畫面渲染」（讀取本機資料並顯示），
-    // 完全不會呼叫 manualCloudSave 或任何寫入雲端的函式，
-    // 因此絕不會發生「網頁還沒讀完就把空白資料存回雲端」的情況。
     document.addEventListener("DOMContentLoaded", () => {
         window.currentDateVal = getTodayDateStr();
         document.getElementById('briefing-date-picker').value = window.currentDateVal;
@@ -874,7 +1138,7 @@
         syncStaffFromEmployees();
         loadStaffList();
         renderStaffPills();
-        loadDayData(); // loadDayData 內會一併還原天氣複選、並視情況觸發即時天氣抓取，皆為純渲染動作
+        loadDayData(); 
     });
 
     window.clearAlignments = function() {
@@ -893,26 +1157,29 @@
         } else if (!document.getElementById('rev-day').value && !document.getElementById('rev-night').value) {
             totalInput.value = '';
         }
-        updateMonthlyCumulative();
+        window.updateMonthlyCumulative();
     }
 
+    // 計算月累計營業額 (結合 Firebase 快取 與 本地即時輸入)
     window.updateMonthlyCumulative = function() {
         const dateVal = window.currentDateVal;
         if (!dateVal) return;
-        const ym = dateVal.substring(0, 7); 
-
-        let totalCum = 0;
-        const currentTotal = parseFloat(document.getElementById('rev-total').value) || 0;
-
-        if (window.globalDataStore.dailyTracking) {
+        
+        let prevCum = 0;
+        // 若已登入且有成功抓取雲端，則以雲端為主；否則退回本地計算
+        if (window.currentUser) {
+            prevCum = window.cachedPrevMonthCum || 0;
+        } else {
+            const ym = dateVal.substring(0, 7);
             Object.keys(window.globalDataStore.dailyTracking).forEach(dStr => {
                 if (dStr.startsWith(ym) && dStr < dateVal) {
-                    const dayRev = parseFloat(window.globalDataStore.dailyTracking[dStr].revTotal) || 0;
-                    totalCum += dayRev;
+                    prevCum += parseFloat(window.globalDataStore.dailyTracking[dStr].revTotal || 0);
                 }
             });
         }
-        totalCum += currentTotal;
+        
+        const currentTotal = parseFloat(document.getElementById('rev-total').value) || 0;
+        const totalCum = prevCum + currentTotal;
 
         const cumInput = document.getElementById('rev-month-cum');
         cumInput.value = totalCum > 0 ? totalCum : '';
@@ -928,15 +1195,6 @@
         } else {
             rateInput.value = '';
         }
-    }
-
-    function onDateChange() {
-        const pickerVal = document.getElementById('briefing-date-picker').value;
-        if (!pickerVal || pickerVal === window.currentDateVal) return;
-        saveCurrentDayData(window.currentDateVal); 
-        window.currentDateVal = pickerVal;
-        window.undoStack = [];
-        loadDayData();
     }
 
     function syncStaffFromEmployees() {
@@ -1054,61 +1312,6 @@
         };
     }
 
-    window.carryOverSection = function(type) {
-        const prevDateStr = getPreviousDateStr(window.currentDateVal);
-        if (!window.globalDataStore.dailyTracking || !window.globalDataStore.dailyTracking[prevDateStr]) {
-            return alert('前一日無紀錄資料可帶入！');
-        }
-        const prevDay = JSON.parse(JSON.stringify(window.globalDataStore.dailyTracking[prevDateStr]));
-
-        if (type === 'alignment') {
-            if (prevDay.alignments && prevDay.alignments.length > 0) {
-                prevDay.alignments.forEach(item => {
-                    const val = typeof item === 'string' ? item : item.val;
-                    const cat = typeof item === 'string' ? '通用' : (item.category || '通用');
-                    if (val && val.trim() !== '') addAlignmentRow(val, cat, 'bottom', false);
-                });
-                alert('已成功帶入前一日對齊項目！');
-            } else alert('前一日無對齊項目資料。');
-        } else if (type === 'task') {
-            if (prevDay.tasks && prevDay.tasks.length > 0) {
-                let count = 0;
-                prevDay.tasks.forEach(t => { if (!t.done) { addTaskRow(t.assignee, t.desc, false); count++; } });
-                alert(`已成功帶入未完成交辦（共 ${count} 筆）！`);
-            } else alert('前一日無交辦資料。');
-        } else if (type === 'discussion') {
-            if (prevDay.discussions && prevDay.discussions.length > 0) {
-                prevDay.discussions.forEach(d => {
-                    const topicVal = typeof d === 'string' ? d : d.topic;
-                    const resultVal = typeof d === 'string' ? '' : (d.result || '');
-                    if (topicVal && topicVal.trim() !== '') addDiscussionRow(topicVal, resultVal);
-                });
-                alert('已成功帶入意見討論！');
-            } else if (prevDay.discussions && typeof prevDay.discussions === 'string' && prevDay.discussions.trim() !== '') {
-                addDiscussionRow(prevDay.discussions, '');
-                alert('已成功帶入意見討論！');
-            } else alert('前一日無意見討論內容。');
-        } else if (type === 'shortage') {
-            if (prevDay.shortages && prevDay.shortages.length > 0) {
-                prevDay.shortages.forEach(val => { if (val && val.trim() !== '') addShortageRow(val); }); alert('已成功帶入缺貨商品！');
-            } else alert('前一日無缺貨商品資料。');
-        } else if (type === 'order') {
-            if (prevDay.orders && prevDay.orders.length > 0) {
-                let count = 0;
-                prevDay.orders.forEach(o => {
-                    const itemVal = typeof o === 'string' ? o : o.item;
-                    const isDone = typeof o === 'string' ? false : o.done;
-                    if (!isDone && itemVal && itemVal.trim() !== '') { addOrderRow(itemVal, false); count++; }
-                });
-                alert(`已成功帶入未處理叫貨（共 ${count} 筆）！`);
-            } else alert('前一日無需叫貨資料。');
-        } else if (type === 'promo') {
-            if (prevDay.promos && prevDay.promos.length > 0) {
-                prevDay.promos.forEach(val => { if (val && val.trim() !== '') addPromoRow(val); }); alert('已成功帶入推銷品項！');
-            } else alert('前一日無推銷品項資料。');
-        }
-    }
-
     function loadDayData() {
         const dateVal = window.currentDateVal;
         if (!dateVal) return;
@@ -1162,12 +1365,12 @@
         renderWeatherOptions();
         const displayEl = document.getElementById('auto-weather-display');
         if (dateVal === getTodayDateStr()) {
-            fetchTodayWeather(); // 僅顯示今天的即時天氣參考文字，抓取完成後才更新畫面，不影響已選複選項
+            fetchTodayWeather();
         } else if (displayEl) {
             displayEl.innerText = autoWeatherText || '（此日期無自動氣象紀錄，僅供人工複選參考）';
         }
 
-        updateMonthlyCumulative();
+        window.updateMonthlyCumulative();
     }
 
     window.addReservationRow = function(val = '') {
@@ -1377,167 +1580,13 @@
             .catch(err => console.error('複製失敗', err));
     }
     
-    window.downloadWeeklyReportJPG = function() {
-        if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal); 
-        
-        const currentD = new Date(window.currentDateVal || new Date());
-        const day = currentD.getDay(); 
-        const diff = currentD.getDate() - day + (day === 0 ? -6 : 1); 
-        const monday = new Date(currentD.setDate(diff));
-        
-        let weekDates = [];
-        let weekLabels = [];
-        let weekRevs = [];
-        let totalWeeklyRev = 0;
-
-        for (let i = 0; i < 7; i++) {
-            let d = new Date(monday);
-            d.setDate(monday.getDate() + i);
-            const y = d.getFullYear();
-            const m = String(d.getMonth()+1).padStart(2, '0');
-            const dt = String(d.getDate()).padStart(2, '0');
-            const dStr = `${y}-${m}-${dt}`;
-            
-            weekDates.push(dStr);
-            weekLabels.push(`${m}/${dt}`);
-            
-            let dailyRev = 0;
-            if (window.globalDataStore.dailyTracking && window.globalDataStore.dailyTracking[dStr]) {
-                dailyRev = parseFloat(window.globalDataStore.dailyTracking[dStr].revTotal) || 0;
-            }
-            weekRevs.push(dailyRev);
-            totalWeeklyRev += dailyRev;
-        }
-
-        document.getElementById('report-date-range').innerText = `統計區間：${weekDates[0].replace(/-/g,'/')} - ${weekDates[6].replace(/-/g,'/')}`;
-        document.getElementById('report-weekly-total-rev').innerText = `$${totalWeeklyRev.toLocaleString()}`;
-        const achieveRate = document.getElementById('rev-achieve-rate').value;
-        document.getElementById('report-month-rate').innerText = achieveRate ? `${achieveRate}%` : '0%';
-
-        let taskAlignText = '';
-        let weekTaskLines = [];
-        let weekAlignLines = [];
-
-        // 交辦事項：彙整「整週」的所有紀錄（不再只取前 4 筆），
-        // 若當天紀錄中該事項已完成，則加註是哪一天完成的。
-        weekDates.forEach(dStr => {
-            const dayData = window.globalDataStore.dailyTracking && window.globalDataStore.dailyTracking[dStr];
-            if (!dayData) return;
-            const [, mmLabel, ddLabel] = dStr.split('-');
-
-            if (dayData.tasks) {
-                dayData.tasks.forEach(t => {
-                    if (t.assignee || t.desc) {
-                        const doneStatus = t.done ? ` 【已完成 ${mmLabel}/${ddLabel}】` : '';
-                        weekTaskLines.push(`• [交辦] ${t.assignee || '未定'}: ${t.desc}${doneStatus}`);
-                    }
-                });
-            }
-            if (dayData.alignments) {
-                dayData.alignments.forEach(item => {
-                    const val = typeof item === 'string' ? item : item.val;
-                    const cat = typeof item === 'string' ? '通用' : (item.category || '通用');
-                    const isNew = typeof item === 'string' ? false : item.isNew;
-                    if (val && isNew) {
-                        weekAlignLines.push(`• [${cat}] ${val.split('\n')[0]}`);
-                    }
-                });
-            }
-        });
-
-        weekTaskLines = [...new Set(weekTaskLines)];
-        weekAlignLines = [...new Set(weekAlignLines)].slice(0, 3);
-
-        if (weekTaskLines.length > 0) taskAlignText += `【交辦事項（整週）】\n${weekTaskLines.join('\n')}\n\n`;
-        if (weekAlignLines.length > 0) taskAlignText += `【本週新增對齊項目】\n${weekAlignLines.join('\n')}`;
-
-        if(!taskAlignText) taskAlignText = '本週無交辦與對齊項目。';
-        document.getElementById('report-special-items').innerText = taskAlignText.trim();
-
-        // 意見討論：只彙整「本週最後一筆有紀錄的當天」內容，不彙整整週，避免內容過於龐雜。
-        let lastDiscDate = null;
-        let lastDiscLines = [];
-        for (let i = weekDates.length - 1; i >= 0; i--) {
-            const dStr = weekDates[i];
-            const dayData = window.globalDataStore.dailyTracking && window.globalDataStore.dailyTracking[dStr];
-            if (!dayData || !dayData.discussions) continue;
-            const lines = dayData.discussions.map(d => {
-                const t = typeof d === 'string' ? d : d.topic;
-                const r = typeof d === 'string' ? '' : (d.result || '');
-                return t && t.trim() !== '' ? `• ${t}${r ? ` (結果: ${r})` : ''}` : '';
-            }).filter(Boolean);
-            if (lines.length > 0) {
-                lastDiscDate = dStr;
-                lastDiscLines = lines;
-                break;
-            }
-        }
-
-        let discText;
-        if (lastDiscLines.length > 0) {
-            const [, mmLast, ddLast] = lastDiscDate.split('-');
-            discText = `（${mmLast}/${ddLast}）\n` + lastDiscLines.join('\n');
-        } else {
-            discText = '本週無意見討論內容。';
-        }
-        document.getElementById('report-discussion-items').innerText = discText;
-
-        // 繪製 Chart
-        const ctx = document.getElementById('weeklyChart').getContext('2d');
-        if (weeklyChartInstance) { weeklyChartInstance.destroy(); }
-        
-        weeklyChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: weekLabels,
-                datasets: [{
-                    label: '日營業額',
-                    data: weekRevs,
-                    backgroundColor: '#5b6770',
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true } },
-                plugins: { legend: { display: false } }
-            }
-        });
-
-        const container = document.getElementById('report-export-container');
-        container.style.top = '0'; container.style.left = '0'; container.style.zIndex = '-1';
-        
-        setTimeout(() => {
-            html2canvas(container, { scale: 2 }).then(canvas => {
-                container.style.top = '-9999px'; container.style.left = '-9999px';
-                
-                const isMobileOrTablet = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 1024;
-                
-                canvas.toBlob(blob => {
-                    currentReportBlob = blob;
-                    if (isMobileOrTablet) {
-                        const imageUrl = URL.createObjectURL(blob);
-                        document.getElementById('report-preview-img').src = imageUrl;
-                        document.getElementById('report-preview-modal').style.display = 'flex';
-                    } else {
-                        const link = document.createElement('a');
-                        link.download = `ECOLE_CAFE_營運週報_${weekDates[0]}.jpg`;
-                        link.href = URL.createObjectURL(blob);
-                        link.click();
-                    }
-                }, 'image/jpeg', 0.9);
-            });
-        }, 800);
-    }
-
     window.closeReportPreviewModal = function() {
         document.getElementById('report-preview-modal').style.display = 'none';
     }
 
     window.shareOrSaveReport = async function() {
-        if (!currentReportBlob) return;
-        const file = new File([currentReportBlob], `ECOLE_CAFE_營運週報.jpg`, { type: 'image/jpeg' });
+        if (!window.currentReportBlob) return;
+        const file = new File([window.currentReportBlob], `ECOLE_CAFE_營運週報.jpg`, { type: 'image/jpeg' });
         
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
@@ -1555,20 +1604,37 @@
         } else {
             const link = document.createElement('a');
             link.download = `ECOLE_CAFE_營運週報.jpg`;
-            link.href = URL.createObjectURL(currentReportBlob);
+            link.href = URL.createObjectURL(window.currentReportBlob);
             link.click();
             alert('圖片已產生，請長按圖片將其存入相片，即可分享至 LINE！');
         }
     }
 
+    // A. 匯出備份 (選擇匯出整月或當日)
     window.exportJSON = function() {
         if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal); 
+        
+        const isMonth = confirm("點擊「確定」將匯出【當月所有本地紀錄】，\n點擊「取消」將僅匯出【今日單筆紀錄】。");
         const dateVal = window.currentDateVal;
-        const dataToExport = { ...window.globalDataStore };
+        
+        let dataToExport = {
+            employees: window.globalDataStore.employees,
+            dailyTracking: {}
+        };
+
+        if (isMonth) {
+            const ym = dateVal.substring(0, 7);
+            Object.keys(window.globalDataStore.dailyTracking).forEach(k => {
+                if (k.startsWith(ym)) dataToExport.dailyTracking[k] = window.globalDataStore.dailyTracking[k];
+            });
+        } else {
+            dataToExport.dailyTracking[dateVal] = window.globalDataStore.dailyTracking[dateVal];
+        }
+
         const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `ecole_cafe_backup_${dateVal ? dateVal.substring(0, 7) : 'data'}.json`;
+        a.download = `ecole_cafe_backup_${isMonth ? dateVal.substring(0, 7) : dateVal}.json`;
         a.click();
     }
 
@@ -1578,10 +1644,13 @@
         reader.onload = function(e) {
             try {
                 const data = JSON.parse(e.target.result);
-                if (data.employees) window.globalDataStore.employees = data.employees;
-                if (data.dailyTracking) window.globalDataStore.dailyTracking = data.dailyTracking;
-                syncStaffFromEmployees(); loadStaffList(); loadDayData();
-                alert('已成功讀取備份資料！');
+                if (data.employees && data.employees.length > 0) window.globalDataStore.employees = data.employees;
+                if (data.dailyTracking) {
+                    // 合併資料而非完全覆蓋
+                    Object.assign(window.globalDataStore.dailyTracking, data.dailyTracking);
+                }
+                syncStaffFromEmployees(); loadStaffList(); renderStaffPills(); loadDayData();
+                alert('已成功讀取本地備份資料！');
             } catch (err) { alert('檔案格式錯誤。'); }
         };
         reader.readAsText(file); event.target.value = '';
