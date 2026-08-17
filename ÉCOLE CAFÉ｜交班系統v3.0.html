@@ -217,6 +217,7 @@
             padding: 2px 10px; font-size: 0.8rem; border-radius: 12px; cursor: pointer; transition: all 0.2s; user-select: none;
         }
         .staff-pill:hover { background: var(--accent-color); color: #ffffff; border-color: var(--accent-color); }
+        .staff-pill.selected { background: var(--accent-color); color: #ffffff; border-color: var(--accent-color); }
 
         .remove-btn {
             background: transparent; border: 1px solid var(--border-color); color: #888;
@@ -355,6 +356,15 @@
                     <input type="text" id="rev-achieve-rate" placeholder="例如: 6.9" readonly style="background: #f9f9f9;">
                 </div>
             </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">├── 🌤 今日天氣</div>
+            <div style="margin-top:12px; margin-bottom:10px; font-size:0.85rem; color: var(--text-muted);">
+                系統自動抓取（台北市）：<span id="auto-weather-display">讀取中...</span>
+            </div>
+            <label>天氣狀況（可複選，供人工補充或修正自動抓取結果）</label>
+            <div class="staff-pills-container" id="weather-options-container"></div>
         </div>
 
         <div class="card">
@@ -556,18 +566,59 @@
     const SHARED_DOC_ID = "shared_ecole_cafe_backup";
 
     let hasAutoRestored = false;
+    // 雲端資料「讀取完成」狀態鎖：在讀取流程完成前，一律禁止任何寫入雲端的操作，
+    // 避免頁面尚未讀完雲端資料時，被其他操作誤觸而把空白/舊資料覆蓋回共用雲端。
+    window.isCloudLoaded = false;
 
-    onAuthStateChanged(auth, (user) => {
-        window.currentUser = user;
+    // 檢查 Firebase 內 `systemConfig/whitelist` 的白名單機制
+    async function checkWhitelist(email) {
+        try {
+            const docRef = doc(db, "systemConfig", "whitelist");
+            const docSnap = await getDoc(docRef);
+            
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                const adminEmails = data.adminEmails || [];
+                const staffMapping = data.staffMapping || {};
+                
+                const isAdmin = adminEmails.includes(email);
+                const isStaff = staffMapping && Object.prototype.hasOwnProperty.call(staffMapping, email);
+                
+                return isAdmin || isStaff;
+            } else {
+                console.warn("未找到白名單設定檔 (systemConfig/whitelist)，預設拒絕登入。");
+                return false;
+            }
+        } catch (error) {
+            console.error("讀取白名單失敗:", error);
+            return false;
+        }
+    }
+
+    onAuthStateChanged(auth, async (user) => {
         const loginBtn = document.getElementById('google-login-btn');
         if (user) {
+            const isAllowed = await checkWhitelist(user.email);
+            if (!isAllowed) {
+                alert(`權限不足：您的帳號 (${user.email}) 不在雲端白名單 (systemConfig/whitelist) 中，將強制登出！`);
+                await signOut(auth);
+                window.currentUser = null;
+                loginBtn.innerText = 'Google 登入';
+                return;
+            }
+
+            window.currentUser = user;
             loginBtn.innerText = `${user.displayName || '已登入'} (登出)`;
             if (!hasAutoRestored) {
                 hasAutoRestored = true;
                 window.restoreFromCloud(true);
             }
         } else {
+            window.currentUser = null;
             loginBtn.innerText = 'Google 登入';
+            // 登出後重置讀取狀態，確保下次登入會重新完整讀取雲端資料後才解鎖寫入
+            window.isCloudLoaded = false;
+            hasAutoRestored = false;
         }
     });
 
@@ -587,7 +638,16 @@
                     return;
                 }
                 
-                await signInWithPopup(auth, provider);
+                const result = await signInWithPopup(auth, provider);
+                const user = result.user;
+
+                const isAllowed = await checkWhitelist(user.email);
+                if (!isAllowed) {
+                    alert(`權限不足：您的帳號 (${user.email}) 不在雲端白名單中！`);
+                    await signOut(auth);
+                    return;
+                }
+                
                 alert('Google 登入成功！');
             } catch (error) {
                 console.error("Google 登入失敗詳細錯誤:", error);
@@ -611,6 +671,11 @@
     window.manualCloudSave = async function() {
         if (!window.currentUser) {
             alert("請先進行 Google 登入！");
+            return;
+        }
+        // 雙重安全鎖：雲端資料尚未讀取完成前，一律攔截寫入動作，避免覆蓋雲端既有資料
+        if (!window.isCloudLoaded) {
+            alert("雲端資料尚未讀取完成，請稍候片刻再試一次（系統正在確保不會覆蓋現有雲端資料）。");
             return;
         }
         const statusSpan = document.getElementById('cloud-status');
@@ -641,6 +706,8 @@
             const docRef = doc(db, "backups", SHARED_DOC_ID);
             const docSnap = await getDoc(docRef);
 
+            // 以下僅做資料讀取與畫面渲染，絕不呼叫任何雲端寫入函式（如 setDoc），
+            // 因此不會有「頁面還沒讀完就把空白資料存回雲端」的風險。
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 if (data.employees) {
@@ -662,8 +729,12 @@
             } else {
                 if (!isSilent) alert('共用雲端目前尚無備份資料。');
             }
+            // 讀取流程（無論雲端有無資料）已完整結束，才解鎖允許後續寫入雲端
+            window.isCloudLoaded = true;
         } catch (error) {
             if (!isSilent) alert('雲端讀取失敗：' + error.message);
+            // 讀取失敗也視為流程已結束，避免永久卡死無法儲存；錯誤已於上方提示使用者
+            window.isCloudLoaded = true;
         }
     }
 </script>
@@ -708,9 +779,72 @@
 
     window.globalDataStore = { employees: [], dailyTracking: {} };
     window.currentDateVal = '';
-    let staffList = ['織俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
+    let staffList = ['緎俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
     let weeklyChartInstance = null;
     let currentReportBlob = null;
+
+    // ---------- 今日天氣（台北市自動抓取 + 人工複選） ----------
+    const WEATHER_OPTIONS = ['晴空萬里', '烏雲密布', '滂沱大雨', '零星陣雨', '微風徐徐', '寒風刺骨'];
+    let selectedWeatherTags = [];
+    let autoWeatherText = '';
+
+    function getTodayDateStr() {
+        const t = new Date();
+        return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+    }
+
+    // WMO 天氣代碼 -> 中文描述（僅供顯示參考，不影響儲存的資料結構）
+    function weatherCodeToText(code) {
+        const map = {
+            0: '晴朗', 1: '晴時多雲', 2: '多雲', 3: '陰天',
+            45: '起霧', 48: '濃霧',
+            51: '毛毛雨', 53: '毛毛雨', 55: '毛毛雨',
+            61: '小雨', 63: '中雨', 65: '大雨',
+            66: '凍雨', 67: '凍雨',
+            71: '小雪', 73: '中雪', 75: '大雪',
+            80: '陣雨', 81: '陣雨', 82: '強陣雨',
+            95: '雷雨', 96: '雷雨', 99: '強雷雨'
+        };
+        return map[code] || '天氣不明';
+    }
+
+    // 使用 Open-Meteo 免金鑰公開氣象 API 取得台北市即時天氣，僅供參考顯示，
+    // 失敗時不影響其餘功能，也不會清空使用者已手動複選的天氣狀況。
+    async function fetchTodayWeather() {
+        const displayEl = document.getElementById('auto-weather-display');
+        try {
+            const resp = await fetch('https://api.open-meteo.com/v1/forecast?latitude=25.0330&longitude=121.5654&current_weather=true&timezone=Asia%2FTaipei');
+            if (!resp.ok) throw new Error('氣象資料請求失敗');
+            const data = await resp.json();
+            const cw = data && data.current_weather;
+            if (!cw) throw new Error('無氣象資料');
+            const desc = weatherCodeToText(cw.weathercode);
+            autoWeatherText = `${desc}，約 ${Math.round(cw.temperature)}°C`;
+            if (displayEl) displayEl.innerText = autoWeatherText;
+        } catch (err) {
+            if (displayEl) displayEl.innerText = '（自動抓取失敗，請改用下方選項手動標註）';
+            console.warn('天氣資料抓取失敗:', err);
+        }
+    }
+
+    function renderWeatherOptions() {
+        const container = document.getElementById('weather-options-container');
+        if (!container) return;
+        container.innerHTML = '';
+        WEATHER_OPTIONS.forEach(tag => {
+            const pill = document.createElement('span');
+            pill.className = 'staff-pill' + (selectedWeatherTags.includes(tag) ? ' selected' : '');
+            pill.innerText = tag;
+            pill.onclick = () => {
+                saveUndoState();
+                const idx = selectedWeatherTags.indexOf(tag);
+                if (idx > -1) selectedWeatherTags.splice(idx, 1);
+                else selectedWeatherTags.push(tag);
+                renderWeatherOptions();
+            };
+            container.appendChild(pill);
+        });
+    }
 
     window.undoStack = [];
     window.saveUndoState = function() {
@@ -730,18 +864,17 @@
         loadDayData(); 
     };
 
+    // 頁面載入／重新整理時，這裡只做「畫面渲染」（讀取本機資料並顯示），
+    // 完全不會呼叫 manualCloudSave 或任何寫入雲端的函式，
+    // 因此絕不會發生「網頁還沒讀完就把空白資料存回雲端」的情況。
     document.addEventListener("DOMContentLoaded", () => {
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        window.currentDateVal = `${yyyy}-${mm}-${dd}`;
+        window.currentDateVal = getTodayDateStr();
         document.getElementById('briefing-date-picker').value = window.currentDateVal;
         
         syncStaffFromEmployees();
         loadStaffList();
         renderStaffPills();
-        loadDayData();
+        loadDayData(); // loadDayData 內會一併還原天氣複選、並視情況觸發即時天氣抓取，皆為純渲染動作
     });
 
     window.clearAlignments = function() {
@@ -891,6 +1024,8 @@
             revNight: document.getElementById('rev-night').value,
             revTotal: document.getElementById('rev-total').value,
             revMonthTarget: document.getElementById('rev-month-target').value,
+            weatherTags: selectedWeatherTags.slice(),
+            autoWeather: autoWeatherText,
             reservations: Array.from(document.querySelectorAll('.reservation-input')).map(i => i.value),
             alignments: Array.from(document.querySelectorAll('#alignment-list .row-group')).map(row => ({
                 val: row.querySelector('.alignment-input').value,
@@ -987,6 +1122,9 @@
             if (el) el.innerHTML = '';
         });
 
+        selectedWeatherTags = [];
+        autoWeatherText = '';
+
         if (window.globalDataStore.dailyTracking && window.globalDataStore.dailyTracking[dateVal]) {
             const dayData = window.globalDataStore.dailyTracking[dateVal];
             document.getElementById('shift-manager').value = dayData.manager || '';
@@ -997,6 +1135,8 @@
             document.getElementById('rev-night').value = dayData.revNight || '';
             document.getElementById('rev-total').value = dayData.revTotal || '';
             document.getElementById('rev-month-target').value = dayData.revMonthTarget || '700000';
+            selectedWeatherTags = Array.isArray(dayData.weatherTags) ? dayData.weatherTags.slice() : [];
+            autoWeatherText = dayData.autoWeather || '';
 
             (dayData.reservations || []).forEach(val => addReservationRow(val));
             (dayData.alignments || []).forEach(item => {
@@ -1018,6 +1158,15 @@
         } else {
             document.getElementById('rev-month-target').value = '700000';
         }
+
+        renderWeatherOptions();
+        const displayEl = document.getElementById('auto-weather-display');
+        if (dateVal === getTodayDateStr()) {
+            fetchTodayWeather(); // 僅顯示今天的即時天氣參考文字，抓取完成後才更新畫面，不影響已選複選項
+        } else if (displayEl) {
+            displayEl.innerText = autoWeatherText || '（此日期無自動氣象紀錄，僅供人工複選參考）';
+        }
+
         updateMonthlyCumulative();
     }
 
@@ -1151,6 +1300,11 @@
             briefing += `\n——————————`;
         }
 
+        const weatherParts = [];
+        if (selectedWeatherTags.length > 0) weatherParts.push(selectedWeatherTags.join('、'));
+        if (autoWeatherText) weatherParts.push(`(自動:${autoWeatherText})`);
+        if (weatherParts.length > 0) briefing += `\n\n🌤 今日天氣：${weatherParts.join(' ')}`;
+
         const resText = Array.from(document.querySelectorAll('.reservation-input')).map(i => i.value.trim()).filter(Boolean).join(' ');
         if(resText) briefing += `\n\n📍客情訂位狀況：\n${resText}`;
 
@@ -1263,54 +1417,66 @@
         let taskAlignText = '';
         let weekTaskLines = [];
         let weekAlignLines = [];
-        let weekDiscLines = [];
 
+        // 交辦事項：彙整「整週」的所有紀錄（不再只取前 4 筆），
+        // 若當天紀錄中該事項已完成，則加註是哪一天完成的。
         weekDates.forEach(dStr => {
             const dayData = window.globalDataStore.dailyTracking && window.globalDataStore.dailyTracking[dStr];
-            if (dayData) {
-                if (dayData.tasks) {
-                    dayData.tasks.forEach(t => {
-                        if ((t.assignee || t.desc)) {
-                            const doneStatus = t.done ? ' 【已完成】' : '';
-                            weekTaskLines.push(`• [交辦] ${t.assignee||'未定'}: ${t.desc}${doneStatus}`);
-                        }
-                    });
-                }
-                if (dayData.alignments) {
-                    dayData.alignments.forEach(item => {
-                        const val = typeof item === 'string' ? item : item.val;
-                        const cat = typeof item === 'string' ? '通用' : (item.category || '通用');
-                        const isNew = typeof item === 'string' ? false : item.isNew;
-                        if (val && isNew) {
-                            weekAlignLines.push(`• [${cat}] ${val.split('\n')[0]}`);
-                        }
-                    });
-                }
-                if (dayData.discussions) {
-                    dayData.discussions.forEach(d => {
-                        const t = typeof d === 'string' ? d : d.topic;
-                        const r = typeof d === 'string' ? '' : (d.result || '');
-                        if (t && t.trim() !== '') {
-                            weekDiscLines.push(`• ${t}${r ? ` (結果: ${r})` : ''}`);
-                        }
-                    });
-                }
+            if (!dayData) return;
+            const [, mmLabel, ddLabel] = dStr.split('-');
+
+            if (dayData.tasks) {
+                dayData.tasks.forEach(t => {
+                    if (t.assignee || t.desc) {
+                        const doneStatus = t.done ? ` 【已完成 ${mmLabel}/${ddLabel}】` : '';
+                        weekTaskLines.push(`• [交辦] ${t.assignee || '未定'}: ${t.desc}${doneStatus}`);
+                    }
+                });
+            }
+            if (dayData.alignments) {
+                dayData.alignments.forEach(item => {
+                    const val = typeof item === 'string' ? item : item.val;
+                    const cat = typeof item === 'string' ? '通用' : (item.category || '通用');
+                    const isNew = typeof item === 'string' ? false : item.isNew;
+                    if (val && isNew) {
+                        weekAlignLines.push(`• [${cat}] ${val.split('\n')[0]}`);
+                    }
+                });
             }
         });
 
-        weekTaskLines = [...new Set(weekTaskLines)].slice(0, 4);
+        weekTaskLines = [...new Set(weekTaskLines)];
         weekAlignLines = [...new Set(weekAlignLines)].slice(0, 3);
-        weekDiscLines = [...new Set(weekDiscLines)].slice(0, 6);
 
-        if (weekTaskLines.length > 0) taskAlignText += `【交辦事項】\n${weekTaskLines.join('\n')}\n\n`;
+        if (weekTaskLines.length > 0) taskAlignText += `【交辦事項（整週）】\n${weekTaskLines.join('\n')}\n\n`;
         if (weekAlignLines.length > 0) taskAlignText += `【本週新增對齊項目】\n${weekAlignLines.join('\n')}`;
 
         if(!taskAlignText) taskAlignText = '本週無交辦與對齊項目。';
         document.getElementById('report-special-items').innerText = taskAlignText.trim();
 
-        let discText = '';
-        if (weekDiscLines.length > 0) {
-            discText = weekDiscLines.join('\n');
+        // 意見討論：只彙整「本週最後一筆有紀錄的當天」內容，不彙整整週，避免內容過於龐雜。
+        let lastDiscDate = null;
+        let lastDiscLines = [];
+        for (let i = weekDates.length - 1; i >= 0; i--) {
+            const dStr = weekDates[i];
+            const dayData = window.globalDataStore.dailyTracking && window.globalDataStore.dailyTracking[dStr];
+            if (!dayData || !dayData.discussions) continue;
+            const lines = dayData.discussions.map(d => {
+                const t = typeof d === 'string' ? d : d.topic;
+                const r = typeof d === 'string' ? '' : (d.result || '');
+                return t && t.trim() !== '' ? `• ${t}${r ? ` (結果: ${r})` : ''}` : '';
+            }).filter(Boolean);
+            if (lines.length > 0) {
+                lastDiscDate = dStr;
+                lastDiscLines = lines;
+                break;
+            }
+        }
+
+        let discText;
+        if (lastDiscLines.length > 0) {
+            const [, mmLast, ddLast] = lastDiscDate.split('-');
+            discText = `（${mmLast}/${ddLast}）\n` + lastDiscLines.join('\n');
         } else {
             discText = '本週無意見討論內容。';
         }
