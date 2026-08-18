@@ -394,7 +394,7 @@
     cursor: pointer;
   }
 
-  /* ---------- Bottom nav (mobile) 重構等距與滾動 ---------- */
+  /* ---------- Bottom nav (mobile) ---------- */
   .bottom-nav {
     display: none;
     position: fixed;
@@ -414,8 +414,8 @@
   }
   .bottom-scroll::-webkit-scrollbar { display: none; }
   .bottom-item {
-    flex: 1 0 20%; /* 等距平分 (預設5個按鈕各佔 20%) */
-    min-width: 68px; /* 保障最小點擊寬度，超過數量自動開啟右滑 */
+    flex: 1 0 20%;
+    min-width: 68px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -439,7 +439,7 @@
     color: var(--sidebar-text); 
     text-align: center; 
     line-height: 1.2;
-    white-space: nowrap; /* 保持單行不折行，確保圖示與文字對齊等距 */
+    white-space: nowrap;
   }
   .bottom-item.settings .b-icon { background: transparent; border: 1px solid rgba(239,235,227,0.25); }
 
@@ -865,7 +865,7 @@
       <!-- 1. 營業目標卡片 -->
       <div class="card dashboard-card">
         <div class="card-top">
-          <div class="card-name">本月營業目標達成率 </div>
+          <div class="card-name">本月營業目標達成率 (自動結算)</div>
         </div>
         <div>
           <div class="stat-value" id="revProgress">--%</div>
@@ -1243,7 +1243,7 @@
 
     const settingsItem = document.createElement('div');
     settingsItem.className = 'bottom-item settings';
-    settingsItem.innerHTML = `<span class="b-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg></span><span class="b-name">編輯</span>`;
+    settingsItem.innerHTML = `<span class="b-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59-0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg></span><span class="b-name">編輯</span>`;
     settingsItem.onclick = openEditor;
     bottomNav.appendChild(settingsItem);
 
@@ -1724,53 +1724,70 @@
   };
 
   // ==========================================
-  // 3. 營運儀表板 - 讀取與計算
+  // 3. 營運儀表板 - 讀取與計算（更新指向獨立 dailyTracking 集合）
   // ==========================================
   function subscribeToDashboard() {
     const todayObj = new Date();
-    const todayStr = dateKey(todayObj); 
     
     async function calculateMonthlyRevenue() {
       try {
-        const prevObj = new Date(todayObj);
-        prevObj.setDate(prevObj.getDate() - 1); 
-        const monthPrefix = `${prevObj.getFullYear()}-${pad2(prevObj.getMonth() + 1)}`;
+        const monthPrefix = `${todayObj.getFullYear()}-${pad2(todayObj.getMonth() + 1)}`;
         const startDate = `${monthPrefix}-01`;
-        const endDate = dateKey(prevObj);
+        const endDate = dateKey(todayObj); 
         
         let calculatedCum = 0;
         let target = 700000;
         let foundTarget = false;
 
-        const snap = await db.collection('backups')
+        // 1. 優先直接抓取獨立的 dailyTracking 集合 (文件格式：YYYY-MM-DD)
+        const snap = await db.collection('dailyTracking')
           .where(firebase.firestore.FieldPath.documentId(), '>=', startDate)
           .where(firebase.firestore.FieldPath.documentId(), '<=', endDate)
           .get();
 
-        snap.forEach(doc => {
-          if(doc.id === 'shared_ecole_cafe_backup') return;
-          const data = doc.data();
-          calculatedCum += (parseFloat(data.revTotal) || parseFloat(data.dailyRevenue) || parseFloat(data.realRev) || 0);
-          if(!foundTarget && data.revMonthTarget) {
-            target = parseFloat(data.revMonthTarget);
-            foundTarget = true;
-          }
-        });
+        if (!snap.empty) {
+          snap.forEach(doc => {
+            const data = doc.data() || {};
+            const rev = parseFloat(data.revTotal) || (parseFloat(data.revDay) || 0) + (parseFloat(data.revNight) || 0) || parseFloat(data.dailyRevenue) || parseFloat(data.realRev) || 0;
+            calculatedCum += rev;
 
-        const sharedDoc = await db.collection('backups').doc('shared_ecole_cafe_backup').get();
-        if (sharedDoc.exists) {
-          const sData = sharedDoc.data();
-          if(!foundTarget && sData.revMonthTarget) target = parseFloat(sData.revMonthTarget);
-          let sharedCum = 0;
-          if (sData.dailyTracking) {
-             for (let key in sData.dailyTracking) {
-               if (key >= startDate && key <= endDate) {
-                  let dData = sData.dailyTracking[key];
-                  sharedCum += (parseFloat(dData.revTotal) || parseFloat(dData.dailyRevenue) || parseFloat(dData.realRev) || 0);
+            if (!foundTarget && data.revMonthTarget) {
+              target = parseFloat(data.revMonthTarget);
+              foundTarget = true;
+            }
+          });
+        } else {
+          // 2. 備用降級機制：相容舊版 backups 集合
+          const oldSnap = await db.collection('backups')
+            .where(firebase.firestore.FieldPath.documentId(), '>=', startDate)
+            .where(firebase.firestore.FieldPath.documentId(), '<=', endDate)
+            .get();
+
+          oldSnap.forEach(doc => {
+            if(doc.id === 'shared_ecole_cafe_backup') return;
+            const data = doc.data();
+            calculatedCum += (parseFloat(data.revTotal) || parseFloat(data.dailyRevenue) || parseFloat(data.realRev) || 0);
+            if(!foundTarget && data.revMonthTarget) {
+              target = parseFloat(data.revMonthTarget);
+              foundTarget = true;
+            }
+          });
+
+          const sharedDoc = await db.collection('backups').doc('shared_ecole_cafe_backup').get();
+          if (sharedDoc.exists) {
+            const sData = sharedDoc.data();
+            if(!foundTarget && sData.revMonthTarget) target = parseFloat(sData.revMonthTarget);
+            let sharedCum = 0;
+            if (sData.dailyTracking) {
+               for (let key in sData.dailyTracking) {
+                 if (key >= startDate && key <= endDate) {
+                    let dData = sData.dailyTracking[key];
+                    sharedCum += (parseFloat(dData.revTotal) || parseFloat(dData.dailyRevenue) || parseFloat(dData.realRev) || 0);
+                 }
                }
-             }
+            }
+            calculatedCum = Math.max(calculatedCum, sharedCum);
           }
-          calculatedCum = Math.max(calculatedCum, sharedCum);
         }
 
         let percent = target > 0 ? (calculatedCum / target) * 100 : 0;
