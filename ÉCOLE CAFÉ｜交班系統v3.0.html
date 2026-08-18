@@ -12,7 +12,6 @@
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
     <style>
-        /* CSS 樣式完全保持不變 */
         :root {
             --bg-color: #f4f4f4;
             --card-bg: #ffffff;
@@ -347,9 +346,9 @@
         </div>
 
         <div class="card">
-            <div class="section-title">├── 🌤 今日天氣</div>
+            <div class="section-title">├── 🌤 今日天氣預報</div>
             <div style="margin-top:12px; margin-bottom:10px; font-size:0.85rem; color: var(--text-muted);">
-                系統自動抓取（台北市）：<span id="auto-weather-display">讀取中...</span>
+                系統自動抓取（台北市當日平均預報）：<span id="auto-weather-display">讀取中...</span>
             </div>
             <label>天氣狀況（可複選，供人工補充或修正自動抓取結果）</label>
             <div class="staff-pills-container" id="weather-options-container"></div>
@@ -556,7 +555,7 @@
     // 雲端資料「讀取完成」狀態鎖：在讀取流程完成前，一律禁止任何寫入雲端的操作，
     // 避免頁面尚未讀完雲端資料時，被其他操作誤觸而把空白/舊資料覆蓋回共用雲端。
     window.isCloudLoaded = false;
-    window.cachedPrevMonthCum = 0; // 用於快取雲端月累計營業額
+    window.cachedPrevMonthCum = 0; // 快取雲端當月累計營業額
 
     // 檢查 Firebase 內 `systemConfig/whitelist` 的白名單機制
     async function checkWhitelist(email) {
@@ -604,7 +603,6 @@
         } else {
             window.currentUser = null;
             loginBtn.innerText = 'Google 登入';
-            // 登出後重置讀取狀態，確保下次登入會重新完整讀取雲端資料後才解鎖寫入
             window.isCloudLoaded = false;
             hasAutoRestored = false;
         }
@@ -660,11 +658,11 @@
             const dateToSave = window.currentDateVal;
             if (typeof saveCurrentDayData === 'function') saveCurrentDayData(dateToSave); 
             
-            // 儲存：交班紀錄 (以日期為文件ID儲存)
+            // 儲存：交班紀錄 (以日期為文件 ID 獨立儲存)
             const dailyData = window.globalDataStore.dailyTracking[dateToSave] || {};
             const dataToUpload = {
                 ...dailyData,
-                date: dateToSave, // 確保寫入日期欄位供查詢使用
+                date: dateToSave,
                 updatedAt: new Date().toISOString(),
                 updatedBy: window.currentUser.email || window.currentUser.displayName
             };
@@ -682,7 +680,7 @@
         }
     }
 
-    // 獲取該月直到昨日的累計雲端營業額
+    // 獲取該月截至昨日的累計雲端營業額
     window.fetchMonthlyCumulative = async function() {
         if (!window.currentUser || !window.currentDateVal) return;
         const ym = window.currentDateVal.substring(0, 7);
@@ -691,13 +689,12 @@
         
         let totalCum = 0;
         try {
-            // 如果今天是1號，就不需撈取前面的天數
             if (window.currentDateVal !== startDate) {
                 const q = query(collection(db, "dailyTracking"), 
                                 where("date", ">=", startDate), 
                                 where("date", "<=", prevDate));
                 const snap = await getDocs(q);
-                snap.forEach(doc => { totalCum += parseFloat(doc.data().revTotal || 0); });
+                snap.forEach(docSnap => { totalCum += parseFloat(docSnap.data().revTotal || 0); });
             }
             window.cachedPrevMonthCum = totalCum;
         } catch(e) {
@@ -714,9 +711,6 @@
             const statusSpan = document.getElementById('cloud-status');
             if (statusSpan) statusSpan.innerText = '讀取雲端...';
 
-            // 以下僅做資料讀取與畫面渲染，絕不呼叫任何雲端寫入函式（如 setDoc），
-            // 因此不會有「頁面還沒讀完就把空白資料存回雲端」的風險。
-
             // 1. 讀取全域員工清單
             const empSnap = await getDoc(doc(db, "systemConfig", "employees"));
             if (empSnap.exists() && empSnap.data().list) {
@@ -732,10 +726,10 @@
                 window.globalDataStore.dailyTracking[window.currentDateVal] = dailySnap.data();
             }
 
-            // 3. 抓取本月到昨日為止的累積營業額
+            // 3. 抓取本月截至昨日為止的累積營業額
             await window.fetchMonthlyCumulative();
             
-            // 畫面同步
+            // 畫面同步渲染
             if (typeof syncStaffFromEmployees === 'function') syncStaffFromEmployees();
             if (typeof loadStaffList === 'function') loadStaffList();
             if (typeof renderStaffPills === 'function') renderStaffPills();
@@ -744,13 +738,12 @@
             if (statusSpan) statusSpan.innerText = '';
             if (!isSilent) alert('已成功從雲端讀取最新的交班資料！');
             
-            // 讀取流程（無論雲端有無資料）已完整結束，才解鎖允許後續寫入雲端
+            // 讀取流程完整結束後，解鎖允許寫入
             window.isCloudLoaded = true;
         } catch (error) {
             if (!isSilent) alert('雲端讀取失敗：' + error.message);
             const statusSpan = document.getElementById('cloud-status');
             if (statusSpan) statusSpan.innerText = '';
-            // 讀取失敗也視為流程已結束，避免永久卡死無法儲存；錯誤已於上方提示使用者
             window.isCloudLoaded = true;
         }
     }
@@ -762,7 +755,6 @@
         window.currentDateVal = pickerVal;
         window.undoStack = [];
         
-        // 切換日期時，若已登入則重新鎖住寫入並拉取雲端新日期的資料
         if (window.currentUser) {
             window.isCloudLoaded = false;
             await window.restoreFromCloud(true);
@@ -834,7 +826,7 @@
         }
     }
 
-    // 匯出週報圖表（直接使用 Firebase query 範圍搜尋）
+    // 匯出週報圖表（使用 Firebase 範圍搜尋直接撈取一週數據）
     window.downloadWeeklyReportJPG = async function() {
         if (!window.currentUser) return alert('請登入以產生雲端週報！');
         if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal); 
@@ -1010,6 +1002,17 @@
 </script>
 
 <script>
+    // 安全防護：XSS 轉義函數，防止輸入引號或 HTML 標籤打斷結構
+    function escapeHTML(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             const swCode = `
@@ -1049,11 +1052,11 @@
 
     window.globalDataStore = { employees: [], dailyTracking: {} };
     window.currentDateVal = '';
-    let staffList = ['織俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
+    let staffList = ['緎俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
     window.weeklyChartInstance = null;
     window.currentReportBlob = null;
 
-    // ---------- 今日天氣 ----------
+    // ---------- 今日天氣 (台北市當日全天平均氣溫預報) ----------
     const WEATHER_OPTIONS = ['晴空萬里', '烏雲密布', '滂沱大雨', '零星陣雨', '微風徐徐', '寒風刺骨'];
     let selectedWeatherTags = [];
     let autoWeatherText = '';
@@ -1077,20 +1080,28 @@
         return map[code] || '天氣不明';
     }
 
-    async function fetchTodayWeather() {
+    // 抓取指定日期的台北市全天平均預報與溫差
+    async function fetchDayWeather(dateStr) {
         const displayEl = document.getElementById('auto-weather-display');
+        if (!displayEl) return;
         try {
-            const resp = await fetch('https://api.open-meteo.com/v1/forecast?latitude=25.0330&longitude=121.5654&current_weather=true&timezone=Asia%2FTaipei');
+            const resp = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=25.0330&longitude=121.5654&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTaipei&start_date=${dateStr}&end_date=${dateStr}`);
             if (!resp.ok) throw new Error('氣象資料請求失敗');
             const data = await resp.json();
-            const cw = data && data.current_weather;
-            if (!cw) throw new Error('無氣象資料');
-            const desc = weatherCodeToText(cw.weathercode);
-            autoWeatherText = `${desc}，約 ${Math.round(cw.temperature)}°C`;
-            if (displayEl) displayEl.innerText = autoWeatherText;
+            const daily = data && data.daily;
+            if (!daily || !daily.weathercode || daily.weathercode.length === 0) throw new Error('無氣象資料');
+
+            const code = daily.weathercode[0];
+            const maxT = Math.round(daily.temperature_2m_max[0]);
+            const minT = Math.round(daily.temperature_2m_min[0]);
+            const avgT = Math.round((maxT + minT) / 2);
+            const desc = weatherCodeToText(code);
+
+            autoWeatherText = `${desc}，全天均溫約 ${avgT}°C (${minT}°C ~ ${maxT}°C)`;
+            displayEl.innerText = autoWeatherText;
         } catch (err) {
-            if (displayEl) displayEl.innerText = '（自動抓取失敗，請改用下方選項手動標註）';
-            console.warn('天氣資料抓取失敗:', err);
+            displayEl.innerText = autoWeatherText || '（無該日期自動預報資料，可手動選擇下方選項）';
+            console.warn('天氣預報抓取失敗:', err);
         }
     }
 
@@ -1160,13 +1171,11 @@
         window.updateMonthlyCumulative();
     }
 
-    // 計算月累計營業額 (結合 Firebase 快取 與 本地即時輸入)
     window.updateMonthlyCumulative = function() {
         const dateVal = window.currentDateVal;
         if (!dateVal) return;
         
         let prevCum = 0;
-        // 若已登入且有成功抓取雲端，則以雲端為主；否則退回本地計算
         if (window.currentUser) {
             prevCum = window.cachedPrevMonthCum || 0;
         } else {
@@ -1246,7 +1255,7 @@
         container.innerHTML = '';
         staffList.forEach((name, index) => {
             const div = document.createElement('div'); div.className = 'row-group';
-            div.innerHTML = `<input type="text" value="${name}" readonly style="background: #f9f9f9;"><button type="button" class="remove-btn" onclick="removeStaff(${index})">×</button>`;
+            div.innerHTML = `<input type="text" value="${escapeHTML(name)}" readonly style="background: #f9f9f9;"><button type="button" class="remove-btn" onclick="removeStaff(${index})">×</button>`;
             container.appendChild(div);
         });
         document.getElementById('staff-modal').style.display = 'flex';
@@ -1363,19 +1372,16 @@
         }
 
         renderWeatherOptions();
-        const displayEl = document.getElementById('auto-weather-display');
-        if (dateVal === getTodayDateStr()) {
-            fetchTodayWeather();
-        } else if (displayEl) {
-            displayEl.innerText = autoWeatherText || '（此日期無自動氣象紀錄，僅供人工複選參考）';
-        }
+        
+        // 抓取並顯示選定日期的全天平均預報
+        fetchDayWeather(dateVal);
 
         window.updateMonthlyCumulative();
     }
 
     window.addReservationRow = function(val = '') {
         const div = document.createElement('div'); div.className = 'row-group';
-        div.innerHTML = `<input type="text" class="reservation-input" value="${val}" placeholder="請輸入訂位狀況..."><button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`;
+        div.innerHTML = `<input type="text" class="reservation-input" value="${escapeHTML(val)}" placeholder="請輸入訂位狀況..."><button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`;
         document.getElementById('reservation-list').appendChild(div);
     }
 
@@ -1388,7 +1394,7 @@
                 <option value="吧台" ${category==='吧台'?'selected':''}>吧台</option>
                 <option value="廚房" ${category==='廚房'?'selected':''}>廚房</option>
             </select>
-            <textarea class="alignment-input" data-isnew="${isNew}" placeholder="請輸入對齊項目內容..." style="min-height: 42px;">${val}</textarea>
+            <textarea class="alignment-input" data-isnew="${isNew}" placeholder="請輸入對齊項目內容..." style="min-height: 42px;">${escapeHTML(val)}</textarea>
             <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>
         `;
         if (position === 'top') document.getElementById('alignment-list').prepend(div);
@@ -1400,11 +1406,11 @@
         div.innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
                 <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="text" class="task-assignee" list="staff-options" value="${assignee}" placeholder="負責人" style="flex: 1;">
+                    <input type="text" class="task-assignee" list="staff-options" value="${escapeHTML(assignee)}" placeholder="負責人" style="flex: 1;">
                     <label class="checkbox-label"><input type="checkbox" class="task-done" ${done ? 'checked' : ''}> 已完成</label>
                 </div>
                 <div>
-                    <textarea class="task-desc" placeholder="交辦事項內容" style="min-height: 50px;">${desc}</textarea>
+                    <textarea class="task-desc" placeholder="交辦事項內容" style="min-height: 50px;">${escapeHTML(desc)}</textarea>
                 </div>
             </div>
             <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>
@@ -1416,8 +1422,8 @@
         const div = document.createElement('div'); div.className = 'row-group'; div.style.alignItems = 'stretch';
         div.innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
-                <textarea class="discussion-topic" placeholder="請輸入討論主題..." style="min-height: 50px;">${topic}</textarea>
-                <textarea class="discussion-result" placeholder="請輸入討論結果..." style="min-height: 50px; background: #f9f9f9;">${result}</textarea>
+                <textarea class="discussion-topic" placeholder="請輸入討論主題..." style="min-height: 50px;">${escapeHTML(topic)}</textarea>
+                <textarea class="discussion-result" placeholder="請輸入討論結果..." style="min-height: 50px; background: #f9f9f9;">${escapeHTML(result)}</textarea>
             </div>
             <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>
         `;
@@ -1427,14 +1433,14 @@
     window.addIncidentRow = function(sit = '', res = '') {
         const div = document.createElement('div'); div.className = 'row-group'; div.style.alignItems = 'stretch';
         div.style.border = '1px solid var(--border-color)'; div.style.padding = '10px'; div.style.borderRadius = '6px'; div.style.backgroundColor = '#fafafa';
-        div.innerHTML = `<div style="display: flex; flex-direction: column; gap: 8px; flex: 1;"><textarea class="incident-sit-input" placeholder="現場狀況..." style="min-height: 60px;">${sit}</textarea><textarea class="incident-res-input" placeholder="解決方式..." style="min-height: 60px;">${res}</textarea></div><button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch; margin-left: 8px; background: transparent;">×</button>`;
+        div.innerHTML = `<div style="display: flex; flex-direction: column; gap: 8px; flex: 1;"><textarea class="incident-sit-input" placeholder="現場狀況..." style="min-height: 60px;">${escapeHTML(sit)}</textarea><textarea class="incident-res-input" placeholder="解決方式..." style="min-height: 60px;">${escapeHTML(res)}</textarea></div><button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch; margin-left: 8px; background: transparent;">×</button>`;
         document.getElementById('incident-list').appendChild(div);
     }
 
     window.addShortageRow = function(val = '') {
         const div = document.createElement('div'); div.className = 'row-group'; div.style.alignItems = 'stretch';
         div.innerHTML = `
-            <textarea class="shortage-item" placeholder="請輸入缺貨商品..." style="min-height: 50px; flex: 1;">${val}</textarea>
+            <textarea class="shortage-item" placeholder="請輸入缺貨商品..." style="min-height: 50px; flex: 1;">${escapeHTML(val)}</textarea>
             <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>
         `; 
         document.getElementById('shortage-list').appendChild(div);
@@ -1444,7 +1450,7 @@
         const div = document.createElement('div'); div.className = 'row-group'; div.style.alignItems = 'stretch';
         div.innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
-                <textarea class="order-item" placeholder="請輸入需叫貨項目" style="min-height: 50px;">${val}</textarea>
+                <textarea class="order-item" placeholder="請輸入需叫貨項目" style="min-height: 50px;">${escapeHTML(val)}</textarea>
                 <label class="checkbox-label"><input type="checkbox" class="order-done" ${done ? 'checked' : ''}> 已處理</label>
             </div>
             <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>
@@ -1455,7 +1461,7 @@
     window.addPromoRow = function(val = '') {
         const div = document.createElement('div'); div.className = 'row-group'; div.style.alignItems = 'stretch';
         div.innerHTML = `
-            <textarea class="promo-input" placeholder="請輸入推銷品項..." style="min-height: 50px; flex: 1;">${val}</textarea>
+            <textarea class="promo-input" placeholder="請輸入推銷品項..." style="min-height: 50px; flex: 1;">${escapeHTML(val)}</textarea>
             <button type="button" class="remove-btn" onclick="removeRow(this)" style="height: auto; align-self: stretch;">×</button>
         `; 
         document.getElementById('promo-list').appendChild(div);
@@ -1505,7 +1511,7 @@
 
         const weatherParts = [];
         if (selectedWeatherTags.length > 0) weatherParts.push(selectedWeatherTags.join('、'));
-        if (autoWeatherText) weatherParts.push(`(自動:${autoWeatherText})`);
+        if (autoWeatherText) weatherParts.push(`(${autoWeatherText})`);
         if (weatherParts.length > 0) briefing += `\n\n🌤 今日天氣：${weatherParts.join(' ')}`;
 
         const resText = Array.from(document.querySelectorAll('.reservation-input')).map(i => i.value.trim()).filter(Boolean).join(' ');
@@ -1610,7 +1616,6 @@
         }
     }
 
-    // A. 匯出備份 (選擇匯出整月或當日)
     window.exportJSON = function() {
         if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal); 
         
@@ -1646,7 +1651,6 @@
                 const data = JSON.parse(e.target.result);
                 if (data.employees && data.employees.length > 0) window.globalDataStore.employees = data.employees;
                 if (data.dailyTracking) {
-                    // 合併資料而非完全覆蓋
                     Object.assign(window.globalDataStore.dailyTracking, data.dailyTracking);
                 }
                 syncStaffFromEmployees(); loadStaffList(); renderStaffPills(); loadDayData();
