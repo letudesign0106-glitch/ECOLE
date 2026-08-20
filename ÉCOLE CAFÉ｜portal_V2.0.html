@@ -101,7 +101,7 @@
     width: 100%;
   }
 
-  /* ---------- Sidebar (desktop / tablet) ---------- */
+  /* ---------- Sidebar ---------- */
   .sidebar {
     width: 264px;
     flex-shrink: 0;
@@ -110,198 +110,91 @@
     display: flex;
     flex-direction: column;
     position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
+    top: 0; left: 0; bottom: 0;
     height: 100vh;
     padding: 30px 20px 22px;
     z-index: 50;
     overflow-y: auto;
   }
   .brand {
-    display: flex;
-    flex-direction: column;
+    display: flex; flex-direction: column;
     padding: 0 4px 22px;
     border-bottom: 1px solid rgba(239,235,227,0.12);
     margin-bottom: 22px;
   }
   .brand-text .brand-title {
     font-family: var(--font-title);
-    font-size: 26px;
-    letter-spacing: 2px;
-    font-weight: 700;
-    line-height: 1.1;
+    font-size: 26px; letter-spacing: 2px;
+    font-weight: 700; line-height: 1.1;
     color: var(--sidebar-text);
   }
   .brand-text .brand-sub {
-    font-size: 11px;
-    letter-spacing: 3.5px;
-    color: var(--sidebar-text-soft);
-    margin-top: 6px;
+    font-size: 11px; letter-spacing: 3.5px;
+    color: var(--sidebar-text-soft); margin-top: 6px;
   }
 
-  .nav-label {
-    font-size: 11px;
-    letter-spacing: 2px;
-    color: var(--sidebar-text-soft);
-    padding: 0 8px;
-    margin-bottom: 10px;
-  }
-  .nav-list {
-    list-style: none;
-    margin: 0; padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    flex: 1;
-    overflow-y: auto;
-  }
+  .nav-label { font-size: 11px; letter-spacing: 2px; color: var(--sidebar-text-soft); padding: 0 8px; margin-bottom: 10px; }
+  .nav-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; flex: 1; overflow-y: auto; }
   .nav-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 12px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: background .18s ease, transform .12s ease;
+    display: flex; align-items: center; gap: 12px; padding: 12px 12px;
+    border-radius: var(--radius-sm); cursor: pointer; transition: background .18s ease, transform .12s ease;
     border: 1px solid transparent;
   }
-  .nav-item:hover {
-    background: var(--sidebar-bg-soft);
-    transform: translateX(2px);
-  }
-  .nav-dot {
-    width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
-  }
+  .nav-item:hover { background: var(--sidebar-bg-soft); transform: translateX(2px); }
+  .nav-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
   .nav-item .nav-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 17px; }
   .nav-item .nav-icon svg { width: 18px; height: 18px; fill: currentColor; }
-  
   .nav-item .nav-name { font-size: 14.5px; font-weight: 500; letter-spacing: .3px; flex: 1; }
-  .nav-item .nav-go {
-    font-size: 12px; color: var(--sidebar-text-soft); opacity: 0; transition: opacity .15s;
-  }
+  .nav-item .nav-go { font-size: 12px; color: var(--sidebar-text-soft); opacity: 0; transition: opacity .15s; }
   .nav-item:hover .nav-go { opacity: 1; }
 
   .sidebar-empty {
-    padding: 16px 10px;
-    font-size: 12.5px;
-    color: var(--sidebar-text-soft);
-    line-height: 1.7;
-    border: 1px dashed rgba(239,235,227,0.18);
-    border-radius: var(--radius-sm);
+    padding: 16px 10px; font-size: 12.5px; color: var(--sidebar-text-soft); line-height: 1.7;
+    border: 1px dashed rgba(239,235,227,0.18); border-radius: var(--radius-sm);
   }
 
-  .sidebar-footer {
-    border-top: 1px solid rgba(239,235,227,0.12);
-    padding-top: 14px;
-    margin-top: 14px;
-  }
+  .sidebar-footer { border-top: 1px solid rgba(239,235,227,0.12); padding-top: 14px; margin-top: 14px; }
   .edit-trigger {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: transparent;
-    border: 1px solid rgba(239,235,227,0.18);
-    color: var(--sidebar-text);
-    padding: 11px 12px;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    letter-spacing: .5px;
-    cursor: pointer;
-    transition: .15s;
+    width: 100%; display: flex; align-items: center; gap: 10px; background: transparent;
+    border: 1px solid rgba(239,235,227,0.18); color: var(--sidebar-text); padding: 11px 12px;
+    border-radius: var(--radius-sm); font-size: 13px; letter-spacing: .5px; cursor: pointer; transition: .15s;
   }
   .edit-trigger:hover { background: var(--sidebar-bg-soft); }
 
   /* ---------- Main ---------- */
-  .main {
-    flex: 1;
-    min-width: 0;
-    padding: 34px 40px 100px;
-    margin-left: 264px;
-  }
-  .topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 34px;
-  }
+  .main { flex: 1; min-width: 0; padding: 34px 40px 100px; margin-left: 264px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 34px; }
   .mobile-brand { display: none; flex-direction: column; }
-  .mobile-brand .brand-title { 
-    font-family: var(--font-title);
-    font-size: 22px; 
-    letter-spacing: 2px; 
-    font-weight: 700; 
-  }
+  .mobile-brand .brand-title { font-family: var(--font-title); font-size: 22px; letter-spacing: 2px; font-weight: 700; }
   .topbar-right { display: flex; align-items: center; gap: 14px; }
-  .clock {
-    text-align: right;
-    font-family: var(--font-num);
-  }
+  .clock { text-align: right; font-family: var(--font-num); }
   .clock .time { font-size: 20px; font-weight: 600; letter-spacing: .5px; }
   .clock .date { font-size: 11.5px; color: var(--ink-soft); margin-top: 1px; white-space: nowrap; }
   
   .icon-btn {
-    width: 38px; height: 38px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    cursor: pointer;
-    font-size: 16px;
-    box-shadow: var(--shadow-soft);
-    transition: .15s;
-    background-position: center;
-    background-repeat: no-repeat;
+    width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--surface); border: 1px solid var(--line); cursor: pointer; font-size: 16px;
+    box-shadow: var(--shadow-soft); transition: .15s; background-position: center; background-repeat: no-repeat;
   }
   .icon-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-card); }
-  
   #cloudSaveBtn { color: var(--c-blue); }
 
   .hero { margin-bottom: 38px; }
-  .hero .eyebrow {
-    font-size: 11.5px;
-    letter-spacing: 3px;
-    color: var(--ink-faint);
-    margin-bottom: 10px;
-  }
-  .hero h1 {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: clamp(28px, 4vw, 42px);
-    margin: 0 0 8px;
-    letter-spacing: .5px;
-  }
+  .hero .eyebrow { font-size: 11.5px; letter-spacing: 3px; color: var(--ink-faint); margin-bottom: 10px; }
+  .hero h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(28px, 4vw, 42px); margin: 0 0 8px; letter-spacing: .5px; }
 
-  .section-title {
-    font-size: 12px;
-    letter-spacing: 2.5px;
-    color: var(--ink-faint);
-    margin: 0 0 16px;
-  }
+  .section-title { font-size: 12px; letter-spacing: 2.5px; color: var(--ink-faint); margin: 0 0 16px; }
 
   /* ---------- Dashboard Stats Styles ---------- */
   .stat-value { font-family: var(--font-num); font-size: 32px; font-weight: 700; color: var(--ink); line-height: 1.2; }
   .progress-bar-bg { width: 100%; height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 12px; }
   .progress-bar-fill { height: 100%; background: var(--c-sage); transition: width 0.8s ease; border-radius: 999px; }
 
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
-  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
   .card {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    padding: 22px 20px;
-    cursor: pointer;
-    transition: transform .16s ease, box-shadow .16s ease;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    box-shadow: var(--shadow-soft);
-    justify-content: center;
-    min-height: 120px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg);
+    padding: 22px 20px; cursor: pointer; transition: transform .16s ease, box-shadow .16s ease;
+    display: flex; flex-direction: column; gap: 16px; box-shadow: var(--shadow-soft); justify-content: center; min-height: 120px;
   }
   .card:hover { transform: translateY(-3px); box-shadow: var(--shadow-card); }
   
@@ -309,390 +202,107 @@
   .dashboard-card:hover { transform: none; box-shadow: var(--shadow-soft); }
 
   .card-top { display: flex; align-items: center; justify-content: space-between; }
-  
-  .card-icon {
-    width: 44px; height: 44px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 19px;
-  }
+  .card-icon { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 19px; }
   .card-icon svg { width: 22px; height: 22px; fill: currentColor; }
-
   .card-arrow { color: var(--ink-faint); font-size: 15px; }
   .card-name { font-size: 16px; font-weight: 700; letter-spacing: .2px; }
 
   /* ---------- Gantt Chart Styles ---------- */
-  .gantt-wrap {
-    width: 100%;
-    overflow-x: auto;
-    margin-top: 10px;
-    font-family: var(--font-num);
-  }
-  .gantt-table {
-    min-width: 650px;
-    width: 100%;
-    border-collapse: collapse;
-  }
-  .gantt-header th {
-    font-size: 11px;
-    color: var(--ink-faint);
-    border-bottom: 1px solid var(--line);
-    padding-bottom: 6px;
-    text-align: center;
-    font-weight: 550;
-  }
+  .gantt-wrap { width: 100%; overflow-x: auto; margin-top: 10px; font-family: var(--font-num); }
+  .gantt-table { min-width: 650px; width: 100%; border-collapse: collapse; }
+  .gantt-header th { font-size: 11px; color: var(--ink-faint); border-bottom: 1px solid var(--line); padding-bottom: 6px; text-align: center; font-weight: 550; }
   .gantt-header th:first-child { text-align: left; width: 80px; }
-  .gantt-row td {
-    padding: 8px 0;
-    border-bottom: 1px dashed var(--line);
-    vertical-align: middle;
-  }
-  .gantt-row td:first-child {
-    font-size: 13.5px;
-    font-weight: 600;
-    color: var(--ink);
-    padding-right: 10px;
-    white-space: nowrap;
-  }
-  .gantt-track {
-    position: relative;
-    height: 28px;
-    background: repeating-linear-gradient(90deg, transparent, transparent 4.16%, var(--line) 4.16%, var(--line) calc(4.16% + 1px));
-  }
+  .gantt-row td { padding: 8px 0; border-bottom: 1px dashed var(--line); vertical-align: middle; }
+  .gantt-row td:first-child { font-size: 13.5px; font-weight: 600; color: var(--ink); padding-right: 10px; white-space: nowrap; }
+  .gantt-track { position: relative; height: 28px; background: repeating-linear-gradient(90deg, transparent, transparent 4.16%, var(--line) 4.16%, var(--line) calc(4.16% + 1px)); }
   .gantt-bar {
-    position: absolute;
-    top: 4px;
-    bottom: 4px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11.5px;
-    font-weight: 600;
-    color: #4A453F;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    padding: 0 6px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    position: absolute; top: 4px; bottom: 4px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    font-size: 11.5px; font-weight: 600; color: #4A453F; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 0 6px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .bar-green { background: #E2EAD8; border: 1px solid #C4D3B4; }
   .bar-pink { background: #F2E4E1; border: 1px solid #D9B8B3; }
 
-  .empty-state {
-    border: 1px dashed var(--line);
-    border-radius: var(--radius-lg);
-    padding: 40px 24px;
-    text-align: center;
-    color: var(--ink-soft);
-  }
+  .empty-state { border: 1px dashed var(--line); border-radius: var(--radius-lg); padding: 40px 24px; text-align: center; color: var(--ink-soft); }
   .empty-state .em-title { font-family: var(--font-display); font-size: 22px; margin-bottom: 6px; }
-  .empty-state button {
-    margin-top: 14px;
-    background: var(--ink);
-    color: #fff;
-    border: none;
-    padding: 10px 18px;
-    border-radius: 999px;
-    font-size: 13px;
-    cursor: pointer;
-  }
+  .empty-state button { margin-top: 14px; background: var(--ink); color: #fff; border: none; padding: 10px 18px; border-radius: 999px; font-size: 13px; cursor: pointer; }
 
   /* ---------- Bottom nav (mobile) ---------- */
   .bottom-nav {
-    display: none;
-    position: fixed;
-    left: 0; right: 0; bottom: 0;
-    background: var(--sidebar-bg);
-    padding: 8px 4px calc(8px + env(safe-area-inset-bottom));
-    z-index: 40;
-    box-shadow: 0 -4px 18px rgba(0,0,0,0.18);
+    display: none; position: fixed; left: 0; right: 0; bottom: 0; background: var(--sidebar-bg);
+    padding: 8px 4px calc(8px + env(safe-area-inset-bottom)); z-index: 40; box-shadow: 0 -4px 18px rgba(0,0,0,0.18);
   }
-  .bottom-scroll {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
+  .bottom-scroll { display: flex; align-items: center; width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
   .bottom-scroll::-webkit-scrollbar { display: none; }
   .bottom-item {
-    flex: 1 0 20%;
-    min-width: 68px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    padding: 6px 2px;
-    border-radius: var(--radius-sm);
-    color: var(--sidebar-text-soft);
-    cursor: pointer;
+    flex: 1 0 20%; min-width: 68px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    padding: 6px 2px; border-radius: var(--radius-sm); color: var(--sidebar-text-soft); cursor: pointer;
   }
-  .bottom-item .b-icon {
-    width: 36px; height: 36px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 15px;
-  }
+  .bottom-item .b-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; }
   .bottom-item .b-icon svg { width: 18px; height: 18px; fill: currentColor; }
-  
-  .bottom-item .b-name { 
-    font-size: 10.5px; 
-    letter-spacing: .2px; 
-    color: var(--sidebar-text); 
-    text-align: center; 
-    line-height: 1.2;
-    white-space: nowrap;
-  }
+  .bottom-item .b-name { font-size: 10.5px; letter-spacing: .2px; color: var(--sidebar-text); text-align: center; line-height: 1.2; white-space: nowrap; }
   .bottom-item.settings .b-icon { background: transparent; border: 1px solid rgba(239,235,227,0.25); }
 
   /* ---------- Modal ---------- */
-  .overlay {
-    position: fixed; inset: 0;
-    background: rgba(20,19,17,0.5);
-    display: none;
-    align-items: flex-end;
-    justify-content: center;
-    z-index: 100;
-    padding: 0;
-  }
+  .overlay { position: fixed; inset: 0; background: rgba(20,19,17,0.5); display: none; align-items: flex-end; justify-content: center; z-index: 100; padding: 0; }
   .overlay.open { display: flex; }
-  .modal {
-    background: var(--surface);
-    width: 100%;
-    max-width: 720px;
-    max-height: 85vh;
-    max-height: 85dvh;
-    border-radius: 22px 22px 0 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    animation: slideUp .22s ease;
-  }
-  @media (min-width: 700px){
-    .overlay { align-items: center; padding: 20px; }
-    .modal { border-radius: var(--radius-lg); max-height: 88vh; }
-  }
+  .modal { background: var(--surface); width: 100%; max-width: 720px; max-height: 85vh; max-height: 85dvh; border-radius: 22px 22px 0 0; display: flex; flex-direction: column; overflow: hidden; animation: slideUp .22s ease; }
+  @media (min-width: 700px){ .overlay { align-items: center; padding: 20px; } .modal { border-radius: var(--radius-lg); max-height: 88vh; } }
   @keyframes slideUp { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-  .modal-head {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 20px 22px;
-    border-bottom: 1px solid var(--line);
-    flex-shrink: 0;
-  }
-  .modal-head h2 {
-    font-family: var(--font-display);
-    font-size: 22px; font-weight: 600; margin: 0;
-  }
-  .modal-head .close-x {
-    width: 32px; height: 32px; border-radius: 50%;
-    border: none; background: var(--bg-soft);
-    cursor: pointer; font-size: 16px; color: var(--ink-soft);
-  }
-  .modal-body {
-    padding: 20px 22px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    flex: 1;
-    min-height: 0;
-  }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+  .modal-head h2 { font-family: var(--font-display); font-size: 22px; font-weight: 600; margin: 0; }
+  .modal-head .close-x { width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--bg-soft); cursor: pointer; font-size: 16px; color: var(--ink-soft); }
+  .modal-body { padding: 20px 22px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; flex: 1; min-height: 0; }
 
-  .lock-view {
-    display: flex; flex-direction: column; align-items: center; gap: 14px;
-    padding: 20px 10px 6px;
-    text-align: center;
-  }
+  .lock-view { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 20px 10px 6px; text-align: center; }
   .lock-view .lk-icon { font-size: 30px; }
-  .lock-view input {
-    width: 180px;
-    text-align: center;
-    letter-spacing: 6px;
-    font-size: 20px;
-    padding: 12px 10px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--line);
-    background: var(--bg-soft);
-  }
   .lock-view .lk-err { color: #B5544A; font-size: 12.5px; min-height: 16px; max-width: 320px; line-height: 1.4; }
   .lock-view .lk-hint { font-size: 11.5px; color: var(--ink-faint); }
 
   /* ---------- Row Item ---------- */
-  .row-item {
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
-    padding: 14px;
-    display: grid;
-    grid-template-columns: 60px 1fr auto;
-    gap: 10px 12px;
-    align-items: center;
-  }
-  
-  .row-item .ri-icon-input {
-    width: 60px; height: 100%; min-height: 58px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--line);
-    text-align: center;
-    font-size: 11px;
-    padding: 6px 4px;
-    grid-row: span 2;
-    resize: vertical;
-    font-family: var(--font-num);
-    background: var(--bg-soft);
-  }
+  .row-item { border: 1px solid var(--line); border-radius: var(--radius-md); padding: 14px; display: grid; grid-template-columns: 60px 1fr auto; gap: 10px 12px; align-items: center; }
+  .row-item .ri-icon-input { width: 60px; height: 100%; min-height: 58px; border-radius: var(--radius-sm); border: 1px solid var(--line); text-align: center; font-size: 11px; padding: 6px 4px; grid-row: span 2; resize: vertical; font-family: var(--font-num); background: var(--bg-soft); }
   .row-item .ri-icon-input::placeholder { color: var(--ink-faint); font-size: 10px; }
-
-  .row-item input[type=text], .row-item input[type=url] {
-    width: 100%;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    padding: 9px 10px;
-    font-size: 13.5px;
-    background: var(--bg-soft);
-  }
+  .row-item input[type=text], .row-item input[type=url] { width: 100%; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 9px 10px; font-size: 13.5px; background: var(--bg-soft); }
   .ri-name { grid-column: 2; }
   .ri-url { grid-column: 2; }
-  .ri-actions {
-    grid-column: 3;
-    grid-row: span 2;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    justify-content: space-between;
-    height: 100%;
-  }
-  .ri-del {
-    background: none; border: none; color: var(--ink-faint);
-    cursor: pointer; font-size: 15px;
-  }
+  .ri-actions { grid-column: 3; grid-row: span 2; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; height: 100%; }
+  .ri-del { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 15px; }
   .ri-del:hover { color: #B5544A; }
   .swatches { display: flex; gap: 6px; }
-  .swatch {
-    width: 18px; height: 18px; border-radius: 50%;
-    cursor: pointer;
-    border: 2px solid transparent;
-  }
+  .swatch { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
   .swatch.active { border-color: var(--ink); }
-  .ri-meta-row {
-    grid-column: 1 / -1;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 2px;
-  }
-  .target-toggle {
-    display: flex; gap: 6px; font-size: 11.5px; color: var(--ink-soft); align-items: center;
-  }
-  .target-toggle select {
-    border: 1px solid var(--line); border-radius: 7px; padding: 4px 6px; font-size: 11.5px; background: var(--bg-soft);
-  }
+  .ri-meta-row { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; margin-top: 2px; }
+  .target-toggle { display: flex; gap: 6px; font-size: 11.5px; color: var(--ink-soft); align-items: center; }
+  .target-toggle select { border: 1px solid var(--line); border-radius: 7px; padding: 4px 6px; font-size: 11.5px; background: var(--bg-soft); }
 
-  .add-btn {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    border: 1.5px dashed var(--line);
-    border-radius: var(--radius-md);
-    padding: 14px;
-    background: transparent;
-    color: var(--ink-soft);
-    cursor: pointer;
-    font-size: 13.5px;
-  }
+  .add-btn { display: flex; align-items: center; justify-content: center; gap: 8px; border: 1.5px dashed var(--line); border-radius: var(--radius-md); padding: 14px; background: transparent; color: var(--ink-soft); cursor: pointer; font-size: 13.5px; }
   .add-btn:hover { border-color: var(--ink-faint); color: var(--ink); }
 
-  .settings-block {
-    border-top: 1px solid var(--line);
-    padding-top: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .settings-block h3 {
-    font-size: 12px; letter-spacing: 1.5px; color: var(--ink-faint); margin: 0;
-    text-transform: uppercase;
-  }
-  .pw-row { display: flex; gap: 10px; flex-wrap: wrap; }
-  .pw-row input {
-    flex: 1; min-width: 140px;
-    border: 1px solid var(--line); border-radius: var(--radius-sm);
-    padding: 9px 10px; font-size: 13px; background: var(--bg-soft);
-  }
-  .mini-btn {
-    border: 1px solid var(--line);
-    background: var(--surface);
-    padding: 9px 14px;
-    border-radius: var(--radius-sm);
-    font-size: 12.5px;
-    cursor: pointer;
-  }
+  .settings-block { border-top: 1px solid var(--line); padding-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .settings-block h3 { font-size: 12px; letter-spacing: 1.5px; color: var(--ink-faint); margin: 0; text-transform: uppercase; }
+  .mini-btn { border: 1px solid var(--line); background: var(--surface); padding: 9px 14px; border-radius: var(--radius-sm); font-size: 12.5px; cursor: pointer; }
   .mini-btn:hover { background: var(--bg-soft); }
-  textarea.io-area {
-    width: 100%; min-height: 90px;
-    border: 1px solid var(--line); border-radius: var(--radius-sm);
-    padding: 10px; font-size: 12px; font-family: var(--font-num);
-    background: var(--bg-soft); resize: vertical;
-  }
+  textarea.io-area { width: 100%; min-height: 90px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px; font-size: 12px; font-family: var(--font-num); background: var(--bg-soft); resize: vertical; }
   .io-row { display: flex; gap: 10px; flex-wrap: wrap; }
   .save-note { font-size: 11.5px; color: var(--ink-faint); line-height: 1.6; }
 
-  /* ---------- Modal Footer ---------- */
-  .modal-foot {
-    padding: 16px 22px;
-    border-top: 1px solid var(--line);
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    flex-shrink: 0;
-    background: var(--surface);
-  }
-  .btn {
-    padding: 11px 20px;
-    border-radius: 999px;
-    font-size: 13.5px;
-    cursor: pointer;
-    border: 1px solid var(--line);
-    background: var(--surface);
-  }
-  .btn.primary {
-    background: var(--ink); color: #fff; border-color: var(--ink);
-  }
+  .modal-foot { padding: 16px 22px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; background: var(--surface); }
+  .btn { padding: 11px 20px; border-radius: 999px; font-size: 13.5px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); }
+  .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
   .btn:hover { opacity: .9; }
 
   .toast {
-    position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
-    background: var(--ink); color: #fff;
-    padding: 11px 20px; border-radius: 999px;
-    font-size: 13px; letter-spacing: .3px;
-    box-shadow: var(--shadow-card);
-    z-index: 200;
-    opacity: 0; pointer-events: none;
-    transition: opacity .25s, transform .25s;
+    position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff;
+    padding: 11px 20px; border-radius: 999px; font-size: 13px; letter-spacing: .3px; box-shadow: var(--shadow-card);
+    z-index: 200; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
 
-  /* ---------- Week notes (home) ---------- */
-  .week-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
-    gap: 12px;
-    margin-bottom: 38px;
-  }
-  .week-cell {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
-    padding: 14px 14px 16px;
-    box-shadow: var(--shadow-soft);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    min-height: 96px;
-  }
-  .week-cell.is-today {
-    border-color: var(--ink);
-    box-shadow: var(--shadow-card);
-  }
+  .week-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 12px; margin-bottom: 38px; }
+  .week-cell { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 14px 14px 16px; box-shadow: var(--shadow-soft); display: flex; flex-direction: column; gap: 8px; min-height: 96px; }
+  .week-cell.is-today { border-color: var(--ink); box-shadow: var(--shadow-card); }
   .week-cell-top { display: flex; align-items: baseline; justify-content: space-between; white-space: nowrap; gap: 8px; }
   .week-cell-day { font-size: 11.5px; letter-spacing: 1.5px; color: var(--ink-faint); }
   .week-cell-date { font-family: var(--font-num); font-size: 16px; font-weight: 600; }
@@ -701,86 +311,34 @@
   .week-cell-note.empty { color: var(--ink-faint); }
   .week-cell-more { font-size: 10.5px; color: var(--ink-faint); }
 
-  /* ---------- Modal tabs ---------- */
   .tab-switch { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
-  .tab-btn {
-    border: 1px solid var(--line);
-    background: var(--surface);
-    padding: 8px 16px;
-    border-radius: 999px;
-    font-size: 13px;
-    cursor: pointer;
-    color: var(--ink-soft);
-  }
+  .tab-btn { border: 1px solid var(--line); background: var(--surface); padding: 8px 16px; border-radius: 999px; font-size: 13px; cursor: pointer; color: var(--ink-soft); }
   .tab-btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
 
-  /* ---------- Calendar editor ---------- */
-  .cal-wrap {
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
-    padding: 16px;
-  }
+  .cal-wrap { border: 1px solid var(--line); border-radius: var(--radius-md); padding: 16px; }
   .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .cal-nav button {
-    width: 30px; height: 30px; border-radius: 50%;
-    border: 1px solid var(--line); background: var(--surface);
-    cursor: pointer; font-size: 14px;
-  }
+  .cal-nav button { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 14px; }
   .cal-nav .cal-title { font-family: var(--font-display); font-size: 18px; font-weight: 600; }
-  .cal-weekdays {
-    display: grid; grid-template-columns: repeat(7,1fr);
-    font-size: 11px; color: var(--ink-faint); text-align: center;
-    margin-bottom: 6px;
-  }
+  .cal-weekdays { display: grid; grid-template-columns: repeat(7,1fr); font-size: 11px; color: var(--ink-faint); text-align: center; margin-bottom: 6px; }
   .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
-  .cal-day {
-    aspect-ratio: 1;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    border-radius: var(--radius-sm);
-    font-size: 12.5px;
-    cursor: pointer;
-    border: 1px solid transparent;
-    position: relative;
-    color: var(--ink);
-  }
+  .cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: var(--radius-sm); font-size: 12.5px; cursor: pointer; border: 1px solid transparent; position: relative; color: var(--ink); }
   .cal-day.blank { visibility: hidden; cursor: default; }
   .cal-day:hover { background: var(--bg-soft); }
   .cal-day.selected { border-color: var(--ink); background: var(--bg-soft); font-weight: 700; }
   .cal-day.today { color: var(--c-blue); font-weight: 700; }
-  .cal-day .dot {
-    width: 5px; height: 5px; border-radius: 50%; background: var(--c-rose);
-    position: absolute; bottom: 5px;
-  }
+  .cal-day .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--c-rose); position: absolute; bottom: 5px; }
   .cal-day-panel { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
   .cal-day-panel h4 { margin: 0 0 10px; font-size: 13.5px; font-weight: 700; }
-  .note-item {
-    display: flex; align-items: flex-start; gap: 8px;
-    padding: 8px 0; border-bottom: 1px dashed var(--line);
-    font-size: 13px;
-  }
+  .note-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 13px; }
   .note-item:last-child { border-bottom: none; }
   .note-item span { flex: 1; line-height: 1.5; word-break: break-word; }
   .note-item button { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 13px; }
   .note-item button:hover { color: #B5544A; }
   .note-add-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-  .note-add-row input {
-    flex: 1; min-width: 160px;
-    border: 1px solid var(--line); border-radius: var(--radius-sm);
-    padding: 9px 10px; font-size: 13px; background: var(--bg-soft);
-  }
+  .note-add-row input { flex: 1; min-width: 160px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 9px 10px; font-size: 13px; background: var(--bg-soft); }
 
-  /* ---------- Import confirm ---------- */
-  .import-confirm {
-    border: 1px solid var(--c-blue);
-    background: rgba(147,166,172,0.12);
-    border-radius: var(--radius-sm);
-    padding: 16px 14px;
-    margin-top: 8px;
-    display: flex; flex-direction: column; gap: 14px;
-    font-size: 13px;
-  }
+  .import-confirm { border: 1px solid var(--c-blue); background: rgba(147,166,172,0.12); border-radius: var(--radius-sm); padding: 16px 14px; margin-top: 8px; display: flex; flex-direction: column; gap: 14px; font-size: 13px; }
 
-  /* ---------- Responsive ---------- */
   @media (max-width: 699px){
     .sidebar { display: none; }
     .main { margin-left: 0; padding: 22px 16px 96px; }
@@ -794,31 +352,21 @@
     .modal-head, .modal-foot { padding: 14px 16px; }
     .modal-body { padding: 16px; gap: 16px; }
 
-    .row-item {
-      grid-template-columns: 60px 1fr;
-      gap: 10px;
-    }
+    .row-item { grid-template-columns: 60px 1fr; gap: 10px; }
     .row-item .ri-icon-input { grid-row: 1; grid-column: 1; min-height: 40px; }
     .ri-name { grid-row: 1; grid-column: 2; }
     .ri-url { grid-row: 2; grid-column: 1 / -1; }
-    .ri-actions {
-      grid-row: 3; grid-column: 1 / -1;
-      flex-direction: row; justify-content: space-between; align-items: center;
-      height: auto; margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--line);
-    }
+    .ri-actions { grid-row: 3; grid-column: 1 / -1; flex-direction: row; justify-content: space-between; align-items: center; height: auto; margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--line); }
   }
 </style>
 </head>
 <body>
 
-<!-- PWA Update Banner -->
 <div id="pwaUpdateBanner">
   ✨ 發現新版本！介面已有更新 <button id="pwaUpdateBtn">立即更新</button>
 </div>
 
 <div class="app">
-
-  <!-- ============ Sidebar (desktop / tablet) ============ -->
   <aside class="sidebar">
     <div class="brand">
       <div class="brand-text">
@@ -826,10 +374,8 @@
         <div class="brand-sub">MANAGEMENT</div>
       </div>
     </div>
-
     <div class="nav-label">功能介面</div>
     <ul class="nav-list" id="sidebarNav"></ul>
-
     <div class="sidebar-footer">
       <button class="edit-trigger" id="openEditSidebar">
         <span>⚙</span><span>編輯介面設定</span>
@@ -837,7 +383,6 @@
     </div>
   </aside>
 
-  <!-- ============ Main ============ -->
   <main class="main">
     <div class="topbar">
       <div class="mobile-brand">
@@ -849,7 +394,6 @@
           <div class="time" id="clockTime">--:--</div>
           <div class="date" id="clockDate">----</div>
         </div>
-        <!-- 雲端存檔與Google登入按鈕 -->
         <button class="icon-btn" id="cloudSaveBtn" title="覆蓋並存檔至共用雲端" style="display:none;">☁️</button>
         <button class="icon-btn" id="authBtn" title="Google 登入">👤</button>
         <button class="icon-btn" id="openEditTop" title="編輯介面設定">⚙</button>
@@ -861,11 +405,8 @@
       <h1 id="greetTitle">早安，今天也是美好的一天 ☕</h1>
     </div>
 
-    <!-- ===== 今日營運概況 Dashboard ===== -->
     <div class="section-title">今日營運概況</div>
     <div class="grid" style="margin-bottom: 38px;">
-      
-      <!-- 1. 營業目標卡片 -->
       <div class="card dashboard-card">
         <div class="card-top">
           <div class="card-name">本月營業目標達成率 </div>
@@ -881,7 +422,6 @@
         </div>
       </div>
       
-      <!-- 2. 今日排班 -->
       <div class="card dashboard-card">
         <div class="card-top">
           <div class="card-name">今日排班</div>
@@ -890,9 +430,7 @@
           請先登入系統以讀取資料
         </div>
       </div>
-
     </div>
-    <!-- ===================================== -->
 
     <div class="section-title">本週記事</div>
     <div id="weekGrid" class="week-grid"></div>
@@ -902,29 +440,26 @@
   </main>
 </div>
 
-<!-- ============ Bottom nav (mobile) ============ -->
 <nav class="bottom-nav">
   <div class="bottom-scroll" id="bottomNav"></div>
 </nav>
 
-<!-- ============ Edit Modal ============ -->
 <div class="overlay" id="editOverlay">
   <div class="modal">
 
     <!-- Lock screen -->
     <div id="lockPane">
       <div class="modal-head">
-        <h2>後台編輯</h2>
+        <h2>後台編輯權限驗證</h2>
         <button class="close-x" id="closeLock">✕</button>
       </div>
       <div class="modal-body">
         <div class="lock-view">
           <div class="lk-icon">🔒</div>
-          <div>請輸入管理密碼以編輯介面</div>
-          <input type="password" id="pwInput" inputmode="numeric" maxlength="12" placeholder="••••">
+          <div>後台編輯僅限授權之 Cloud Firestore 管理員存取</div>
           <div class="lk-err" id="pwError"></div>
-          <div class="lk-hint" id="pwHintTxt">登入管理員帳號後可於下方修改密碼</div>
-          <button class="btn primary" id="pwSubmit" style="margin-top:6px;">進入編輯</button>
+          <div class="lk-hint" id="pwHintTxt">請先點選右上角進行 Google 帳號身份驗證</div>
+          <button class="btn primary" id="pwSubmit" style="margin-top:12px;">確認進入編輯</button>
         </div>
       </div>
     </div>
@@ -969,17 +504,8 @@
         </div>
 
         <div class="settings-block">
-          <h3>管理密碼</h3>
-          <div class="pw-row">
-            <input type="password" id="newPw1" placeholder="設定新密碼">
-            <input type="password" id="newPw2" placeholder="再輸入一次">
-            <button class="mini-btn" id="changePwBtn">更新密碼</button>
-          </div>
-        </div>
-
-        <div class="settings-block">
           <h3>備份與轉移（JSON）</h3>
-          <div class="save-note">設定僅儲存在目前這台裝置的瀏覽器中。可下載 JSON 備份保存，或匯入 JSON 檔案／貼上內容套用到其他裝置，套用前都會先顯示確認畫面。</div>
+          <div class="save-note">設定儲存於本地快取與共用雲端。可下載 JSON 備份保存或進行轉移。</div>
           <div class="io-row">
             <button class="mini-btn" id="downloadJsonBtn" type="button">⬇ 下載 JSON 備份</button>
             <button class="mini-btn" id="pickJsonBtn" type="button">⬆ 匯入 JSON 檔案</button>
@@ -1016,7 +542,7 @@
 (function(){
 
   // ==========================================
-  // 1. Firebase 初始設定 (請替換為您的配置)
+  // 1. Firebase 初始設定 (配置填寫區)
   // ==========================================
     const firebaseConfig = {
             apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
@@ -1034,8 +560,8 @@
   const auth = firebase.auth();
   const db = firebase.firestore();
   let currentUser = null;
-  let isWhitelistedAdmin = false; // 白名單管理員標記
-  let isWhitelistedUser = false;  // 白名單一般使用者標記
+  let isWhitelistedAdmin = false;
+  let isWhitelistedUser = false;
   // ==========================================
 
   const STORAGE_KEY = 'ecole_cafe_config_v1';
@@ -1048,7 +574,6 @@
   const COLOR_KEYS = Object.keys(COLORS);
 
   const DEFAULT_CONFIG = {
-    password: '0106',
     buttons: [
       { id: 'b1', icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>', name: '交班', url: 'https://ecole-1f392.web.app/%C3%89COLE%20CAF%C3%89%EF%BD%9C%E4%BA%A4%E7%8F%AD%E7%B3%BB%E7%B5%B1v3.2.html', color: 'rose', target: '_blank' },
       { id: 'b2', icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>', name: '班表', url: 'https://letudesign0106-glitch.github.io/ECOLE/%C3%89COLE%20CAF%C3%89%EF%BD%9C%E7%8F%AD%E8%A1%A8%E6%A8%A1%E6%93%AC%E5%99%A8V5.5.html', color: 'sage', target: '_blank' },
@@ -1065,9 +590,9 @@
   let unlocked = false;
   let calState = null; 
   let pendingImport = null; 
-  let unsubGantt = null;
+  let unsubGantt = null; // 監聽器指標
+  let cachedEmployeeMap = null; // 員工資料全域快取
 
-  // --- SVG 防禦 XSS 引擎 (使用 DOMPurify) ---
   function sanitizeSVG(raw) {
     if (!raw) return '';
     const str = String(raw).trim();
@@ -1084,7 +609,6 @@
     Object.keys(cfg.notes).forEach(k=>{
       if(!Array.isArray(cfg.notes[k])) cfg.notes[k] = [];
     });
-    if(!cfg.password) cfg.password = DEFAULT_CONFIG.password;
     return cfg;
   }
 
@@ -1280,9 +804,7 @@
     }else{
       lockPane.style.display = '';
       editPane.style.display = 'none';
-      document.getElementById('pwInput').value = '';
       document.getElementById('pwError').textContent = '';
-      setTimeout(()=> document.getElementById('pwInput').focus(), 80);
     }
   }
   function closeEditor(){
@@ -1479,35 +1001,26 @@
   });
 
   document.getElementById('pwSubmit').onclick = tryUnlock;
-  document.getElementById('pwInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
   
-  // 安全密碼驗證邏輯（結合 Cloud Firestore 管理員白名單進行後端驗證）
+  // 安全權限校驗邏輯（純依賴 Cloud Firestore 管理員白名單狀態）
   async function tryUnlock(){
     const pwErr = document.getElementById('pwError');
     pwErr.textContent = '';
 
-    // 1. 檢查是否登入
     if(!currentUser) {
       pwErr.textContent = '❌ 請先點擊右上角進行 Google 帳號登入';
       toast('請先登入 Google 帳號');
       return;
     }
 
-    // 2. 後端雙重驗證：檢查是否在 Cloud Firestore 管理員白名單內
     if(!isWhitelistedAdmin) {
-      pwErr.textContent = '⛔ 存取被拒：您的帳號非 Cloud Firestore 管理員白名單，即使輸入正確密碼亦無法進入！';
+      pwErr.textContent = '⛔ 存取被拒：您的帳號非 Cloud Firestore 管理員白名單！';
       toast('權限不足：您不是管理員白名單帳號');
       return;
     }
 
-    // 3. 檢查本地管理密碼
-    const val = document.getElementById('pwInput').value;
-    if(val === config.password){
-      unlocked = true;
-      showEditPane();
-    }else{
-      pwErr.textContent = '密碼錯誤，請再試一次';
-    }
+    unlocked = true;
+    showEditPane();
   }
 
   document.getElementById('closeLock').onclick = closeEditor;
@@ -1533,17 +1046,6 @@
     render();
     closeEditor();
     toast('已儲存變更 (若需同步請按右上角☁️)');
-  };
-
-  document.getElementById('changePwBtn').onclick = ()=>{
-    const p1 = document.getElementById('newPw1').value;
-    const p2 = document.getElementById('newPw2').value;
-    if(!p1 || p1.length < 4){ toast('密碼至少需 4 碼'); return; }
-    if(p1 !== p2){ toast('兩次輸入的密碼不一致'); return; }
-    draft.password = p1;
-    document.getElementById('newPw1').value = '';
-    document.getElementById('newPw2').value = '';
-    toast('密碼已更新，記得按「儲存變更」');
   };
 
   document.getElementById('exportTextBtn').onclick = ()=>{
@@ -1596,7 +1098,6 @@
       const parsed = JSON.parse(raw);
       if(!parsed || !Array.isArray(parsed.buttons)) throw new Error('缺少 buttons 陣列');
       
-      // 資安加強：清理匯入網址，防範 javascript: 偽協定攻擊
       parsed.buttons.forEach(b => {
         if(b.url && !/^https?:\/\//i.test(b.url.trim())){
           b.url = '';
@@ -1651,26 +1152,21 @@
   document.getElementById('openEditSidebar').onclick = openEditor;
   document.getElementById('openEditTop').onclick = openEditor;
 
-
   // ==========================================
-  // 2. Firebase 同步與 Auth 邏輯 (Cloud Firestore 白名單機制)
+  // 2. Firebase 同步與 Auth 邏輯
   // ==========================================
   const authBtn = document.getElementById('authBtn');
   const cloudSaveBtn = document.getElementById('cloudSaveBtn');
 
-  // Cloud Firestore 白名單驗證函式 (精準讀取 systemConfig/whitelist 文件中的 adminEmails 與 staffMapping)
   async function checkUserWhitelist(email) {
     if (!email) return { allowed: false, isAdmin: false };
     try {
       const emailKey = email.toLowerCase().trim();
-      
-      // 讀取 /systemConfig/whitelist 單一文件
       const doc = await db.collection('systemConfig').doc('whitelist').get();
       
       if (doc.exists) {
         const data = doc.data() || {};
         
-        // 1. 比對 adminEmails 陣列
         const adminEmails = Array.isArray(data.adminEmails) 
           ? data.adminEmails.map(e => String(e).toLowerCase().trim()) 
           : [];
@@ -1679,7 +1175,6 @@
           return { allowed: true, isAdmin: true };
         }
 
-        // 2. 比對 staffMapping 物件
         const staffMapping = data.staffMapping || {};
         let isStaff = false;
 
@@ -1706,7 +1201,6 @@
 
   auth.onAuthStateChanged(async user => {
     if (user) {
-      // 進行 Cloud Firestore 白名單驗證
       const whitelistCheck = await checkUserWhitelist(user.email);
       
       if (!whitelistCheck.allowed) {
@@ -1733,10 +1227,10 @@
       
       const roleTag = isWhitelistedAdmin ? '[管理員]' : '[一般員工]';
       authBtn.title = `已登入 ${roleTag} (${user.email})`;
-      cloudSaveBtn.style.display = isWhitelistedAdmin ? 'flex' : 'none'; // 僅管理員可見雲端覆蓋按鈕
+      cloudSaveBtn.style.display = isWhitelistedAdmin ? 'flex' : 'none';
       
       document.getElementById('pwHintTxt').textContent = isWhitelistedAdmin 
-        ? `身份驗證通過（管理員）。預設密碼為 ${DEFAULT_CONFIG.password}` 
+        ? `身份驗證通過 (管理員帳號)` 
         : `⚠️ 您的帳號為一般員工，非管理員權限無法進行編輯`;
 
       autoLoadFromCloud();
@@ -1751,6 +1245,7 @@
     currentUser = null;
     isWhitelistedAdmin = false;
     isWhitelistedUser = false;
+    cachedEmployeeMap = null; // 清空全域快取
 
     authBtn.style.backgroundImage = 'none';
     authBtn.innerHTML = '👤';
@@ -1759,7 +1254,12 @@
     
     document.getElementById('pwHintTxt').textContent = `請先以 Google 帳號登入白名單管理員`;
 
-    if(unsubGantt) { unsubGantt(); unsubGantt = null; }
+    // 顯式關閉監聽器，防範記憶體洩漏
+    if(unsubGantt) { 
+      unsubGantt(); 
+      unsubGantt = null; 
+    }
+
     document.getElementById('ganttContainer').innerHTML = '<div style="color:var(--ink-faint); padding:6px 0;">🔒 請點擊右上角登入系統以讀取排班資料</div>';
     document.getElementById('revProgress').textContent = '--%';
     document.getElementById('revTotal').textContent = '--';
@@ -1812,9 +1312,15 @@
   };
 
   // ==========================================
-  // 3. 營運儀表板 - 讀取與計算（指向獨立 dailyTracking 集合）
+  // 3. 營運儀表板 - 讀取優化與監聽器管理
   // ==========================================
   function subscribeToDashboard() {
+    // 關鍵修復 1：清理舊監聽器，解決 Listener Memory Leak
+    if (unsubGantt) {
+      unsubGantt();
+      unsubGantt = null;
+    }
+
     const todayObj = new Date();
     
     async function calculateMonthlyRevenue() {
@@ -1827,7 +1333,6 @@
         let target = 700000;
         let foundTarget = false;
 
-        // 1. 優先直接抓取獨立的 dailyTracking 集合 (文件格式：YYYY-MM-DD)
         const snap = await db.collection('dailyTracking')
           .where(firebase.firestore.FieldPath.documentId(), '>=', startDate)
           .where(firebase.firestore.FieldPath.documentId(), '<=', endDate)
@@ -1845,7 +1350,6 @@
             }
           });
         } else {
-          // 2. 備用降級機制：相容舊版 backups 集合
           const oldSnap = await db.collection('backups')
             .where(firebase.firestore.FieldPath.documentId(), '>=', startDate)
             .where(firebase.firestore.FieldPath.documentId(), '<=', endDate)
@@ -1892,8 +1396,6 @@
     calculateMonthlyRevenue();
 
     try {
-      let employeeMap = {};
-
       async function loadEmployeeMap() {
         const map = {};
         try {
@@ -2012,10 +1514,11 @@
 
           const mainData = docSnap.data() || {};
 
-          if (!employeeMap || Object.keys(employeeMap).length === 0) {
-            employeeMap = await loadEmployeeMap();
+          // 關鍵修復 2：優先使用快取，大幅縮減對 employees 集合的反覆請求
+          if (!cachedEmployeeMap) {
+            cachedEmployeeMap = await loadEmployeeMap();
           }
-          const mergedMap = mergeInlineEmployees(Object.assign({}, employeeMap), mainData.employees);
+          const mergedMap = mergeInlineEmployees(Object.assign({}, cachedEmployeeMap), mainData.employees);
 
           const scheduleRoot = mainData.scheduleData;
           if (!scheduleRoot || typeof scheduleRoot !== 'object') {
@@ -2104,19 +1607,19 @@
         }
       }
 
+      // 建立長連線 Snapshot 監聽
       unsubGantt = db.collection('ecoleCafe').doc('main_schedule').onSnapshot(() => {
-        employeeMap = {}; 
         renderGanttChart();
       }, err => {
         console.warn('排班監聽受限:', err);
         const container = document.getElementById('ganttContainer');
         if (container) container.innerHTML = '<div style="color:var(--ink-faint); padding:6px 0;">🔒 權限不足，請確認是否以授權帳號登入</div>';
       });
+      
       renderGanttChart();
 
     } catch(e) { console.error(e); }
   }
-
 
   // ==========================================
   // 4. PWA 更新通知邏輯 (Service Worker)
@@ -2148,7 +1651,6 @@
   document.getElementById('pwaUpdateBtn').onclick = () => {
     if (newWorker) newWorker.postMessage({ action: 'skipWaiting' });
   };
-
 
   // ---------- init ----------
   (async function init(){
