@@ -319,6 +319,17 @@
     </dialog>
 
     <script>
+        // XSS 安全防禦轉義函式
+        function escapeHTML(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         const firebaseConfig = {
             apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
             authDomain: "ecole-1f392.firebaseapp.com",
@@ -365,8 +376,10 @@
                                 empId = staffMapping[user.email];
                             }
                         } else {
-                            console.warn("未找到 whitelist 設定，以開發模式賦予管理員權限");
-                            isAdmin = true;
+                            // 資安修復：零信任原則，當白名單未建置時，預設拒絕高級權限
+                            console.warn("未找到 whitelist 設定，基於零信任原則不予預設權限。");
+                            isAdmin = false;
+                            isStaff = false;
                         }
 
                         if (isAdmin || isStaff) {
@@ -375,8 +388,8 @@
                             currentUserEmpId = empId;
 
                             authArea.innerHTML = `
-                                <img src="${user.photoURL}" class="w-6 h-6 rounded-full border border-gray-300">
-                                <span class="text-xs font-bold text-gray-700">${user.displayName} <span class="text-[9px] text-gray-400">(${isAdmin ? '管理員' : '員工'})</span></span>
+                                <img src="${escapeHTML(user.photoURL)}" class="w-6 h-6 rounded-full border border-gray-300">
+                                <span class="text-xs font-bold text-gray-700">${escapeHTML(user.displayName)} <span class="text-[9px] text-gray-400">(${isAdmin ? '管理員' : '員工'})</span></span>
                                 <button onclick="logoutGoogle()" class="ml-2 text-[10px] bg-white border border-gray-300 px-2 py-1 rounded hover:bg-gray-100">登出</button>
                             `;
                             
@@ -475,7 +488,6 @@
         function setupCloudSync() {
             if (!currentUser || !db) return;
             
-            // 修正點 1：取消舊的監聽器，防止重覆綁定 (Listener Leak)
             if (unsubscribeSnapshot) {
                 unsubscribeSnapshot();
                 unsubscribeSnapshot = null;
@@ -533,38 +545,39 @@
 
             if (mContainer) {
                 mContainer.innerHTML = `
-                    <button onclick="setShift('D1\\n${shiftSettings.D1}')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80 leading-tight">D1<br><span class="text-[10px]">${shiftSettings.D1}</span></button>
-                    <button onclick="setShift('D2\\n${shiftSettings.D2}')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80 leading-tight">D2<br><span class="text-[10px]">${shiftSettings.D2}</span></button>
-                    <button onclick="setShift('D3\\n${shiftSettings.D3}')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80 leading-tight">D3<br><span class="text-[10px]">${shiftSettings.D3}</span></button>
-                    <button onclick="setShift('D4\\n${shiftSettings.D4}')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80 leading-tight">D4<br><span class="text-[10px]">${shiftSettings.D4}</span></button>
+                    <button onclick="setShift('D1\\n${escapeHTML(shiftSettings.D1)}')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80 leading-tight">D1<br><span class="text-[10px]">${escapeHTML(shiftSettings.D1)}</span></button>
+                    <button onclick="setShift('D2\\n${escapeHTML(shiftSettings.D2)}')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80 leading-tight">D2<br><span class="text-[10px]">${escapeHTML(shiftSettings.D2)}</span></button>
+                    <button onclick="setShift('D3\\n${escapeHTML(shiftSettings.D3)}')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80 leading-tight">D3<br><span class="text-[10px]">${escapeHTML(shiftSettings.D3)}</span></button>
+                    <button onclick="setShift('D4\\n${escapeHTML(shiftSettings.D4)}')" class="bg-[#dbe4d7] text-[#3f4e38] py-2 rounded hover:opacity-80 leading-tight">D4<br><span class="text-[10px]">${escapeHTML(shiftSettings.D4)}</span></button>
                 `;
             }
             if (midContainer) {
                 midContainer.innerHTML = `
-                    <button onclick="setShift('M1\\n${shiftSettings.M1}')" class="bg-[#F3E5AB] text-[#4a401c] py-2 rounded hover:opacity-80 leading-tight">M1<br><span class="text-[10px]">${shiftSettings.M1}</span></button>
+                    <button onclick="setShift('M1\\n${escapeHTML(shiftSettings.M1)}')" class="bg-[#F3E5AB] text-[#4a401c] py-2 rounded hover:opacity-80 leading-tight">M1<br><span class="text-[10px]">${escapeHTML(shiftSettings.M1)}</span></button>
                 `;
             }
             if (eContainer) {
                 eContainer.innerHTML = `
-                    <button onclick="setShift('N1\\n${shiftSettings.N1}')" class="bg-[#ebd9d9] text-[#5c3c3c] py-2 rounded hover:opacity-80 leading-tight">N1<br><span class="text-[10px]">${shiftSettings.N1}</span></button>
-                    <button onclick="setShift('N2\\n${shiftSettings.N2}')" class="bg-[#ebd9d9] text-[#5c3c3c] py-2 rounded hover:opacity-80 leading-tight">N2<br><span class="text-[10px]">${shiftSettings.N2}</span></button>
+                    <button onclick="setShift('N1\\n${escapeHTML(shiftSettings.N1)}')" class="bg-[#ebd9d9] text-[#5c3c3c] py-2 rounded hover:opacity-80 leading-tight">N1<br><span class="text-[10px]">${escapeHTML(shiftSettings.N1)}</span></button>
+                    <button onclick="setShift('N2\\n${escapeHTML(shiftSettings.N2)}')" class="bg-[#ebd9d9] text-[#5c3c3c] py-2 rounded hover:opacity-80 leading-tight">N2<br><span class="text-[10px]">${escapeHTML(shiftSettings.N2)}</span></button>
                 `;
             }
             if (sContainer) {
                 sContainer.innerHTML = `
-                    <button onclick="setShift('A1\\n${shiftSettings.A1}')" class="bg-[#d6dbe0] text-[#3b4252] py-2 rounded hover:opacity-80 leading-tight">A1<br><span class="text-[10px]">${shiftSettings.A1}</span></button>
-                    <button onclick="setShift('A2\\n${shiftSettings.A2}')" class="bg-[#d6dbe0] text-[#3b4252] py-2 rounded hover:opacity-80 leading-tight">A2<br><span class="text-[10px]">${shiftSettings.A2}</span></button>
+                    <button onclick="setShift('A1\\n${escapeHTML(shiftSettings.A1)}')" class="bg-[#d6dbe0] text-[#3b4252] py-2 rounded hover:opacity-80 leading-tight">A1<br><span class="text-[10px]">${escapeHTML(shiftSettings.A1)}</span></button>
+                    <button onclick="setShift('A2\\n${escapeHTML(shiftSettings.A2)}')" class="bg-[#d6dbe0] text-[#3b4252] py-2 rounded hover:opacity-80 leading-tight">A2<br><span class="text-[10px]">${escapeHTML(shiftSettings.A2)}</span></button>
                 `;
             }
         }
 
         function formatShiftDisplay(shiftStr) {
+            if (!shiftStr) return '';
             const parts = shiftStr.split('\n');
             if (parts.length === 2) {
-                let timeStr = parts[1].replace(/\s*\/\s*/g, '<br>');
-                return `<div class="font-bold text-[14px] leading-tight mb-0.5">${parts[0]}</div><div class="text-[9px] leading-tight opacity-80">${timeStr}</div>`;
+                let timeStr = escapeHTML(parts[1]).replace(/\s*\/\s*/g, '<br>');
+                return `<div class="font-bold text-[14px] leading-tight mb-0.5">${escapeHTML(parts[0])}</div><div class="text-[9px] leading-tight opacity-80">${timeStr}</div>`;
             }
-            return shiftStr.replace(/\n/g, '<br>');
+            return escapeHTML(shiftStr).replace(/\n/g, '<br>');
         }
 
         function init() {
@@ -636,11 +649,11 @@
                     typeLabel = `<th rowspan="${rowSpan}" class="sticky-col text-vertical tracking-widest text-xs text-gray-500 font-normal bg-white border-r border-gray-200" style="left: 0; writing-mode: vertical-lr; width: 40px; min-width: 40px; max-width: 40px;">${typeText}</th>`;
                 }
 
-                tbodyHTML += `<tr>${typeLabel}<th class="sticky-col px-1 py-2 font-normal text-sm bg-white overflow-hidden text-ellipsis border-r border-gray-200" style="left: 40px; width: 60px; min-width: 60px; max-width: 60px;">${emp.name}</th>`;
+                tbodyHTML += `<tr>${typeLabel}<th class="sticky-col px-1 py-2 font-normal text-sm bg-white overflow-hidden text-ellipsis border-r border-gray-200" style="left: 40px; width: 60px; min-width: 60px; max-width: 60px;">${escapeHTML(emp.name)}</th>`;
 
                 let carryOverVal = carryOverData[currentYearMonth]?.[emp.id] || 0;
                 tbodyHTML += `<td class="sticky-col bg-white px-1 border-r-2 border-gray-300" style="left: 100px; width: 40px; min-width: 40px; max-width: 40px;">
-                    <input type="number" ${inputDisabledAttr} min="0" max="5" class="w-full bg-transparent text-center text-xs outline-none focus:border-black font-bold text-gray-600" value="${carryOverVal}" onchange="updateCarryOver('${emp.id}', this.value)">
+                    <input type="number" ${inputDisabledAttr} min="0" max="5" class="w-full bg-transparent text-center text-xs outline-none focus:border-black font-bold text-gray-600" value="${carryOverVal}" onchange="updateCarryOver('${escapeHTML(emp.id)}', this.value)">
                 </td>`;
 
                 let daysOff = 0;
@@ -665,21 +678,21 @@
                     else if (shift === 'X_B') { displayText = '<span class="text-blue-500 font-bold text-lg">X</span>'; cellClass += ' bg-gray-50'; }
                     else if (shift === 'X_P') { displayText = '<span class="text-purple-500 font-bold text-lg">X</span>'; cellClass += ' bg-gray-50'; }
                     else if (shift === 'X_G') { displayText = '<span class="text-green-500 font-bold text-lg">X</span>'; cellClass += ' bg-gray-50'; }
-                    else { displayText = shift.replace(/\n/g, '<br>'); }
+                    else { displayText = escapeHTML(shift).replace(/\n/g, '<br>'); }
 
                     if (shift && !['✖', '❌', '年假', '行政', '公出', 'X_R', 'X_B', 'X_P', 'X_G'].includes(shift)) {
                         totalHours += calculateHours(shift);
                     }
 
                     let pointerClass = (currentUserRole === 'admin' || currentUserEmpId === emp.id) ? '' : 'cursor-default opacity-90';
-                    tbodyHTML += `<td class="day-col-${i} ${cellClass} ${pointerClass}" onclick="openDialog('${emp.id}', ${i}, '${emp.name}')">${displayText}</td>`;
+                    tbodyHTML += `<td class="day-col-${i} ${cellClass} ${pointerClass}" onclick="openDialog('${escapeHTML(emp.id)}', ${i}, '${escapeHTML(emp.name)}')">${displayText}</td>`;
                 }
 
                 let statsText = emp.type === 'FT' 
                     ? `<span class="${daysOff < 8 ? 'text-black font-bold' : 'text-gray-600'}">${daysOff} 天</span>`
                     : `<span class="text-gray-600">${totalHours.toFixed(1)} hr</span>`;
                 
-                tbodyHTML += `<td class="px-2 py-1 text-sm bg-white border-l-2 border-gray-300 font-normal right-name-col">${emp.name}</td>`;
+                tbodyHTML += `<td class="px-2 py-1 text-sm bg-white border-l-2 border-gray-300 font-normal right-name-col">${escapeHTML(emp.name)}</td>`;
                 tbodyHTML += `<td class="px-2 py-1 text-xs bg-white border-l border-gray-200">${statsText}</td>`;
                 tbodyHTML += `<td class="px-2 py-1 text-xs bg-white text-gray-500 font-bold border-l border-gray-200">${annualLeaves > 0 ? annualLeaves : ''}</td></tr>`;
             });
@@ -709,7 +722,7 @@
                     
                     const cellClass = isError ? "shift-cell text-xs text-red-600 font-bold bg-red-50" : "shift-cell text-xs";
                     const pointerClass = (currentUserRole === 'admin') ? '' : 'cursor-default';
-                    const displayHTML = isError ? `⚠️<br>${sName}` : sName;
+                    const displayHTML = isError ? `⚠️<br>${escapeHTML(sName)}` : escapeHTML(sName);
 
                     stationHTML += `<td class="day-col-${i} ${cellClass} ${pointerClass}" onclick="openStationDialog('${st}', ${i})">${displayHTML}</td>`;
                 }
@@ -721,12 +734,10 @@
             for (let i = 1; i <= daysInMonth; i++) {
                 const n = noteData[currentYearMonth]?.[i] || '';
                 const pointerClass = (currentUserRole === 'admin') ? 'shift-cell' : 'cursor-default';
-                noteHTML += `<td class="day-col-${i} ${pointerClass} text-[10px] text-gray-500 bg-white" onclick="openNoteDialog(${i})">${n}</td>`;
+                noteHTML += `<td class="day-col-${i} ${pointerClass} text-[10px] text-gray-500 bg-white" onclick="openNoteDialog(${i})">${escapeHTML(n)}</td>`;
             }
             noteHTML += `<td class="bg-white border-l-2 border-gray-300 right-name-col"></td><td class="bg-white border-l border-gray-200"></td><td class="bg-white border-l border-gray-200"></td></tr>`;
             document.getElementById('noteBody').innerHTML = noteHTML;
-
-            // 修正點 2：移除 renderTable() 內部的 saveData()，徹底斷開無窮迴圈！
         }
 
         function calculateHours(shiftStr) {
@@ -788,7 +799,7 @@
         function setShift(val) {
             scheduleData[currentYearMonth][selectedCell.empId][selectedCell.day] = val;
             shiftDialog.close();
-            saveData(); // 手動修改後儲存
+            saveData(); 
             renderTable();
         }
 
@@ -810,7 +821,7 @@
             employees.forEach(emp => {
                 let shift = scheduleData[currentYearMonth]?.[emp.id]?.[day] || '';
                 if (shift && !['✖', '❌', '年假', '行政', '公出', 'X_R', 'X_B', 'X_P', 'X_G'].includes(shift)) {
-                    html += `<button onclick="setStation('${emp.name}')" class="border border-gray-200 py-2 rounded text-sm hover:bg-gray-50 text-left px-4">${emp.name} <span class="text-xs text-gray-400 float-right mt-0.5">${shift.split('\n')[0]}</span></button>`;
+                    html += `<button onclick="setStation('${escapeHTML(emp.name)}')" class="border border-gray-200 py-2 rounded text-sm hover:bg-gray-50 text-left px-4">${escapeHTML(emp.name)} <span class="text-xs text-gray-400 float-right mt-0.5">${escapeHTML(shift.split('\n')[0])}</span></button>`;
                 }
             });
             if(html === '') html = '<p class="text-sm text-gray-400 text-center py-4">當日無可用排班人員</p>';
@@ -821,7 +832,7 @@
         function setStation(name) {
             stationData[currentYearMonth][selectedCell.station][selectedCell.day] = name;
             stationDialog.close();
-            saveData(); // 手動修改後儲存
+            saveData(); 
             renderTable();
         }
         function closeStationDialog() { stationDialog.close(); }
@@ -837,7 +848,7 @@
         function setNote(val) {
             noteData[currentYearMonth][selectedCell.day] = val;
             noteDialog.close();
-            saveData(); // 手動修改後儲存
+            saveData(); 
             renderTable();
         }
         function closeNoteDialog() { noteDialog.close(); }
@@ -855,7 +866,7 @@
                 html += `
                 <div class="flex items-center gap-3 p-2 border rounded ${bg}">
                     <span class="text-xs font-bold w-10 text-center ${emp.type === 'FT' ? 'text-black' : 'text-gray-500'}">${emp.type}</span>
-                    <input type="text" class="border border-gray-300 rounded px-2 py-1 flex-1 text-sm outline-none focus:border-black" value="${emp.name}" onchange="tempEmployees[${index}].name = this.value" placeholder="請輸入姓名">
+                    <input type="text" class="border border-gray-300 rounded px-2 py-1 flex-1 text-sm outline-none focus:border-black" value="${escapeHTML(emp.name)}" onchange="tempEmployees[${index}].name = this.value" placeholder="請輸入姓名">
                     <button onclick="removeEmp(${index})" class="text-red-400 hover:text-red-600 px-2 font-bold text-lg">&times;</button>
                 </div>`;
             });
@@ -905,7 +916,7 @@
                 html += `
                 <div class="flex items-center gap-3 p-2 border border-gray-200 rounded hover:bg-gray-50 transition">
                     <span class="text-xs font-bold w-10 text-center rounded py-1 ${colorClass}">${key}</span>
-                    <input type="text" class="border border-gray-300 rounded px-2 py-1 flex-1 text-sm outline-none focus:border-black" value="${tempShiftSettings[key]}" onchange="tempShiftSettings['${key}'] = this.value" placeholder="例: 0900-1700">
+                    <input type="text" class="border border-gray-300 rounded px-2 py-1 flex-1 text-sm outline-none focus:border-black" value="${escapeHTML(tempShiftSettings[key])}" onchange="tempShiftSettings['${key}'] = this.value" placeholder="例: 0900-1700">
                 </div>`;
             }
             document.getElementById('shiftSettingsForm').innerHTML = html;
@@ -937,7 +948,7 @@
         function autoFill() { document.getElementById('autoFillDialog').showModal(); }
 
         function shuffle(array) {
-            let currentIndex = array.length,  randomIndex;
+            let currentIndex = array.length, randomIndex;
             while (currentIndex != 0) {
                 randomIndex = Math.floor(Math.random() * currentIndex);
                 currentIndex--;
@@ -1115,7 +1126,7 @@
                     }
                 });
             }
-            saveData(); // 自動排班完成後呼叫一次存檔
+            saveData(); 
             renderTable(); 
         }
 
@@ -1171,7 +1182,7 @@
                 const shiftStr = scheduleData[currentYearMonth]?.[emp.id]?.[day];
                 const ranges = parseTimeRanges(shiftStr);
                 
-                html += `<div class="absolute left-0 w-[80px] text-sm text-gray-800 font-bold text-right pr-4 z-10" style="top: ${yOffset}px; line-height: 30px;">${emp.name}</div>`;
+                html += `<div class="absolute left-0 w-[80px] text-sm text-gray-800 font-bold text-right pr-4 z-10" style="top: ${yOffset}px; line-height: 30px;">${escapeHTML(emp.name)}</div>`;
                 html += `<div class="absolute border-b border-gray-100 z-0" style="top: ${yOffset + 30}px; left: 80px; right: 0;"></div>`;
                 
                 ranges.forEach(r => {
@@ -1188,7 +1199,7 @@
 
                         html += `<div class="absolute h-[26px] rounded flex items-center justify-center text-[11px] font-bold overflow-hidden whitespace-nowrap shadow-sm z-20 hover:opacity-80 transition ${colorClass}" 
                                       style="top: ${yOffset + 2}px; left: calc(80px + (100% - 80px) * ${left / 100}); width: calc((100% - 80px) * ${width / 100});">
-                                    ${shiftStr.split('\n')[0]}
+                                    ${escapeHTML(shiftStr.split('\n')[0])}
                                  </div>`;
                     }
                 });
@@ -1375,7 +1386,7 @@
                 noteData[currentYearMonth] = {};
                 employees.forEach(emp => scheduleData[currentYearMonth][emp.id] = {});
                 stations.forEach(st => stationData[currentYearMonth][st] = {});
-                saveData(); // 手動清空後儲存
+                saveData(); 
                 renderTable();
             }
         }
