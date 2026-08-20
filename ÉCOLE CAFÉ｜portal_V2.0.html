@@ -17,6 +17,9 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
+<!-- DOMPurify (XSS 安全過濾套件) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.8/purify.min.js"></script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -513,7 +516,7 @@
     border: 1px solid var(--line);
     background: var(--bg-soft);
   }
-  .lock-view .lk-err { color: #B5544A; font-size: 12.5px; min-height: 16px; }
+  .lock-view .lk-err { color: #B5544A; font-size: 12.5px; min-height: 16px; max-width: 320px; line-height: 1.4; }
   .lock-view .lk-hint { font-size: 11.5px; color: var(--ink-faint); }
 
   /* ---------- Row Item ---------- */
@@ -920,7 +923,7 @@
           <div>請輸入管理密碼以編輯介面</div>
           <input type="password" id="pwInput" inputmode="numeric" maxlength="12" placeholder="••••">
           <div class="lk-err" id="pwError"></div>
-          <div class="lk-hint" id="pwHintTxt">登入後可於下方修改密碼</div>
+          <div class="lk-hint" id="pwHintTxt">登入管理員帳號後可於下方修改密碼</div>
           <button class="btn primary" id="pwSubmit" style="margin-top:6px;">進入編輯</button>
         </div>
       </div>
@@ -1031,6 +1034,8 @@
   const auth = firebase.auth();
   const db = firebase.firestore();
   let currentUser = null;
+  let isWhitelistedAdmin = false; // 白名單管理員標記
+  let isWhitelistedUser = false;  // 白名單一般使用者標記
   // ==========================================
 
   const STORAGE_KEY = 'ecole_cafe_config_v1';
@@ -1045,7 +1050,7 @@
   const DEFAULT_CONFIG = {
     password: '0106',
     buttons: [
-      { id: 'b1', icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>', name: '交班', url: 'https://ecole-1f392.web.app/%C3%89COLE%20CAF%C3%89%EF%BD%9C%E4%BA%A4%E7%8F%AD%E7%B3%BB%E7%B5%B1v3.2.html', color: 'rose', target: '_blank' },
+      { id: 'b1', icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>', name: '交班', url: 'https://ecole-1f392.web.app/%C3%89COLE%20CAF%C3%89%EF%BD%9C%E4%BA%A4%E7%8F%AD%E7%B3%BB%E7%B5%B1v3.2.html', color: 'rose', target: '_blank' },
       { id: 'b2', icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>', name: '班表', url: 'https://letudesign0106-glitch.github.io/ECOLE/%C3%89COLE%20CAF%C3%89%EF%BD%9C%E7%8F%AD%E8%A1%A8%E6%A8%A1%E6%93%AC%E5%99%A8V5.5.html', color: 'sage', target: '_blank' },
       { id: 'bpwg09vd', icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>', name: '庫存備料', url: 'https://ecole-1f392.web.app/%C3%89COLE%20CAF%C3%89%EF%BD%9C%E5%82%99%E6%96%99%E8%BF%BD%E8%B9%A4%E7%B3%BB%E7%B5%B1V2.0.1.html', color: 'blue', target: '_blank' },
       { id: 'bno6cf76', icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>', name: '工作SOP', url: 'https://ecole-1f392.web.app/%C3%89COLE%20CAF%C3%89%EF%BD%9C%E5%93%A1%E5%B7%A5%E5%B7%A5%E4%BD%9C%E6%B8%85%E5%96%AEV2.15.html', color: 'taupe', target: '_blank' }
@@ -1062,35 +1067,14 @@
   let pendingImport = null; 
   let unsubGantt = null;
 
-  // --- SVG 防禦 XSS 引擎 ---
+  // --- SVG 防禦 XSS 引擎 (使用 DOMPurify) ---
   function sanitizeSVG(raw) {
     if (!raw) return '';
     const str = String(raw).trim();
-    if (!str.toLowerCase().includes('<svg')) return escapeHtml(str); 
-    
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(str, 'text/html');
-      const svg = doc.querySelector('svg');
-      
-      if (svg) {
-        const scripts = svg.querySelectorAll('script');
-        scripts.forEach(s => s.remove());
-        
-        const allElems = svg.querySelectorAll('*');
-        allElems.forEach(el => {
-          Array.from(el.attributes).forEach(attr => {
-            if (attr.name.toLowerCase().startsWith('on')) {
-              el.removeAttribute(attr.name);
-            }
-          });
-        });
-        return svg.outerHTML;
-      }
-    } catch(e) {
-      console.warn('SVG 解析錯誤，退回純文字模式');
+    if (window.DOMPurify) {
+      return DOMPurify.sanitize(str, { USE_PROFILES: { svg: true } });
     }
-    return escapeHtml(str);
+    return escapeHtml(str); 
   }
 
   function normalizeConfig(cfg){
@@ -1202,8 +1186,6 @@
       if(prevEmpty) prevEmpty.remove();
       cardGrid.style.display = '';
     }
-
-    document.getElementById('pwHintTxt').textContent = `預設密碼為 ${DEFAULT_CONFIG.password}，登入後可於下方修改`;
 
     config.buttons.forEach(b=>{
       const hex = COLORS[b.color] || COLORS.rose;
@@ -1498,13 +1480,33 @@
 
   document.getElementById('pwSubmit').onclick = tryUnlock;
   document.getElementById('pwInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
-  function tryUnlock(){
+  
+  // 安全密碼驗證邏輯（結合 Cloud Firestore 管理員白名單進行後端驗證）
+  async function tryUnlock(){
+    const pwErr = document.getElementById('pwError');
+    pwErr.textContent = '';
+
+    // 1. 檢查是否登入
+    if(!currentUser) {
+      pwErr.textContent = '❌ 請先點擊右上角進行 Google 帳號登入';
+      toast('請先登入 Google 帳號');
+      return;
+    }
+
+    // 2. 後端雙重驗證：檢查是否在 Cloud Firestore 管理員白名單內
+    if(!isWhitelistedAdmin) {
+      pwErr.textContent = '⛔ 存取被拒：您的帳號非 Cloud Firestore 管理員白名單，即使輸入正確密碼亦無法進入！';
+      toast('權限不足：您不是管理員白名單帳號');
+      return;
+    }
+
+    // 3. 檢查本地管理密碼
     const val = document.getElementById('pwInput').value;
     if(val === config.password){
       unlocked = true;
       showEditPane();
     }else{
-      document.getElementById('pwError').textContent = '密碼錯誤，請再試一次';
+      pwErr.textContent = '密碼錯誤，請再試一次';
     }
   }
 
@@ -1593,6 +1595,14 @@
     try{
       const parsed = JSON.parse(raw);
       if(!parsed || !Array.isArray(parsed.buttons)) throw new Error('缺少 buttons 陣列');
+      
+      // 資安加強：清理匯入網址，防範 javascript: 偽協定攻擊
+      parsed.buttons.forEach(b => {
+        if(b.url && !/^https?:\/\//i.test(b.url.trim())){
+          b.url = '';
+        }
+      });
+
       normalizeConfig(parsed);
       pendingImport = parsed;
       const noteCount = Object.values(parsed.notes).reduce((sum, arr)=> sum + arr.length, 0);
@@ -1643,14 +1653,76 @@
 
 
   // ==========================================
-  // 2. Firebase 同步與 Auth 邏輯 (登入白名單安全機制)
+  // 2. Firebase 同步與 Auth 邏輯 (Cloud Firestore 白名單機制)
   // ==========================================
   const authBtn = document.getElementById('authBtn');
   const cloudSaveBtn = document.getElementById('cloudSaveBtn');
 
-  auth.onAuthStateChanged(user => {
-    currentUser = user;
+  // Cloud Firestore 白名單驗證函式 (精準讀取 systemConfig/whitelist 文件中的 adminEmails 與 staffMapping)
+  async function checkUserWhitelist(email) {
+    if (!email) return { allowed: false, isAdmin: false };
+    try {
+      const emailKey = email.toLowerCase().trim();
+      
+      // 讀取 /systemConfig/whitelist 單一文件
+      const doc = await db.collection('systemConfig').doc('whitelist').get();
+      
+      if (doc.exists) {
+        const data = doc.data() || {};
+        
+        // 1. 比對 adminEmails 陣列
+        const adminEmails = Array.isArray(data.adminEmails) 
+          ? data.adminEmails.map(e => String(e).toLowerCase().trim()) 
+          : [];
+          
+        if (adminEmails.includes(emailKey)) {
+          return { allowed: true, isAdmin: true };
+        }
+
+        // 2. 比對 staffMapping 物件
+        const staffMapping = data.staffMapping || {};
+        let isStaff = false;
+
+        for (const [key, val] of Object.entries(staffMapping)) {
+          const kStr = String(key).toLowerCase().trim();
+          const vStr = typeof val === 'string' ? val.toLowerCase().trim() : '';
+          const vEmail = (typeof val === 'object' && val?.email) ? String(val.email).toLowerCase().trim() : '';
+
+          if (kStr === emailKey || vStr === emailKey || vEmail === emailKey) {
+            isStaff = true;
+            break;
+          }
+        }
+
+        if (isStaff) {
+          return { allowed: true, isAdmin: false };
+        }
+      }
+    } catch(err) {
+      console.warn("白名單讀取受限或驗證失敗:", err);
+    }
+    return { allowed: false, isAdmin: false };
+  }
+
+  auth.onAuthStateChanged(async user => {
     if (user) {
+      // 進行 Cloud Firestore 白名單驗證
+      const whitelistCheck = await checkUserWhitelist(user.email);
+      
+      if (!whitelistCheck.allowed) {
+        toast('⛔ 您的帳號未在 Cloud Firestore 白名單內，系統自動登出');
+        await auth.signOut();
+        currentUser = null;
+        isWhitelistedAdmin = false;
+        isWhitelistedUser = false;
+        resetAuthUI();
+        return;
+      }
+
+      currentUser = user;
+      isWhitelistedUser = true;
+      isWhitelistedAdmin = whitelistCheck.isAdmin;
+
       if(user.photoURL) {
         authBtn.innerHTML = '';
         authBtn.style.backgroundImage = `url(${user.photoURL})`;
@@ -1658,26 +1730,42 @@
       } else {
         authBtn.innerHTML = '🚪';
       }
-      authBtn.title = "登入 (" + user.email + ")";
-      cloudSaveBtn.style.display = 'flex';
       
+      const roleTag = isWhitelistedAdmin ? '[管理員]' : '[一般員工]';
+      authBtn.title = `已登入 ${roleTag} (${user.email})`;
+      cloudSaveBtn.style.display = isWhitelistedAdmin ? 'flex' : 'none'; // 僅管理員可見雲端覆蓋按鈕
+      
+      document.getElementById('pwHintTxt').textContent = isWhitelistedAdmin 
+        ? `身份驗證通過（管理員）。預設密碼為 ${DEFAULT_CONFIG.password}` 
+        : `⚠️ 您的帳號為一般員工，非管理員權限無法進行編輯`;
+
       autoLoadFromCloud();
       subscribeToDashboard(); 
 
     } else {
-      authBtn.style.backgroundImage = 'none';
-      authBtn.innerHTML = '👤';
-      authBtn.title = "管理員登入以覆蓋雲端";
-      cloudSaveBtn.style.display = 'none';
-      
-      if(unsubGantt) { unsubGantt(); unsubGantt = null; }
-      document.getElementById('ganttContainer').innerHTML = '<div style="color:var(--ink-faint); padding:6px 0;">🔒 請點擊右上角登入系統以讀取排班資料</div>';
-      document.getElementById('revProgress').textContent = '--%';
-      document.getElementById('revTotal').textContent = '--';
-      document.getElementById('revTarget').textContent = '--';
-      document.getElementById('revProgressBar').style.width = '0%';
+      resetAuthUI();
     }
   });
+
+  function resetAuthUI() {
+    currentUser = null;
+    isWhitelistedAdmin = false;
+    isWhitelistedUser = false;
+
+    authBtn.style.backgroundImage = 'none';
+    authBtn.innerHTML = '👤';
+    authBtn.title = "管理員登入以覆蓋雲端";
+    cloudSaveBtn.style.display = 'none';
+    
+    document.getElementById('pwHintTxt').textContent = `請先以 Google 帳號登入白名單管理員`;
+
+    if(unsubGantt) { unsubGantt(); unsubGantt = null; }
+    document.getElementById('ganttContainer').innerHTML = '<div style="color:var(--ink-faint); padding:6px 0;">🔒 請點擊右上角登入系統以讀取排班資料</div>';
+    document.getElementById('revProgress').textContent = '--%';
+    document.getElementById('revTotal').textContent = '--';
+    document.getElementById('revTarget').textContent = '--';
+    document.getElementById('revProgressBar').style.width = '0%';
+  }
 
   authBtn.onclick = () => {
     if (currentUser) {
@@ -1707,8 +1795,8 @@
   }
 
   cloudSaveBtn.onclick = async () => {
-    if (!currentUser) {
-       toast('請先登入 Google 帳號才能更新雲端');
+    if (!currentUser || !isWhitelistedAdmin) {
+       toast('權限不足：僅 Cloud Firestore 管理員可更新雲端');
        return;
     }
     cloudSaveBtn.style.opacity = '0.5';
@@ -1724,7 +1812,7 @@
   };
 
   // ==========================================
-  // 3. 營運儀表板 - 讀取與計算（更新指向獨立 dailyTracking 集合）
+  // 3. 營運儀表板 - 讀取與計算（指向獨立 dailyTracking 集合）
   // ==========================================
   function subscribeToDashboard() {
     const todayObj = new Date();
