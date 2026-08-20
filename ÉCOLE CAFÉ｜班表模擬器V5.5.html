@@ -35,7 +35,7 @@
         .shift-cell:hover, .shift-cell:active { background-color: #f3f4f6; }
         
         .color-morning { background-color: #dbe4d7; color: #3f4e38; } 
-        .color-mid { background-color: #F3E5AB; color: #4a401c; } /* 更新中班底色 */
+        .color-mid { background-color: #F3E5AB; color: #4a401c; }
         .color-evening { background-color: #ebd9d9; color: #5c3c3c; } 
         .color-split { background-color: #d6dbe0; color: #3b4252; }   
         .color-custom { background-color: #f3f4f6; color: #374151; } 
@@ -77,9 +77,7 @@
         </div>
 
         <div class="flex flex-wrap gap-2 items-center">
-            <div id="authArea" class="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200 mr-2">
-                <!-- 將由 JS 動態填入 -->
-            </div>
+            <div id="authArea" class="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200 mr-2"></div>
             
             <button onclick="openGanttDialog()" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-sm text-sm transition shadow-sm">📊 單日進度表</button>
             <div class="w-px h-8 bg-gray-200 mx-1 hidden sm:block"></div>
@@ -143,8 +141,7 @@
             <h3 class="font-bold text-gray-800 tracking-wide">⚙️ 班別時間設定</h3>
             <button onclick="document.getElementById('shiftSettingsDialog').close()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
         </div>
-        <div class="p-4 bg-white flex flex-col gap-3 max-h-[60vh] overflow-y-auto" id="shiftSettingsForm">
-        </div>
+        <div class="p-4 bg-white flex flex-col gap-3 max-h-[60vh] overflow-y-auto" id="shiftSettingsForm"></div>
         <div class="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
              <button onclick="document.getElementById('shiftSettingsDialog').close()" class="border border-gray-300 text-gray-600 px-4 py-2 rounded text-sm hover:bg-gray-50">取消</button>
              <button onclick="saveShiftSettings()" class="bg-black text-white px-5 py-2 rounded text-sm hover:bg-gray-800">儲存變更</button>
@@ -429,7 +426,7 @@
         }
 
         let defaultEmployees = [
-            { id: 'FT1', name: '緎俽', type: 'FT' }, { id: 'FT2', name: '龍', type: 'FT' },
+            { id: 'FT1', name: '織俽', type: 'FT' }, { id: 'FT2', name: '龍', type: 'FT' },
             { id: 'FT3', name: '沐', type: 'FT' }, { id: 'FT4', name: '訓鋒', type: 'FT' },
             { id: 'FT5', name: '沛宜', type: 'FT' }, { id: 'PT1', name: '耀霆', type: 'PT' },
             { id: 'PT2', name: '煥哲', type: 'PT' }, { id: 'PT3', name: '書書', type: 'PT' },
@@ -464,10 +461,8 @@
             shiftSettings.M1 = "11:30-20:30";
         }
         
-        // --- 修改區域：動態獲取當前年月 ---
         const todayDate = new Date();
         let currentYearMonth = todayDate.getFullYear() + '-' + String(todayDate.getMonth() + 1).padStart(2, '0');
-        // ---------------------------------
         
         let selectedCell = { empId: null, day: null, type: null, station: null };
         let confirmResolver = null;
@@ -479,6 +474,13 @@
 
         function setupCloudSync() {
             if (!currentUser || !db) return;
+            
+            // 修正點 1：取消舊的監聽器，防止重覆綁定 (Listener Leak)
+            if (unsubscribeSnapshot) {
+                unsubscribeSnapshot();
+                unsubscribeSnapshot = null;
+            }
+
             document.getElementById('loadingText').innerText = "載入共用班表...";
             const docRef = db.collection("ecoleCafe").doc("main_schedule");
             
@@ -493,12 +495,11 @@
 
                     if (employees.some(e => e.name === 'Rita' || e.name === 'JEFF')) {
                         employees = JSON.parse(JSON.stringify(defaultEmployees));
-                        if (currentUserRole === 'admin') saveData(); 
                     }
 
                     shiftSettings = data.shiftSettings || defaultShiftTypes;
                     renderShiftButtons(); 
-                    renderTable();
+                    renderTable(); // 渲染畫面，不呼叫存檔
                 } else {
                     if (currentUserRole === 'admin') saveData();
                 }
@@ -725,7 +726,7 @@
             noteHTML += `<td class="bg-white border-l-2 border-gray-300 right-name-col"></td><td class="bg-white border-l border-gray-200"></td><td class="bg-white border-l border-gray-200"></td></tr>`;
             document.getElementById('noteBody').innerHTML = noteHTML;
 
-            saveData();
+            // 修正點 2：移除 renderTable() 內部的 saveData()，徹底斷開無窮迴圈！
         }
 
         function calculateHours(shiftStr) {
@@ -787,6 +788,7 @@
         function setShift(val) {
             scheduleData[currentYearMonth][selectedCell.empId][selectedCell.day] = val;
             shiftDialog.close();
+            saveData(); // 手動修改後儲存
             renderTable();
         }
 
@@ -815,9 +817,11 @@
             document.getElementById('stationCandidates').innerHTML = html;
             stationDialog.showModal();
         }
+
         function setStation(name) {
             stationData[currentYearMonth][selectedCell.station][selectedCell.day] = name;
             stationDialog.close();
+            saveData(); // 手動修改後儲存
             renderTable();
         }
         function closeStationDialog() { stationDialog.close(); }
@@ -829,9 +833,11 @@
             document.getElementById('customNote').value = noteData[currentYearMonth]?.[day] || '';
             noteDialog.showModal();
         }
+
         function setNote(val) {
             noteData[currentYearMonth][selectedCell.day] = val;
             noteDialog.close();
+            saveData(); // 手動修改後儲存
             renderTable();
         }
         function closeNoteDialog() { noteDialog.close(); }
@@ -1109,6 +1115,7 @@
                     }
                 });
             }
+            saveData(); // 自動排班完成後呼叫一次存檔
             renderTable(); 
         }
 
@@ -1368,6 +1375,7 @@
                 noteData[currentYearMonth] = {};
                 employees.forEach(emp => scheduleData[currentYearMonth][emp.id] = {});
                 stations.forEach(st => stationData[currentYearMonth][st] = {});
+                saveData(); // 手動清空後儲存
                 renderTable();
             }
         }
@@ -1417,7 +1425,7 @@
                 } catch(err) {
                     alertCustom('檔案格式錯誤，請確定是本系統匯出的 JSON 備份檔。');
                 }
-            };
+            }
             reader.readAsText(file);
             event.target.value = '';
         }
