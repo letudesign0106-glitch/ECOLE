@@ -552,12 +552,9 @@
     const provider = new GoogleAuthProvider();
 
     let hasAutoRestored = false;
-    // 雲端資料「讀取完成」狀態鎖：在讀取流程完成前，一律禁止任何寫入雲端的操作，
-    // 避免頁面尚未讀完雲端資料時，被其他操作誤觸而把空白/舊資料覆蓋回共用雲端。
     window.isCloudLoaded = false;
-    window.cachedPrevMonthCum = 0; // 快取雲端當月累計營業額
+    window.cachedPrevMonthCum = 0;
 
-    // 檢查 Firebase 內 `systemConfig/whitelist` 的白名單機制
     async function checkWhitelist(email) {
         try {
             const docRef = doc(db, "systemConfig", "whitelist");
@@ -647,7 +644,6 @@
             alert("請先進行 Google 登入！");
             return;
         }
-        // 雙重安全鎖：雲端資料尚未讀取完成前，一律攔截寫入動作，避免覆蓋雲端既有資料
         if (!window.isCloudLoaded) {
             alert("雲端資料尚未讀取完成，請稍候片刻再試一次（系統正在確保不會覆蓋現有雲端資料）。");
             return;
@@ -658,7 +654,6 @@
             const dateToSave = window.currentDateVal;
             if (typeof saveCurrentDayData === 'function') saveCurrentDayData(dateToSave); 
             
-            // 儲存：交班紀錄 (以日期為文件 ID 獨立儲存)
             const dailyData = window.globalDataStore.dailyTracking[dateToSave] || {};
             const dataToUpload = {
                 ...dailyData,
@@ -668,7 +663,6 @@
             };
             await setDoc(doc(db, "dailyTracking", dateToSave), dataToUpload);
             
-            // 儲存：人員配置清單 (全域共用)
             await setDoc(doc(db, "systemConfig", "employees"), { list: window.globalDataStore.employees });
 
             statusSpan.innerText = '✅ 儲存成功';
@@ -680,7 +674,6 @@
         }
     }
 
-    // 獲取該月截至昨日的累計雲端營業額
     window.fetchMonthlyCumulative = async function() {
         if (!window.currentUser || !window.currentDateVal) return;
         const ym = window.currentDateVal.substring(0, 7);
@@ -708,10 +701,10 @@
             return;
         }
         try {
+            window.isCloudLoaded = false;
             const statusSpan = document.getElementById('cloud-status');
             if (statusSpan) statusSpan.innerText = '讀取雲端...';
 
-            // 1. 讀取全域員工清單
             const empSnap = await getDoc(doc(db, "systemConfig", "employees"));
             if (empSnap.exists() && empSnap.data().list) {
                 window.globalDataStore.employees = empSnap.data().list;
@@ -720,16 +713,13 @@
                 }
             }
 
-            // 2. 讀取當天日期的交班紀錄
             const dailySnap = await getDoc(doc(db, "dailyTracking", window.currentDateVal));
             if (dailySnap.exists()) {
                 window.globalDataStore.dailyTracking[window.currentDateVal] = dailySnap.data();
             }
 
-            // 3. 抓取本月截至昨日為止的累積營業額
             await window.fetchMonthlyCumulative();
             
-            // 畫面同步渲染
             if (typeof syncStaffFromEmployees === 'function') syncStaffFromEmployees();
             if (typeof loadStaffList === 'function') loadStaffList();
             if (typeof renderStaffPills === 'function') renderStaffPills();
@@ -738,13 +728,13 @@
             if (statusSpan) statusSpan.innerText = '';
             if (!isSilent) alert('已成功從雲端讀取最新的交班資料！');
             
-            // 讀取流程完整結束後，解鎖允許寫入
             window.isCloudLoaded = true;
         } catch (error) {
             if (!isSilent) alert('雲端讀取失敗：' + error.message);
             const statusSpan = document.getElementById('cloud-status');
             if (statusSpan) statusSpan.innerText = '';
-            window.isCloudLoaded = true;
+            // 讀取出錯時保持解鎖鎖定，避免空資料寫入雲端
+            window.isCloudLoaded = false;
         }
     }
 
@@ -756,14 +746,12 @@
         window.undoStack = [];
         
         if (window.currentUser) {
-            window.isCloudLoaded = false;
             await window.restoreFromCloud(true);
         } else {
             loadDayData();
         }
     }
 
-    // 帶入前一日資料（直接讀取資料庫，不依賴本機快取）
     window.carryOverSection = async function(type) {
         if (!window.currentUser) return alert('請先進行 Google 登入，才能從雲端帶入前一日資料！');
         
@@ -826,7 +814,6 @@
         }
     }
 
-    // 匯出週報圖表（使用 Firebase 範圍搜尋直接撈取一週數據）
     window.downloadWeeklyReportJPG = async function() {
         if (!window.currentUser) return alert('請登入以產生雲端週報！');
         if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal); 
@@ -868,6 +855,12 @@
             if(statusSpan) statusSpan.innerText = '';
             return;
         }
+
+        // 合併本日本機最新未上傳變更
+        if (window.globalDataStore.dailyTracking[window.currentDateVal]) {
+            weekDataMap[window.currentDateVal] = window.globalDataStore.dailyTracking[window.currentDateVal];
+        }
+
         if(statusSpan) statusSpan.innerText = '';
 
         let weekRevs = [];
@@ -990,10 +983,12 @@
                         document.getElementById('report-preview-img').src = imageUrl;
                         document.getElementById('report-preview-modal').style.display = 'flex';
                     } else {
+                        const imageUrl = URL.createObjectURL(blob);
                         const link = document.createElement('a');
                         link.download = `ECOLE_CAFE_營運週報_${weekDates[0]}.jpg`;
-                        link.href = URL.createObjectURL(blob);
+                        link.href = imageUrl;
                         link.click();
+                        setTimeout(() => URL.revokeObjectURL(imageUrl), 1000);
                     }
                 }, 'image/jpeg', 0.9);
             });
@@ -1002,7 +997,6 @@
 </script>
 
 <script>
-    // 安全防護：XSS 轉義函數，防止輸入引號或 HTML 標籤打斷結構
     function escapeHTML(str) {
         if (str === null || str === undefined) return '';
         return String(str)
@@ -1015,48 +1009,52 @@
 
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            const swCode = `
-                self.addEventListener('install', e => self.skipWaiting());
-                self.addEventListener('activate', e => self.waitUntil(clients.claim()));
-                self.addEventListener('fetch', e => {
-                    e.respondWith(
-                        fetch(e.request).catch(() => caches.match(e.request))
-                    );
-                });
-            `;
-            const blob = new Blob([swCode], { type: 'application/javascript' });
-            navigator.serviceWorker.register(URL.createObjectURL(blob)).then(reg => {
-                reg.onupdatefound = () => {
-                    const newWorker = reg.installing;
-                    newWorker.onstatechange = () => {
-                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            if (confirm('發現系統有新版本，是否立即重新載入以更新內容？')) {
-                                window.location.reload();
+            try {
+                const swCode = `
+                    self.addEventListener('install', e => self.skipWaiting());
+                    self.addEventListener('activate', e => self.waitUntil(clients.claim()));
+                    self.addEventListener('fetch', e => {
+                        e.respondWith(
+                            fetch(e.request).catch(() => caches.match(e.request))
+                        );
+                    });
+                `;
+                const blob = new Blob([swCode], { type: 'application/javascript' });
+                const blobUrl = URL.createObjectURL(blob);
+                navigator.serviceWorker.register(blobUrl).then(reg => {
+                    reg.onupdatefound = () => {
+                        const newWorker = reg.installing;
+                        newWorker.onstatechange = () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                if (confirm('發現系統有新版本，是否立即重新載入以更新內容？')) {
+                                    window.location.reload();
+                                }
                             }
-                        }
+                        };
                     };
-                };
-            }).catch(e => console.log('PWA Setup Failed', e));
+                }).catch(e => console.log('PWA ServiceWorker Registration Bypassed:', e));
 
-            const manifest = {
-                name: "ÉCOLE CAFÉ 智慧交班系統", short_name: "交班系統", display: "standalone",
-                start_url: ".", background_color: "#f4f4f4", theme_color: "#111111",
-                icons: [{ src: "data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23111'/><text x='50' y='65' fill='white' font-size='50' text-anchor='middle'>E</text></svg>", sizes: "192x192", type: "image/svg+xml" }]
-            };
-            const manifestLink = document.createElement('link');
-            manifestLink.rel = 'manifest';
-            manifestLink.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], {type: 'application/json'}));
-            document.head.appendChild(manifestLink);
+                const manifest = {
+                    name: "ÉCOLE CAFÉ 智慧交班系統", short_name: "交班系統", display: "standalone",
+                    start_url: ".", background_color: "#f4f4f4", theme_color: "#111111",
+                    icons: [{ src: "data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23111'/><text x='50' y='65' fill='white' font-size='50' text-anchor='middle'>E</text></svg>", sizes: "192x192", type: "image/svg+xml" }]
+                };
+                const manifestLink = document.createElement('link');
+                manifestLink.rel = 'manifest';
+                manifestLink.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], {type: 'application/json'}));
+                document.head.appendChild(manifestLink);
+            } catch(err) {
+                console.warn('PWA Environment Setup Skipped:', err);
+            }
         });
     }
 
     window.globalDataStore = { employees: [], dailyTracking: {} };
     window.currentDateVal = '';
-    let staffList = ['緎俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
+    let staffList = ['織俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
     window.weeklyChartInstance = null;
     window.currentReportBlob = null;
 
-    // ---------- 今日天氣 (台北市當日全天平均氣溫預報) ----------
     const WEATHER_OPTIONS = ['晴空萬里', '烏雲密布', '滂沱大雨', '零星陣雨', '微風徐徐', '寒風刺骨'];
     let selectedWeatherTags = [];
     let autoWeatherText = '';
@@ -1080,7 +1078,6 @@
         return map[code] || '天氣不明';
     }
 
-    // 抓取指定日期的台北市全天平均預報與溫差
     async function fetchDayWeather(dateStr) {
         const displayEl = document.getElementById('auto-weather-display');
         if (!displayEl) return;
@@ -1297,7 +1294,7 @@
             alignments: Array.from(document.querySelectorAll('#alignment-list .row-group')).map(row => ({
                 val: row.querySelector('.alignment-input').value,
                 category: row.querySelector('.alignment-category').value,
-                isNew: row.querySelector('.alignment-input').dataset.isNew === 'true'
+                isNew: row.querySelector('.alignment-input').dataset.isnew === 'true'
             })),
             tasks: Array.from(document.querySelectorAll('#task-list .row-group')).map(row => ({
                 assignee: row.querySelector('.task-assignee').value,
@@ -1373,7 +1370,6 @@
 
         renderWeatherOptions();
         
-        // 抓取並顯示選定日期的全天平均預報
         fetchDayWeather(dateVal);
 
         window.updateMonthlyCumulative();
@@ -1608,10 +1604,12 @@
                 }
             }
         } else {
+            const imageUrl = URL.createObjectURL(window.currentReportBlob);
             const link = document.createElement('a');
             link.download = `ECOLE_CAFE_營運週報.jpg`;
-            link.href = URL.createObjectURL(window.currentReportBlob);
+            link.href = imageUrl;
             link.click();
+            setTimeout(() => URL.revokeObjectURL(imageUrl), 1000);
             alert('圖片已產生，請長按圖片將其存入相片，即可分享至 LINE！');
         }
     }
@@ -1637,10 +1635,12 @@
         }
 
         const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+        const imageUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
+        a.href = imageUrl;
         a.download = `ecole_cafe_backup_${isMonth ? dateVal.substring(0, 7) : dateVal}.json`;
         a.click();
+        setTimeout(() => URL.revokeObjectURL(imageUrl), 1000);
     }
 
     window.importJSON = function(event) {
