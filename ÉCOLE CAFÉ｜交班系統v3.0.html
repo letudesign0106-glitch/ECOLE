@@ -89,7 +89,7 @@
             min-width: 160px;
         }
 
-        /* 關鍵修正：嚴格約束 SVG 圖示尺寸，防止 iOS WebKit 爆框巨大化 */
+        /* 嚴格約束 SVG 圖示尺寸，防止 iOS WebKit 爆框巨大化 */
         .date-input-wrapper svg {
             width: 16px;
             height: 16px;
@@ -460,7 +460,7 @@
         <div class="card">
             <div class="section-title">├── 🌤 今日天氣</div>
             <div style="margin-top:12px; margin-bottom:10px; font-size:0.85rem; color: var(--text-muted);">
-                系統自動抓取（台北市當日平均預報）：<span id="auto-weather-display">讀取中...</span>
+                系統自動抓取（台北市當日預報狀況與氣溫）：<span id="auto-weather-display">讀取中...</span>
             </div>
             <label>天氣狀況（可複選，供人工補充或修正自動抓取結果）</label>
             <div class="staff-pills-container" id="weather-options-container"></div>
@@ -647,7 +647,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
     const firebaseConfig = {
             apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
             authDomain: "ecole-1f392.firebaseapp.com",
@@ -1185,11 +1184,24 @@
         return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
     }
 
+    /* 將 WMO 氣象代碼轉譯為中文天氣描述 */
+    function getWmoWeatherText(code) {
+        if (code === 0 || code === 1) return '晴天';
+        if (code === 2) return '多雲';
+        if (code === 3) return '陰天';
+        if (code === 45 || code === 48) return '有霧';
+        if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return '陣雨';
+        if ((code >= 71 && code <= 77) || code === 85 || code === 86) return '降雪';
+        if (code >= 95) return '雷雨';
+        return '多雲';
+    }
+
+    /* 自動抓取台北市當天整天天氣狀況與氣溫 */
     async function fetchDayWeather(dateStr) {
         const displayEl = document.getElementById('auto-weather-display');
         if (!displayEl) return;
         try {
-            const resp = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=25.0330&longitude=121.5654&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FTaipei&start_date=${dateStr}&end_date=${dateStr}`);
+            const resp = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=25.0330&longitude=121.5654&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTaipei&start_date=${dateStr}&end_date=${dateStr}`);
             if (!resp.ok) throw new Error('氣象資料請求失敗');
             const data = await resp.json();
             const daily = data && data.daily;
@@ -1197,8 +1209,10 @@
 
             const maxT = Math.round(daily.temperature_2m_max[0]);
             const minT = Math.round(daily.temperature_2m_min[0]);
+            const rawCode = daily.weather_code ? daily.weather_code[0] : (daily.weathercode ? daily.weathercode[0] : null);
+            const weatherDesc = rawCode !== null ? getWmoWeatherText(rawCode) : '';
 
-            autoWeatherText = `${minT}°C ~ ${maxT}°C`;
+            autoWeatherText = weatherDesc ? `${weatherDesc} ${minT}°C ~ ${maxT}°C` : `${minT}°C ~ ${maxT}°C`;
             displayEl.innerText = autoWeatherText;
         } catch (err) {
             displayEl.innerText = autoWeatherText || '（無該日期氣象資料）';
