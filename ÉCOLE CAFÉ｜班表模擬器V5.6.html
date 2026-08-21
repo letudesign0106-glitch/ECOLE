@@ -26,19 +26,19 @@
         body { font-family: 'Helvetica Neue', Arial, 'LiHei Pro', '微軟正黑體', sans-serif; background-color: #ffffff; color: #111827; }
         .table-container { height: calc(100vh - 180px); overflow: auto; -webkit-overflow-scrolling: touch; }
         table { border-collapse: collapse; min-width: 100%; width: max-content; table-layout: fixed; }
-        th, td { border: 1px solid #e5e7eb; text-align: center; vertical-align: middle; white-space: pre-line; font-size: 0.85rem; padding: 4px; min-width: 50px; }
+        th, td { border: 1px solid #e5e7eb; text-align: center; vertical-align: middle; white-space: pre-line; word-break: break-word; font-size: 0.85rem; padding: 4px; min-width: 50px; }
         thead th { position: sticky; top: 0; background-color: #ffffff; z-index: 20; border-bottom: 2px solid #111827; vertical-align: middle; }
         tbody th.sticky-col, tbody td.sticky-col { position: sticky; background-color: #ffffff; z-index: 10; }
         thead th.sticky-corner { position: sticky; top: 0; left: 0; z-index: 30; background-color: #ffffff; border-bottom: 2px solid #111827; }
         
-        .shift-cell { cursor: pointer; height: 50px; transition: background-color 0.2s; line-height: 1.2; }
+        .shift-cell { cursor: pointer; min-height: 50px; height: auto; transition: background-color 0.2s; line-height: 1.25; word-break: break-word; white-space: pre-line; }
         .shift-cell:hover, .shift-cell:active { background-color: #f3f4f6; }
         
         .color-morning { background-color: #dbe4d7; color: #3f4e38; } 
         .color-mid { background-color: #F3E5AB; color: #4a401c; }
         .color-evening { background-color: #ebd9d9; color: #5c3c3c; } 
         .color-split { background-color: #d6dbe0; color: #3b4252; }   
-        .color-custom { background-color: #f3f4f6; color: #374151; } 
+        .color-custom { background-color: #f3f4f6; color: #374151; font-size: 0.75rem; word-break: break-word; } 
         
         .shift-off { color: #111827; font-weight: bold; } 
         .shift-forced-off { color: #dc2626; font-weight: bold; } 
@@ -279,7 +279,7 @@
 
     <dialog id="shiftDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-md border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-            <h3 class="font-bold text-gray-800 tracking-wide" id="dialogTitle">編輯班別</h3>
+            <h3 class="font-bold text-gray-800 tracking-wide" id="dialogTitle">編輯班別與個人需求</h3>
             <button onclick="closeDialog()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
         </div>
         <div class="p-4 flex flex-col gap-4 bg-white overflow-y-auto max-h-[75vh]">
@@ -299,8 +299,22 @@
                     <button onclick="setShift('X_G')" class="border border-gray-200 py-1 rounded hover:bg-gray-50"><span class="text-green-500 font-bold text-lg leading-none">X</span><br><span class="text-[10px] text-gray-500">無法晚班</span></button>
                 </div>
             </div>
+
+            <!-- 全員可用：個人特別備註與需求 (支援自動跳行與完整檢視) -->
+            <div class="border-t pt-3">
+                <div class="text-xs text-gray-500 font-bold tracking-widest mb-1.5 flex justify-between items-center">
+                    <span>個人備註 / 特殊需求</span>
+                    <span class="text-[10px] font-normal text-gray-400">支援自動跳行檢視</span>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <textarea id="empCellNote" rows="2" class="border border-gray-300 rounded p-2 text-xs w-full outline-none focus:border-black resize-y leading-relaxed" placeholder="請輸入備註或特殊需求 (例: 18:00後請假、需提早下班)..."></textarea>
+                    <div class="flex justify-end">
+                        <button onclick="setShift(document.getElementById('empCellNote').value)" class="bg-black text-white px-4 py-1.5 rounded text-xs hover:bg-gray-800 font-bold shadow-sm">儲存備註/需求</button>
+                    </div>
+                </div>
+            </div>
             
-            <div class="admin-only w-full flex flex-col gap-4">
+            <div class="admin-only w-full flex flex-col gap-4 border-t pt-3">
                 <div class="grid grid-cols-4 gap-1">
                     <button onclick="setShift('✖')" class="border border-gray-200 py-2 rounded text-xs hover:bg-gray-50 font-bold">✖ 排休</button>
                     <button onclick="setShift('年假')" class="bg-gray-200 text-gray-600 py-2 rounded text-xs hover:bg-gray-300 font-bold">年假</button>
@@ -332,15 +346,15 @@
                     <div class="text-xs text-gray-400 font-bold tracking-widest border-t pt-2 mb-2">自訂時間 / 特殊文字</div>
                     <div class="flex flex-col gap-2">
                         <div class="flex items-center gap-2 text-sm">
-                            <input type="text" id="customTimeCode" class="border border-gray-300 rounded px-2 py-2 w-[70px] outline-none focus:border-black" placeholder="代碼">
-                            <input type="time" id="customTimeStart" class="border border-gray-300 rounded px-1 py-2 flex-1 outline-none focus:border-black">
+                            <input type="text" id="customTimeCode" class="border border-gray-300 rounded px-2 py-2 w-[70px] outline-none focus:border-black text-xs font-bold" placeholder="代碼">
+                            <input type="time" id="customTimeStart" class="border border-gray-300 rounded px-1 py-2 flex-1 outline-none focus:border-black text-xs">
                             <span class="text-gray-400">-</span>
-                            <input type="time" id="customTimeEnd" class="border border-gray-300 rounded px-1 py-2 flex-1 outline-none focus:border-black">
-                            <button onclick="applyCustomTime()" class="bg-black text-white px-3 py-2 rounded hover:bg-gray-800 whitespace-nowrap">排入</button>
+                            <input type="time" id="customTimeEnd" class="border border-gray-300 rounded px-1 py-2 flex-1 outline-none focus:border-black text-xs">
+                            <button onclick="applyCustomTime()" class="bg-black text-white px-3 py-2 rounded hover:bg-gray-800 whitespace-nowrap text-xs">排入</button>
                         </div>
                         <div class="flex items-center gap-2 text-sm">
-                            <input type="text" id="customText" class="border border-gray-300 rounded px-2 py-2 flex-1 outline-none focus:border-black" placeholder="手動輸入純文字代碼...">
-                            <button onclick="setShift(document.getElementById('customText').value)" class="border border-gray-300 bg-gray-100 text-gray-700 px-3 py-2 rounded hover:bg-gray-200 whitespace-nowrap">排入文字</button>
+                            <input type="text" id="customText" class="border border-gray-300 rounded px-2 py-2 flex-1 outline-none focus:border-black text-xs" placeholder="手動輸入純文字代碼...">
+                            <button onclick="setShift(document.getElementById('customText').value)" class="border border-gray-300 bg-gray-100 text-gray-700 px-3 py-2 rounded hover:bg-gray-200 whitespace-nowrap text-xs">排入文字</button>
                         </div>
                     </div>
                 </div>
@@ -786,12 +800,11 @@
                     else if (shift.startsWith('M')) { cellClass += 'color-mid'; displayText = formatShiftDisplay(shift); }
                     else if (shift.startsWith('N')) { cellClass += 'color-evening'; displayText = formatShiftDisplay(shift); }
                     else if (shift.startsWith('A')) { cellClass += 'color-split'; displayText = formatShiftDisplay(shift); }
-                    else if (shift.includes('-') && shift.includes('\n')) { cellClass += 'color-custom'; displayText = formatShiftDisplay(shift); }
                     else if (shift === 'X_R') { displayText = '<span class="text-red-500 font-bold text-lg">X</span>'; cellClass += ' bg-gray-50'; }
                     else if (shift === 'X_B') { displayText = '<span class="text-blue-500 font-bold text-lg">X</span>'; cellClass += ' bg-gray-50'; }
                     else if (shift === 'X_P') { displayText = '<span class="text-purple-500 font-bold text-lg">X</span>'; cellClass += ' bg-gray-50'; }
                     else if (shift === 'X_G') { displayText = '<span class="text-green-500 font-bold text-lg">X</span>'; cellClass += ' bg-gray-50'; }
-                    else { displayText = escapeHTML(shift).replace(/\n/g, '<br>'); }
+                    else { cellClass += 'color-custom'; displayText = escapeHTML(shift).replace(/\n/g, '<br>'); }
 
                     if (shift && !['✖', '❌', '年假', '行政', '公出', 'X_R', 'X_B', 'X_P', 'X_G'].includes(shift)) {
                         totalHours += calculateHours(shift);
@@ -906,6 +919,11 @@
             }
             selectedCell = { empId, day };
             document.getElementById('dialogSubtitle').innerText = `${empName} - ${currentYearMonth}-${day.toString().padStart(2, '0')}`;
+            
+            // 自動帶入當前格子的備註與需求內容
+            const currentVal = scheduleData[currentYearMonth]?.[empId]?.[day] || '';
+            document.getElementById('empCellNote').value = currentVal;
+
             document.getElementById('customTimeCode').value = '';
             document.getElementById('customTimeStart').value = '';
             document.getElementById('customTimeEnd').value = '';
