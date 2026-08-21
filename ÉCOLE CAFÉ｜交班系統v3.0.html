@@ -15,7 +15,7 @@
         :root {
             --bg-color: #f4f4f4;
             --card-bg: #ffffff;
-            --text-main: #1a1a1a;
+            --text-main: #111111;
             --text-muted: #666666;
             --border-color: #dcdcdc;
             --accent-color: #111111;
@@ -46,13 +46,17 @@
 
         header {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
             margin-bottom: 24px;
             border-bottom: 2px solid var(--accent-color);
             padding-bottom: 16px;
-            flex-wrap: wrap;
-            gap: 12px;
+            gap: 16px;
+        }
+
+        .header-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         h1 {
@@ -61,44 +65,58 @@
             letter-spacing: -0.02em;
         }
 
+        /* 桌機端：彈性等距離排列 */
         .header-controls {
             display: flex;
             align-items: center;
             gap: 8px;
             flex-wrap: wrap;
+            width: 100%;
         }
 
         .date-input-wrapper {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 6px;
-            background: #e2e2e2;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 0.9rem;
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
             font-weight: 500;
+            height: 38px;
+            flex: 1 1 auto;
+            min-width: 160px;
         }
 
         .date-input-wrapper input[type="date"] {
             border: none;
             background: transparent;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             font-weight: 500;
             color: var(--text-main);
             cursor: pointer;
             outline: none;
+            width: 100%;
         }
 
         .action-icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
             background: #ffffff;
             color: var(--text-main);
             border: 1px solid var(--border-color);
-            padding: 6px 14px;
+            padding: 6px 12px;
             font-size: 0.85rem;
-            border-radius: 20px;
+            border-radius: 6px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
             font-weight: 500;
+            height: 38px;
+            flex: 1 1 auto;
+            white-space: nowrap;
         }
 
         .action-icon-btn:hover {
@@ -107,25 +125,37 @@
             border-color: var(--accent-color);
         }
 
-        .export-img-btn { background-color: #5b6770; color: white; border-color: #5b6770; }
-        .export-img-btn:hover { background-color: #48525a; border-color: #48525a; }
-        
-        #cloud-save-btn { background-color: #AAB8AB; color: white; border-color: #AAB8AB; }
-        #cloud-save-btn:hover { background-color: #97a598; border-color: #97a598; }
-        
-        #cloud-restore-btn { background-color: #C3AAA6; color: white; border-color: #C3AAA6; }
-        #cloud-restore-btn:hover { background-color: #b09793; border-color: #b09793; }
-        
-        #google-login-btn {
-            background-color: #4285F4;
+        .action-icon-btn svg {
+            width: 15px;
+            height: 15px;
+            fill: currentColor;
+            flex-shrink: 0;
+        }
+
+        /* 儲存覆蓋：高對比純黑醒目樣式 */
+        #cloud-save-btn {
+            background-color: #111111;
             color: #ffffff;
-            border-color: #4285F4;
+            border: 1px solid #111111;
             font-weight: 600;
         }
-        #google-login-btn:hover {
-            background-color: #3367D6;
-            border-color: #3367D6;
+        #cloud-save-btn:hover {
+            background-color: #333333;
+            border-color: #333333;
+        }
+
+        /* 雲端讀取：警示虛線框樣式 */
+        #cloud-restore-btn {
+            background-color: #f9f9f9;
+            color: #333333;
+            border: 1px dashed #666666;
+            font-weight: 600;
+        }
+        #cloud-restore-btn:hover {
+            background-color: #333333;
             color: #ffffff;
+            border-color: #333333;
+            border-style: solid;
         }
 
         #cloud-status {
@@ -133,6 +163,53 @@
             color: var(--text-muted);
             font-weight: 500;
             margin-left: 4px;
+            white-space: nowrap;
+        }
+
+        /* 手機與平板專用響應式排版，防止任何按鈕跑版 */
+        @media (max-width: 768px) {
+            body {
+                padding: 12px;
+            }
+            .header-controls {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 6px;
+            }
+            .date-input-wrapper {
+                grid-column: span 4;
+                width: 100%;
+                min-width: 0;
+            }
+            .action-icon-btn {
+                padding: 6px 4px;
+                font-size: 0.78rem;
+                height: 38px;
+                flex: none;
+                width: 100%;
+                justify-content: center;
+            }
+            .action-icon-btn svg {
+                width: 13px;
+                height: 13px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-controls {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .date-input-wrapper {
+                grid-column: span 2;
+            }
+            .action-icon-btn {
+                font-size: 0.82rem;
+                padding: 6px 8px;
+            }
+            .action-icon-btn svg {
+                width: 14px;
+                height: 14px;
+            }
         }
 
         .card {
@@ -244,39 +321,67 @@
 
 <div class="container">
     <header>
-        <h1>ÉCOLE CAFÉ 智慧交班系統</h1>
+        <div class="header-title-row">
+            <h1>ÉCOLE CAFÉ 智慧交班系統</h1>
+            <span id="cloud-status"></span>
+        </div>
+        
+        <!-- 控制列：優化名稱與手機防跑版排版 -->
         <div class="header-controls">
-            <!-- 1. 日期 -->
+            <!-- 1. 日期選擇 -->
             <div class="date-input-wrapper">
-                <span>日期：</span>
+                <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
                 <input type="date" id="briefing-date-picker" onchange="window.onDateChange()">
             </div>
             
-            <!-- 2. 登入 -->
-            <button type="button" class="action-icon-btn" id="google-login-btn" onclick="window.handleGoogleLogin()">Google 登入</button>
+            <!-- 2. Google 登入 -->
+            <button type="button" class="action-icon-btn" id="google-login-btn" onclick="window.handleGoogleLogin()">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+                <span class="btn-label">Google 登入</span>
+            </button>
             
-            <!-- 3. 雲端儲存 -->
-            <button type="button" class="action-icon-btn" id="cloud-save-btn" onclick="window.manualCloudSave()">雲端儲存</button>
+            <!-- 3. 儲存覆蓋 (原：雲端儲存) -->
+            <button type="button" class="action-icon-btn" id="cloud-save-btn" onclick="window.manualCloudSave()" title="將目前輸入內容儲存覆蓋至雲端">
+                <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+                <span>儲存覆蓋</span>
+            </button>
             
-            <!-- 4. 雲端讀取 -->
-            <button type="button" class="action-icon-btn" id="cloud-restore-btn" onclick="window.restoreFromCloud()">雲端讀取</button>
-            <span id="cloud-status"></span>
+            <!-- 4. 雲端讀取 (原：⚠️ 讀取覆蓋) -->
+            <button type="button" class="action-icon-btn" id="cloud-restore-btn" onclick="window.restoreFromCloud()" title="從雲端重新載入資料">
+                <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                <span>雲端讀取</span>
+            </button>
             
             <!-- 5. 人員配置 -->
-            <button type="button" class="action-icon-btn" onclick="openStaffModal()">人員配置</button>
+            <button type="button" class="action-icon-btn" onclick="openStaffModal()" title="人員配置">
+                <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                <span>人員配置</span>
+            </button>
             
             <!-- 6. 匯出備份 -->
-            <button type="button" class="action-icon-btn" onclick="exportJSON()">匯出備份</button>
+            <button type="button" class="action-icon-btn" onclick="exportJSON()" title="匯出備份">
+                <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                <span>匯出備份</span>
+            </button>
             
             <!-- 7. 讀取備份 -->
-            <button type="button" class="action-icon-btn" onclick="document.getElementById('import-file').click()">讀取備份</button>
+            <button type="button" class="action-icon-btn" onclick="document.getElementById('import-file').click()" title="讀取備份">
+                <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+                <span>讀取備份</span>
+            </button>
             <input type="file" id="import-file" class="hidden-file-input" accept=".json" onchange="importJSON(event)">
             
-            <!-- 8. 匯出圖表 -->
-            <button type="button" class="action-icon-btn export-img-btn" onclick="window.downloadWeeklyReportJPG()">匯出週報圖表</button>
+            <!-- 8. 匯出週報圖表 -->
+            <button type="button" class="action-icon-btn" onclick="window.downloadWeeklyReportJPG()" title="匯出週報圖表">
+                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/></svg>
+                <span>週報圖表</span>
+            </button>
             
-            <!-- 9. 返回 -->
-            <button type="button" class="action-icon-btn" onclick="undoLastAction()">↩️ 返回上一步</button>
+            <!-- 9. 返回上一步 -->
+            <button type="button" class="action-icon-btn" onclick="undoLastAction()" title="返回上一步">
+                <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+                <span>上一步</span>
+            </button>
         </div>
     </header>
 
@@ -346,7 +451,7 @@
         </div>
 
         <div class="card">
-            <div class="section-title">├── 🌤 今日天氣預報</div>
+            <div class="section-title">├── 🌤 今日天氣</div>
             <div style="margin-top:12px; margin-bottom:10px; font-size:0.85rem; color: var(--text-muted);">
                 系統自動抓取（台北市當日平均預報）：<span id="auto-weather-display">讀取中...</span>
             </div>
@@ -480,7 +585,7 @@
             <img id="report-preview-img" style="width: 100%; height: auto; border-radius: 4px;" alt="週報圖片預覽">
         </div>
         <div style="display: flex; gap: 10px; justify-content: center; margin-top: 16px;">
-            <button type="button" class="action-icon-btn export-img-btn" style="flex: 1; padding: 10px; font-weight: 600;" onclick="shareOrSaveReport()">📲 分享至 LINE / 儲存相片</button>
+            <button type="button" class="action-icon-btn" style="flex: 1; padding: 10px; font-weight: 600; background: #111; color: #fff;" onclick="shareOrSaveReport()">📲 分享至 LINE / 儲存相片</button>
             <button type="button" class="action-icon-btn" style="flex: 1; padding: 10px;" onclick="closeReportPreviewModal()">關閉</button>
         </div>
         <p style="font-size: 11px; color: #666; margin-top: 8px;">(若無法直接分享，手機用戶可長按上方圖片儲存至相片後再分享)</p>
@@ -503,7 +608,7 @@
                 <div id="report-weekly-total-rev" style="font-size: 22px; font-weight: 800; color: #111; margin-top: 4px;">$0</div>
             </div>
             <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 14px; border-radius: 8px;">
-                <h3 style="font-size: 15px; margin-bottom: 10px; border-left: 3px solid #5b6770; padding-left: 8px; color: #333;">一週每日營業額分佈</h3>
+                <h3 style="font-size: 15px; margin-bottom: 10px; border-left: 3px solid #111; padding-left: 8px; color: #333;">一週每日營業額分佈</h3>
                 <div style="width: 100%; height: 180px;">
                     <canvas id="weeklyChart"></canvas>
                 </div>
@@ -517,7 +622,7 @@
                 <div id="report-month-rate" style="font-size: 22px; font-weight: 800; color: #111; margin-top: 4px;">0%</div>
             </div>
             <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 14px; border-radius: 8px; display: flex; flex-direction: column;">
-                <h3 style="font-size: 15px; margin-bottom: 10px; border-left: 3px solid #5b6770; padding-left: 8px; color: #333;">交辦與新增項目摘要</h3>
+                <h3 style="font-size: 15px; margin-bottom: 10px; border-left: 3px solid #111; padding-left: 8px; color: #333;">交辦與新增項目摘要</h3>
                 <div id="report-special-items" style="font-size: 13px; line-height: 1.6; color: #333; overflow-y: auto; max-height: 180px; white-space: pre-wrap;"></div>
             </div>
         </div>
@@ -525,7 +630,7 @@
 
     <!-- 圖表與兩欄下方之專屬獨立欄位：意見討論與結果內容 -->
     <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 14px; border-radius: 8px; display: flex; flex-direction: column;">
-        <h3 style="font-size: 15px; margin-bottom: 10px; border-left: 3px solid #5b6770; padding-left: 8px; color: #333;">意見討論與結果內容</h3>
+        <h3 style="font-size: 15px; margin-bottom: 10px; border-left: 3px solid #111; padding-left: 8px; color: #333;">意見討論與結果內容</h3>
         <div id="report-discussion-items" style="font-size: 13px; line-height: 1.6; color: #333; overflow-y: auto; max-height: 150px; white-space: pre-wrap;"></div>
     </div>
 </div>
@@ -579,27 +684,37 @@
         }
     }
 
-    onAuthStateChanged(auth, async (user) => {
+    function updateLoginBtnUI(user) {
         const loginBtn = document.getElementById('google-login-btn');
+        if (!loginBtn) return;
+        const labelSpan = loginBtn.querySelector('.btn-label');
+        if (user) {
+            if (labelSpan) labelSpan.innerText = `${user.displayName || '已登入'} (登出)`;
+        } else {
+            if (labelSpan) labelSpan.innerText = 'Google 登入';
+        }
+    }
+
+    onAuthStateChanged(auth, async (user) => {
         if (user) {
             const isAllowed = await checkWhitelist(user.email);
             if (!isAllowed) {
                 alert(`權限不足：您的帳號 (${user.email}) 不在雲端白名單 (systemConfig/whitelist) 中，將強制登出！`);
                 await signOut(auth);
                 window.currentUser = null;
-                loginBtn.innerText = 'Google 登入';
+                updateLoginBtnUI(null);
                 return;
             }
 
             window.currentUser = user;
-            loginBtn.innerText = `${user.displayName || '已登入'} (登出)`;
+            updateLoginBtnUI(user);
             if (!hasAutoRestored) {
                 hasAutoRestored = true;
                 window.restoreFromCloud(true);
             }
         } else {
             window.currentUser = null;
-            loginBtn.innerText = 'Google 登入';
+            updateLoginBtnUI(null);
             window.isCloudLoaded = false;
             hasAutoRestored = false;
         }
@@ -639,6 +754,7 @@
         }
     }
 
+    // 儲存覆蓋：點擊防呆確認
     window.manualCloudSave = async function() {
         if (!window.currentUser) {
             alert("請先進行 Google 登入！");
@@ -648,8 +764,12 @@
             alert("雲端資料尚未讀取完成，請稍候片刻再試一次（系統正在確保不會覆蓋現有雲端資料）。");
             return;
         }
+
+        const confirmSave = confirm(`【儲存覆蓋確認】\n日期：${window.currentDateVal}\n\n確定要將目前的交班表單內容「儲存覆蓋」至雲端嗎？\n（此操作將會更新並覆蓋雲端資料庫該日紀錄）`);
+        if (!confirmSave) return;
+
         const statusSpan = document.getElementById('cloud-status');
-        statusSpan.innerText = '☁️ 雲端同步中...';
+        if (statusSpan) statusSpan.innerText = '☁️ 儲存中...';
         try {
             const dateToSave = window.currentDateVal;
             if (typeof saveCurrentDayData === 'function') saveCurrentDayData(dateToSave); 
@@ -665,11 +785,11 @@
             
             await setDoc(doc(db, "systemConfig", "employees"), { list: window.globalDataStore.employees });
 
-            statusSpan.innerText = '✅ 儲存成功';
-            setTimeout(() => { if (statusSpan.innerText === '✅ 儲存成功') statusSpan.innerText = ''; }, 3000);
+            if (statusSpan) statusSpan.innerText = '✅ 儲存成功';
+            setTimeout(() => { if (statusSpan && statusSpan.innerText === '✅ 儲存成功') statusSpan.innerText = ''; }, 3000);
             alert("資料已成功手動儲存至雲端！");
         } catch (error) {
-            statusSpan.innerText = '⚠️ 儲存失敗';
+            if (statusSpan) statusSpan.innerText = '⚠️ 儲存失敗';
             alert("雲端儲存失敗: " + error.message);
         }
     }
@@ -695,15 +815,22 @@
         }
     }
 
+    // 雲端讀取：手動點擊時觸發強烈防覆蓋警示提醒
     window.restoreFromCloud = async function(isSilent = false) {
         if (!window.currentUser) {
             if (!isSilent) alert('請先進行 Google 登入！');
             return;
         }
+
+        if (!isSilent) {
+            const confirmRestore = confirm(`【雲端讀取確認】\n日期：${window.currentDateVal}\n\n讀取雲端資料將會「覆蓋」目前畫面上所有尚未儲存的修改！\n\n確定要放棄當前未儲存變更，並重新載入雲端資料嗎？`);
+            if (!confirmRestore) return;
+        }
+
         try {
             window.isCloudLoaded = false;
             const statusSpan = document.getElementById('cloud-status');
-            if (statusSpan) statusSpan.innerText = '讀取雲端...';
+            if (statusSpan) statusSpan.innerText = '讀取中...';
 
             const empSnap = await getDoc(doc(db, "systemConfig", "employees"));
             if (empSnap.exists() && empSnap.data().list) {
@@ -733,7 +860,6 @@
             if (!isSilent) alert('雲端讀取失敗：' + error.message);
             const statusSpan = document.getElementById('cloud-status');
             if (statusSpan) statusSpan.innerText = '';
-            // 讀取出錯時保持解鎖鎖定，避免空資料寫入雲端
             window.isCloudLoaded = false;
         }
     }
@@ -842,7 +968,7 @@
         const endDate = weekDates[6];
 
         const statusSpan = document.getElementById('cloud-status');
-        if(statusSpan) statusSpan.innerText = '📊 產生週報中...';
+        if(statusSpan) statusSpan.innerText = '📊 週報生成中...';
 
         let weekDataMap = {};
         try {
@@ -856,7 +982,6 @@
             return;
         }
 
-        // 合併本日本機最新未上傳變更
         if (window.globalDataStore.dailyTracking[window.currentDateVal]) {
             weekDataMap[window.currentDateVal] = window.globalDataStore.dailyTracking[window.currentDateVal];
         }
@@ -956,7 +1081,7 @@
                 datasets: [{
                     label: '日營業額',
                     data: weekRevs,
-                    backgroundColor: '#5b6770',
+                    backgroundColor: '#111111',
                     borderRadius: 4
                 }]
             },
@@ -1021,18 +1146,7 @@
                 `;
                 const blob = new Blob([swCode], { type: 'application/javascript' });
                 const blobUrl = URL.createObjectURL(blob);
-                navigator.serviceWorker.register(blobUrl).then(reg => {
-                    reg.onupdatefound = () => {
-                        const newWorker = reg.installing;
-                        newWorker.onstatechange = () => {
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                if (confirm('發現系統有新版本，是否立即重新載入以更新內容？')) {
-                                    window.location.reload();
-                                }
-                            }
-                        };
-                    };
-                }).catch(e => console.log('PWA ServiceWorker Registration Bypassed:', e));
+                navigator.serviceWorker.register(blobUrl).catch(e => console.log('PWA ServiceWorker Registration Bypassed:', e));
 
                 const manifest = {
                     name: "ÉCOLE CAFÉ 智慧交班系統", short_name: "交班系統", display: "standalone",
@@ -1064,41 +1178,24 @@
         return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
     }
 
-    function weatherCodeToText(code) {
-        const map = {
-            0: '晴朗', 1: '晴時多雲', 2: '多雲', 3: '陰天',
-            45: '起霧', 48: '濃霧',
-            51: '毛毛雨', 53: '毛毛雨', 55: '毛毛雨',
-            61: '小雨', 63: '中雨', 65: '大雨',
-            66: '凍雨', 67: '凍雨',
-            71: '小雪', 73: '中雪', 75: '大雪',
-            80: '陣雨', 81: '陣雨', 82: '強陣雨',
-            95: '雷雨', 96: '雷雨', 99: '強雷雨'
-        };
-        return map[code] || '天氣不明';
-    }
-
     async function fetchDayWeather(dateStr) {
         const displayEl = document.getElementById('auto-weather-display');
         if (!displayEl) return;
         try {
-            const resp = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=25.0330&longitude=121.5654&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTaipei&start_date=${dateStr}&end_date=${dateStr}`);
+            const resp = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=25.0330&longitude=121.5654&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FTaipei&start_date=${dateStr}&end_date=${dateStr}`);
             if (!resp.ok) throw new Error('氣象資料請求失敗');
             const data = await resp.json();
             const daily = data && data.daily;
-            if (!daily || !daily.weathercode || daily.weathercode.length === 0) throw new Error('無氣象資料');
+            if (!daily || !daily.temperature_2m_max || daily.temperature_2m_max.length === 0) throw new Error('無氣象資料');
 
-            const code = daily.weathercode[0];
             const maxT = Math.round(daily.temperature_2m_max[0]);
             const minT = Math.round(daily.temperature_2m_min[0]);
-            const avgT = Math.round((maxT + minT) / 2);
-            const desc = weatherCodeToText(code);
 
-            autoWeatherText = `${desc}，全天均溫約 ${avgT}°C (${minT}°C ~ ${maxT}°C)`;
+            autoWeatherText = `${minT}°C ~ ${maxT}°C`;
             displayEl.innerText = autoWeatherText;
         } catch (err) {
-            displayEl.innerText = autoWeatherText || '（無該日期自動預報資料，可手動選擇下方選項）';
-            console.warn('天氣預報抓取失敗:', err);
+            displayEl.innerText = autoWeatherText || '（無該日期氣象資料）';
+            console.warn('天氣抓取失敗:', err);
         }
     }
 
@@ -1369,9 +1466,7 @@
         }
 
         renderWeatherOptions();
-        
         fetchDayWeather(dateVal);
-
         window.updateMonthlyCumulative();
     }
 
