@@ -65,7 +65,7 @@
             letter-spacing: -0.02em;
         }
 
-        /* 桌機端：彈性等距離排列 */
+        /* 控制列佈局 */
         .header-controls {
             display: flex;
             align-items: center;
@@ -87,6 +87,14 @@
             height: 38px;
             flex: 1 1 auto;
             min-width: 160px;
+        }
+
+        /* 關鍵修正：嚴格約束 SVG 圖示尺寸，防止 iOS WebKit 爆框巨大化 */
+        .date-input-wrapper svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+            flex-shrink: 0;
         }
 
         .date-input-wrapper input[type="date"] {
@@ -166,7 +174,7 @@
             white-space: nowrap;
         }
 
-        /* 手機與平板專用響應式排版，防止任何按鈕跑版 */
+        /* 手機與平板專用響應式排版 */
         @media (max-width: 768px) {
             body {
                 padding: 12px;
@@ -326,7 +334,6 @@
             <span id="cloud-status"></span>
         </div>
         
-        <!-- 控制列：優化名稱與手機防跑版排版 -->
         <div class="header-controls">
             <!-- 1. 日期選擇 -->
             <div class="date-input-wrapper">
@@ -340,13 +347,13 @@
                 <span class="btn-label">Google 登入</span>
             </button>
             
-            <!-- 3. 儲存覆蓋 (原：雲端儲存) -->
+            <!-- 3. 儲存覆蓋 -->
             <button type="button" class="action-icon-btn" id="cloud-save-btn" onclick="window.manualCloudSave()" title="將目前輸入內容儲存覆蓋至雲端">
                 <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
                 <span>儲存覆蓋</span>
             </button>
             
-            <!-- 4. 雲端讀取 (原：⚠️ 讀取覆蓋) -->
+            <!-- 4. 雲端讀取 -->
             <button type="button" class="action-icon-btn" id="cloud-restore-btn" onclick="window.restoreFromCloud()" title="從雲端重新載入資料">
                 <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
                 <span>雲端讀取</span>
@@ -628,7 +635,7 @@
         </div>
     </div>
 
-    <!-- 圖表與兩欄下方之專屬獨立欄位：意見討論與結果內容 -->
+    <!-- 意見討論與結果內容 -->
     <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 14px; border-radius: 8px; display: flex; flex-direction: column;">
         <h3 style="font-size: 15px; margin-bottom: 10px; border-left: 3px solid #111; padding-left: 8px; color: #333;">意見討論與結果內容</h3>
         <div id="report-discussion-items" style="font-size: 13px; line-height: 1.6; color: #333; overflow-y: auto; max-height: 150px; white-space: pre-wrap;"></div>
@@ -815,7 +822,7 @@
         }
     }
 
-    // 雲端讀取：手動點擊時觸發強烈防覆蓋警示提醒
+    // 雲端讀取：手動點擊時觸發防覆蓋警示提醒
     window.restoreFromCloud = async function(isSilent = false) {
         if (!window.currentUser) {
             if (!isSilent) alert('請先進行 Google 登入！');
