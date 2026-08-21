@@ -174,9 +174,10 @@
         <div class="border border-gray-200 flex-1 table-container relative" id="scheduleCaptureArea">
             <table id="scheduleTable">
                 <thead id="tableHead"></thead>
+                <!-- 調整 A：備註列移動至日期下方 -->
+                <tbody id="noteBody" class="border-b-2 border-gray-300"></tbody>
                 <tbody id="tableBody"></tbody>
                 <tbody id="stationBody" class="border-t-2 border-gray-300"></tbody>
-                <tbody id="noteBody" class="border-t-2 border-gray-300"></tbody>
             </table>
         </div>
         
@@ -327,7 +328,7 @@
                 </div>
             </div>
 
-            <!-- 全員可用：個人特別備註與需求 (支援自動跳行與完整檢視) -->
+            <!-- 全員可用：個人特別備註與需求 -->
             <div class="border-t pt-3">
                 <div class="text-xs text-gray-500 font-bold tracking-widest mb-1.5 flex justify-between items-center">
                     <span>個人備註 / 特殊需求</span>
@@ -400,16 +401,18 @@
         </div>
     </dialog>
 
+    <!-- 調整 A：新增「國定假日」選項按鈕 -->
     <dialog id="noteDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-sm border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
             <h3 class="font-bold text-gray-800 tracking-wide" id="noteDialogTitle">當日備註</h3>
             <button onclick="closeNoteDialog()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
         </div>
         <div class="p-4 bg-white flex flex-col gap-3">
-            <div class="grid grid-cols-3 gap-2">
-                <button onclick="setNote('員工會議')" class="border border-gray-200 py-2 rounded text-sm hover:bg-gray-50">員工會議</button>
-                <button onclick="setNote('主管會議')" class="border border-gray-200 py-2 rounded text-sm hover:bg-gray-50">主管會議</button>
-                <button onclick="setNote('店休')" class="border border-red-200 text-red-600 py-2 rounded text-sm hover:bg-red-50">店休</button>
+            <div class="grid grid-cols-4 gap-1.5">
+                <button onclick="setNote('國定假日')" class="border border-red-200 text-red-600 py-2 rounded text-xs font-bold hover:bg-red-50">國定假日</button>
+                <button onclick="setNote('員工會議')" class="border border-gray-200 py-2 rounded text-xs hover:bg-gray-50">員工會議</button>
+                <button onclick="setNote('主管會議')" class="border border-gray-200 py-2 rounded text-xs hover:bg-gray-50">主管會議</button>
+                <button onclick="setNote('店休')" class="border border-red-200 text-red-600 py-2 rounded text-xs hover:bg-red-50">店休</button>
             </div>
             <textarea id="customNote" rows="3" class="border border-gray-300 rounded p-2 text-sm w-full mt-2 outline-none focus:border-black" placeholder="輸入自訂備註..."></textarea>
             <div class="flex gap-2">
@@ -555,12 +558,13 @@
             });
         }
 
+        // 調整 B：預設人員結構加入 totalAnnualLeave 欄位
         let defaultEmployees = [
-            { id: 'FT1', name: '織俽', type: 'FT' }, { id: 'FT2', name: '龍', type: 'FT' },
-            { id: 'FT3', name: '沐', type: 'FT' }, { id: 'FT4', name: '訓鋒', type: 'FT' },
-            { id: 'FT5', name: '沛宜', type: 'FT' }, { id: 'PT1', name: '耀霆', type: 'PT' },
-            { id: 'PT2', name: '煥哲', type: 'PT' }, { id: 'PT3', name: '書書', type: 'PT' },
-            { id: 'PT4', name: '澤凱', type: 'PT' }, { id: 'PT5', name: '婉庭', type: 'PT' }
+            { id: 'FT1', name: '織俽', type: 'FT', totalAnnualLeave: 7 }, { id: 'FT2', name: '龍', type: 'FT', totalAnnualLeave: 7 },
+            { id: 'FT3', name: '沐', type: 'FT', totalAnnualLeave: 7 }, { id: 'FT4', name: '訓鋒', type: 'FT', totalAnnualLeave: 7 },
+            { id: 'FT5', name: '沛宜', type: 'FT', totalAnnualLeave: 7 }, { id: 'PT1', name: '耀霆', type: 'PT', totalAnnualLeave: 0 },
+            { id: 'PT2', name: '煥哲', type: 'PT', totalAnnualLeave: 0 }, { id: 'PT3', name: '書書', type: 'PT', totalAnnualLeave: 0 },
+            { id: 'PT4', name: '澤凱', type: 'PT', totalAnnualLeave: 0 }, { id: 'PT5', name: '婉庭', type: 'PT', totalAnnualLeave: 0 }
         ];
 
         const defaultShiftTypes = {
@@ -770,25 +774,47 @@
                 <th rowspan="2" class="sticky-corner px-2 py-1 border-r border-gray-200" style="left: 40px; width: 60px; min-width: 60px; max-width: 60px;">姓名</th>
                 <th rowspan="2" class="sticky-corner px-1 py-1 text-[10px] text-gray-500 font-normal leading-tight border-r-2 border-gray-300" style="left: 100px; width: 40px; min-width: 40px; max-width: 40px;">上月<br>連續</th>`;
             
+            // 調整 A：若備註為「國定假日」，日期數字顯示紅字
             for (let i = 1; i <= daysInMonth; i++) {
                 const dayIndex = (firstDayOfWeek + i - 1) % 7;
                 const isWeekend = dayIndex === 0 || dayIndex === 6;
-                const dateClass = isWeekend ? 'text-red-600 font-bold' : 'text-gray-500 font-normal';
+                const n = noteData[currentYearMonth]?.[i] || '';
+                const isNationalHoliday = n.includes('國定假日');
+                const isRedDay = isWeekend || isNationalHoliday;
+                const dateClass = isRedDay ? 'text-red-600 font-bold' : 'text-gray-500 font-normal';
                 theadHTML += `<th class="day-col-${i} px-1 pt-2 pb-1 text-sm border-b-0 ${dateClass}">${i}</th>`;
             }
             
+            // 調整 B：修改年假欄位標題為「本月使用年假」與「剩餘年假(天)」
             theadHTML += `<th rowspan="2" class="px-2 py-1 min-w-[60px] text-xs font-normal text-gray-500 border-l-2 border-gray-300 right-name-col">姓名</th>
                           <th rowspan="2" class="px-2 py-1 min-w-[80px] text-xs font-normal text-gray-500 border-l border-gray-200">月休 / 工時</th>
-                          <th rowspan="2" class="px-2 py-1 min-w-[50px] text-xs font-normal text-gray-500 border-l border-gray-200">年假<br>(天)</th></tr><tr>`;
+                          <th rowspan="2" class="px-2 py-1 min-w-[60px] text-xs font-normal text-gray-500 border-l border-gray-200">本月使用<br>年假</th>
+                          <th rowspan="2" class="px-2 py-1 min-w-[60px] text-xs font-normal text-gray-500 border-l border-gray-200">剩餘年假<br>(天)</th></tr><tr>`;
             
+            // 調整 A：若備註為「國定假日」，星期簡稱顯示紅字
             for (let i = 1; i <= daysInMonth; i++) {
                 const dayIndex = (firstDayOfWeek + i - 1) % 7;
                 const isWeekend = dayIndex === 0 || dayIndex === 6;
-                const weekdayClass = isWeekend ? 'text-red-600 font-bold' : 'text-gray-400 font-normal';
+                const n = noteData[currentYearMonth]?.[i] || '';
+                const isNationalHoliday = n.includes('國定假日');
+                const isRedDay = isWeekend || isNationalHoliday;
+                const weekdayClass = isRedDay ? 'text-red-600 font-bold' : 'text-gray-400 font-normal';
                 theadHTML += `<th class="day-col-${i} px-1 pt-1 pb-2 text-xs border-t-0 ${weekdayClass}">${weekDays[dayIndex]}</th>`;
             }
             theadHTML += `</tr>`;
             document.getElementById('tableHead').innerHTML = theadHTML;
+
+            // 調整 A：渲染移動到日期正下方的備註列
+            let noteHTML = `<tr><th colspan="3" class="sticky-col px-2 py-1 text-sm font-normal text-gray-700 bg-white border-r-2 border-gray-300" style="left: 0; z-index: 10;">備註</th>`;
+            for (let i = 1; i <= daysInMonth; i++) {
+                const n = noteData[currentYearMonth]?.[i] || '';
+                const isNatHoliday = n.includes('國定假日');
+                const pointerClass = (currentUserRole === 'admin') ? 'shift-cell' : 'cursor-default';
+                const holidayClass = isNatHoliday ? 'text-red-600 font-bold bg-red-50' : 'text-gray-500 bg-white';
+                noteHTML += `<td class="day-col-${i} ${pointerClass} ${holidayClass} text-[10px]" onclick="openNoteDialog(${i})">${escapeHTML(n)}</td>`;
+            }
+            noteHTML += `<td class="bg-white border-l-2 border-gray-300 right-name-col"></td><td class="bg-white border-l border-gray-200"></td><td class="bg-white border-l border-gray-200"></td><td class="bg-white border-l border-gray-200"></td></tr>`;
+            document.getElementById('noteBody').innerHTML = noteHTML;
 
             let tbodyHTML = '';
             let currentType = '';
@@ -845,14 +871,20 @@
                     ? `<span class="${daysOff < 8 ? 'text-black font-bold' : 'text-gray-600'}">${daysOff} 天</span>`
                     : `<span class="text-gray-600">${totalHours.toFixed(1)} hr</span>`;
                 
+                // 調整 B：計算剩餘年假 (總年假 - 本月使用年假)
+                const totalAnnualLeave = (emp.totalAnnualLeave !== undefined) ? emp.totalAnnualLeave : 0;
+                const remainingAnnualLeave = totalAnnualLeave - annualLeaves;
+                const remainingClass = remainingAnnualLeave < 0 ? 'text-red-600 font-bold' : 'text-gray-700 font-bold';
+
                 tbodyHTML += `<td class="px-2 py-1 text-sm bg-white border-l-2 border-gray-300 font-normal right-name-col">${escapeHTML(emp.name)}</td>`;
                 tbodyHTML += `<td class="px-2 py-1 text-xs bg-white border-l border-gray-200">${statsText}</td>`;
-                tbodyHTML += `<td class="px-2 py-1 text-xs bg-white text-gray-500 font-bold border-l border-gray-200">${annualLeaves > 0 ? annualLeaves : ''}</td></tr>`;
+                tbodyHTML += `<td class="px-2 py-1 text-xs bg-white text-gray-500 font-bold border-l border-gray-200">${annualLeaves > 0 ? annualLeaves : ''}</td>`;
+                tbodyHTML += `<td class="px-2 py-1 text-xs bg-white border-l border-gray-200 ${remainingClass}">${remainingAnnualLeave}</td></tr>`;
             });
             document.getElementById('tableBody').innerHTML = tbodyHTML;
 
-            // 修正：STATION ASSIGNMENTS 區塊格位高度統一
-            let stationHTML = `<tr><td colspan="${daysInMonth + 6}" class="station-title-row bg-gray-100 text-left px-4 py-1 text-xs text-gray-500 font-bold tracking-widest border-t-2 border-gray-300">STATION ASSIGNMENTS (內外場配置)</td></tr>`;
+            // 內外場配置區塊
+            let stationHTML = `<tr><td colspan="${daysInMonth + 7}" class="station-title-row bg-gray-100 text-left px-4 py-1 text-xs text-gray-500 font-bold tracking-widest border-t-2 border-gray-300">STATION ASSIGNMENTS (內外場配置)</td></tr>`;
             stations.forEach(st => {
                 const rowClass = st === '外場' ? 'station-row-light' : 'station-row-deep';
                 const bgHex = st === '外場' ? '#F0F0F0' : '#e5e7eb';
@@ -880,18 +912,9 @@
 
                     stationHTML += `<td class="day-col-${i} ${cellClass} ${pointerClass}" onclick="openStationDialog('${st}', ${i})">${displayHTML}</td>`;
                 }
-                stationHTML += `<td class="border-l-2 border-gray-300 right-name-col"></td><td class="border-l border-gray-200"></td><td class="border-l border-gray-200"></td></tr>`;
+                stationHTML += `<td class="border-l-2 border-gray-300 right-name-col"></td><td class="border-l border-gray-200"></td><td class="border-l border-gray-200"></td><td class="border-l border-gray-200"></td></tr>`;
             });
             document.getElementById('stationBody').innerHTML = stationHTML;
-
-            let noteHTML = `<tr><th colspan="3" class="sticky-col px-2 py-1 text-sm font-normal text-gray-700 bg-white border-r-2 border-gray-300" style="left: 0; z-index: 10;">備註</th>`;
-            for (let i = 1; i <= daysInMonth; i++) {
-                const n = noteData[currentYearMonth]?.[i] || '';
-                const pointerClass = (currentUserRole === 'admin') ? 'shift-cell' : 'cursor-default';
-                noteHTML += `<td class="day-col-${i} ${pointerClass} text-[10px] text-gray-500 bg-white" onclick="openNoteDialog(${i})">${escapeHTML(n)}</td>`;
-            }
-            noteHTML += `<td class="bg-white border-l-2 border-gray-300 right-name-col"></td><td class="bg-white border-l border-gray-200"></td><td class="bg-white border-l border-gray-200"></td></tr>`;
-            document.getElementById('noteBody').innerHTML = noteHTML;
         }
 
         function calculateHours(shiftStr) {
@@ -1038,22 +1061,28 @@
             document.getElementById('empManageDialog').showModal();
         }
 
+        // 調整 B：在人員管理中新增「總年假」欄位
         function renderEmpManageList() {
             let html = '';
             tempEmployees.forEach((emp, index) => {
                 let bg = emp.type === 'FT' ? 'bg-gray-50 border-gray-300' : 'bg-white border-gray-200';
+                let totalLeave = (emp.totalAnnualLeave !== undefined) ? emp.totalAnnualLeave : 0;
                 html += `
-                <div class="flex items-center gap-3 p-2 border rounded ${bg}">
-                    <span class="text-xs font-bold w-10 text-center ${emp.type === 'FT' ? 'text-black' : 'text-gray-500'}">${emp.type}</span>
+                <div class="flex items-center gap-2 p-2 border rounded ${bg}">
+                    <span class="text-xs font-bold w-8 text-center ${emp.type === 'FT' ? 'text-black' : 'text-gray-500'}">${emp.type}</span>
                     <input type="text" class="border border-gray-300 rounded px-2 py-1 flex-1 text-sm outline-none focus:border-black" value="${escapeHTML(emp.name)}" onchange="tempEmployees[${index}].name = this.value" placeholder="請輸入姓名">
-                    <button onclick="removeEmp(${index})" class="text-red-400 hover:text-red-600 px-2 font-bold text-lg">&times;</button>
+                    <div class="flex items-center gap-1">
+                        <span class="text-[10px] text-gray-500 whitespace-nowrap">總年假:</span>
+                        <input type="number" min="0" max="30" step="0.5" class="border border-gray-300 rounded px-1 py-1 w-12 text-xs text-center outline-none focus:border-black" value="${totalLeave}" onchange="tempEmployees[${index}].totalAnnualLeave = parseFloat(this.value) || 0">
+                    </div>
+                    <button onclick="removeEmp(${index})" class="text-red-400 hover:text-red-600 px-1 font-bold text-lg">&times;</button>
                 </div>`;
             });
             document.getElementById('empListContainer').innerHTML = html;
         }
 
         function addNewEmp(type) {
-            let newEmp = { id: type + '_' + Date.now(), name: '', type: type };
+            let newEmp = { id: type + '_' + Date.now(), name: '', type: type, totalAnnualLeave: (type === 'FT' ? 7 : 0) };
             
             let lastIndex = -1;
             for (let i = tempEmployees.length - 1; i >= 0; i--) {
@@ -1595,9 +1624,10 @@
                 }
             }
             
+            // 調整：圖片匯出時修正 stationTitle colspan (7個非日期欄)
             const stationTitle = clone.querySelector('.station-title-row');
             if (stationTitle) {
-                stationTitle.setAttribute('colspan', (endDay - startDay + 1) + 6);
+                stationTitle.setAttribute('colspan', (endDay - startDay + 1) + 7);
             }
 
             const cells = clone.querySelectorAll('th, td');
