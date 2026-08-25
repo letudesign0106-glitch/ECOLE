@@ -599,22 +599,22 @@
     </div>
 </div>
 
-<!-- 隱藏的營運週報報表容器：用於生成 JPG（已優化：文字字級統一為 14px，取消任何隱藏裁切，高度完全伸展） -->
-<div id="report-export-container" style="position: fixed; top: 0; left: -9999px; width: 800px; background: #ffffff; padding: 36px; border-radius: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Microsoft JhengHei', sans-serif; color: #111; box-sizing: border-box; overflow: visible;">
+<!-- 隱藏的營運週報報表容器：用於生成 JPG（已優化： align-items: flex-start 允許高度自然延伸，Padding 緩衝防護絕不裁切） -->
+<div id="report-export-container" style="position: fixed; top: 0; left: -9999px; width: 800px; background: #ffffff; padding: 36px; border-radius: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Microsoft JhengHei', sans-serif; color: #111; box-sizing: border-box; overflow: visible; height: auto;">
     <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #111; padding-bottom: 12px;">
         <h2 style="font-size: 24px; margin-bottom: 6px; font-weight: 800; letter-spacing: -0.02em;">ÉCOLE CAFÉ 營運週報</h2>
         <p id="report-date-range" style="color: #555; font-size: 14px; margin: 0; font-weight: 500;"></p>
     </div>
 
-    <!-- 兩欄式區域：align-items: stretch 搭配 flex 自然向下伸展 -->
-    <div style="display: flex; gap: 16px; margin-bottom: 16px; align-items: stretch;">
+    <!-- 兩欄式區域：使用 align-items: flex-start 防止右卡片高度被左欄強行壓縮剪裁 -->
+    <div style="display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start;">
         <!-- 左側欄位 -->
         <div style="flex: 1.1; display: flex; flex-direction: column; gap: 16px;">
             <div style="background: #f7f8f9; border: 1px solid #e1e4e8; padding: 14px; border-radius: 8px; text-align: center;">
                 <div style="font-size: 13px; color: #666; font-weight: 600;">本週總營業額</div>
                 <div id="report-weekly-total-rev" style="font-size: 24px; font-weight: 800; color: #111; margin-top: 4px;">$0</div>
             </div>
-            <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 16px; border-radius: 8px; flex: 1;">
+            <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 16px; border-radius: 8px;">
                 <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; border-left: 3px solid #111; padding-left: 8px; color: #111;">一週每日營業額分佈</h3>
                 <div style="width: 100%; height: 200px;">
                     <canvas id="weeklyChart"></canvas>
@@ -622,25 +622,25 @@
             </div>
         </div>
 
-        <!-- 右側欄位 -->
+        <!-- 右側欄位：允許卡片根據內容長度自然向下伸展 -->
         <div style="flex: 1; display: flex; flex-direction: column; gap: 16px;">
             <div style="background: #f7f8f9; border: 1px solid #e1e4e8; padding: 14px; border-radius: 8px; text-align: center;">
                 <div style="font-size: 13px; color: #666; font-weight: 600;">本月目標達成率</div>
                 <div id="report-month-rate" style="font-size: 24px; font-weight: 800; color: #111; margin-top: 4px;">0%</div>
             </div>
-            <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 16px; border-radius: 8px; flex: 1; display: flex; flex-direction: column;">
+            <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 16px; border-radius: 8px; width: 100%; box-sizing: border-box; height: auto;">
                 <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; border-left: 3px solid #111; padding-left: 8px; color: #111;">交辦與新增項目摘要</h3>
-                <!-- 統一本文大小 14px，增加 padding-bottom 8px 避免行高裁切 -->
-                <div id="report-special-items" style="font-size: 14px; line-height: 1.65; color: #222; white-space: pre-wrap; word-break: break-word; padding-bottom: 8px;"></div>
+                <!-- 統一 14px 字級，1.7 行高，底端補 12px 緩衝防護區，防止裁切 -->
+                <div id="report-special-items" style="font-size: 14px; line-height: 1.7; color: #222; white-space: pre-wrap; word-break: break-word; padding-bottom: 12px; overflow: visible; height: auto;"></div>
             </div>
         </div>
     </div>
 
-    <!-- 意見討論與結果內容 (全週彙整) -->
-    <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 16px; border-radius: 8px; display: flex; flex-direction: column;">
+    <!-- 意見討論與結果內容 (全週彙整)：自然向下長高 -->
+    <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 16px; border-radius: 8px; display: flex; flex-direction: column; height: auto;">
         <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; border-left: 3px solid #111; padding-left: 8px; color: #111;">意見討論與結果內容 (全週彙整)</h3>
-        <!-- 統一本文大小 14px，增加 padding-bottom 8px 避免行高裁切 -->
-        <div id="report-discussion-items" style="font-size: 14px; line-height: 1.65; color: #222; white-space: pre-wrap; word-break: break-word; padding-bottom: 8px;"></div>
+        <!-- 統一 14px 字級，1.7 行高，底端補 12px 緩衝防護區，防止裁切 -->
+        <div id="report-discussion-items" style="font-size: 14px; line-height: 1.7; color: #222; white-space: pre-wrap; word-break: break-word; padding-bottom: 12px; overflow: visible; height: auto;"></div>
     </div>
 </div>
 
@@ -649,6 +649,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
     const firebaseConfig = {
             apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
             authDomain: "ecole-1f392.firebaseapp.com",
@@ -948,7 +949,7 @@
         }
     }
 
-    // 匯出週報：完整彙整當週 7 天的所有交辦、對齊與意見討論（不裁切，文字大小統一）
+    // 匯出週報：完整彙整當週 7 天的所有交辦、對齊與意見討論（跨電腦、手機、平板極致防裁切）
     window.downloadWeeklyReportJPG = async function() {
         if (!window.currentUser) return alert('請登入以產生雲端週報！');
         if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal); 
@@ -1015,7 +1016,7 @@
         const achieveRate = document.getElementById('rev-achieve-rate').value;
         document.getElementById('report-month-rate').innerText = achieveRate ? `${achieveRate}%` : '0%';
 
-        // 1. 交辦事項與新增對齊項目 (全週彙整，不裁切，格式縮排調整)
+        // 1. 交辦事項與新增對齊項目 (全週彙整，不裁切，多行換行縮排對齊)
         let taskAlignText = '';
         let weekTaskLines = [];
         let weekAlignLines = [];
@@ -1055,7 +1056,7 @@
         if(!taskAlignText) taskAlignText = '本週無交辦與對齊項目。';
         document.getElementById('report-special-items').innerText = taskAlignText.trim();
 
-        // 2. 意見討論與結果 (全週完整彙整，取消前置多餘點符號)
+        // 2. 意見討論與結果 (全週完整彙整)
         let weekDiscLines = [];
         weekDates.forEach(dStr => {
             const dayData = weekDataMap[dStr];
@@ -1101,13 +1102,15 @@
             }
         });
 
-        // 觸發 html2canvas 生成無裁切影像 (指定精確 scroll 參數與高畫質放大)
+        // 觸發 html2canvas 生成無裁切影像 (跨裝置優化：電腦/手機/平板皆完全相容不裁切)
         const container = document.getElementById('report-export-container');
         container.style.left = '0px';
         container.style.top = '0px';
         container.style.zIndex = '-9999';
         
+        // 延遲確保 DOM Layout 重新計算與繪製完畢
         setTimeout(() => {
+            const targetHeight = container.offsetHeight + 16; // 提供 16px 緩衝區防止底端文字壓裁
             html2canvas(container, {
                 scale: 2,
                 useCORS: true,
@@ -1115,7 +1118,8 @@
                 backgroundColor: '#ffffff',
                 scrollX: 0,
                 scrollY: 0,
-                windowWidth: 800
+                windowWidth: 800,
+                height: targetHeight
             }).then(canvas => {
                 container.style.left = '-9999px';
                 const isMobileOrTablet = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 1024;
