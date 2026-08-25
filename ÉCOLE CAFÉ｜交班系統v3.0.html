@@ -599,8 +599,8 @@
     </div>
 </div>
 
-<!-- 隱藏的營運週報報表容器：用於生成 JPG -->
-<div id="report-export-container" style="position: absolute; top: -9999px; left: -9999px; width: 800px; background: #ffffff; padding: 36px; border-radius: 12px; font-family: sans-serif; color: #111;">
+<!-- 隱藏的營運週報報表容器：用於生成 JPG（已優化：高度自適應，不裁切不隱藏） -->
+<div id="report-export-container" style="position: fixed; top: 0; left: -9999px; width: 800px; background: #ffffff; padding: 36px; border-radius: 12px; font-family: sans-serif; color: #111; box-sizing: border-box;">
     <div style="text-align: center; margin-bottom: 16px; border-bottom: 2px solid #333; padding-bottom: 12px;">
         <h2 style="font-size: 24px; margin-bottom: 4px; font-weight: 800;">ÉCOLE CAFÉ 營運週報</h2>
         <p id="report-date-range" style="color: #666; font-size: 14px; margin: 0;"></p>
@@ -630,15 +630,17 @@
             </div>
             <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 14px; border-radius: 8px; display: flex; flex-direction: column;">
                 <h3 style="font-size: 15px; margin-bottom: 10px; border-left: 3px solid #111; padding-left: 8px; color: #333;">交辦與新增項目摘要</h3>
-                <div id="report-special-items" style="font-size: 13px; line-height: 1.6; color: #333; overflow-y: auto; max-height: 180px; white-space: pre-wrap;"></div>
+                <!-- 解除 max-height 與 overflow，確保完整展開不裁切 -->
+                <div id="report-special-items" style="font-size: 13px; line-height: 1.6; color: #333; white-space: pre-wrap; word-break: break-word;"></div>
             </div>
         </div>
     </div>
 
-    <!-- 意見討論與結果內容 -->
+    <!-- 意見討論與結果內容 (全週完整呈現) -->
     <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 14px; border-radius: 8px; display: flex; flex-direction: column;">
-        <h3 style="font-size: 15px; margin-bottom: 10px; border-left: 3px solid #111; padding-left: 8px; color: #333;">意見討論與結果內容</h3>
-        <div id="report-discussion-items" style="font-size: 13px; line-height: 1.6; color: #333; overflow-y: auto; max-height: 150px; white-space: pre-wrap;"></div>
+        <h3 style="font-size: 15px; margin-bottom: 10px; border-left: 3px solid #111; padding-left: 8px; color: #333;">意見討論與結果內容 (全週彙整)</h3>
+        <!-- 解除 max-height 與 overflow，確保完整展開不裁切 -->
+        <div id="report-discussion-items" style="font-size: 13px; line-height: 1.6; color: #333; white-space: pre-wrap; word-break: break-word;"></div>
     </div>
 </div>
 
@@ -647,6 +649,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
     const firebaseConfig = {
             apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
             authDomain: "ecole-1f392.firebaseapp.com",
@@ -946,6 +949,7 @@
         }
     }
 
+    // 匯出週報：完整彙整當週 7 天的所有交辦、對齊與意見討論（不可裁切）
     window.downloadWeeklyReportJPG = async function() {
         if (!window.currentUser) return alert('請登入以產生雲端週報！');
         if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal); 
@@ -1012,6 +1016,7 @@
         const achieveRate = document.getElementById('rev-achieve-rate').value;
         document.getElementById('report-month-rate').innerText = achieveRate ? `${achieveRate}%` : '0%';
 
+        // 1. 交辦事項與新增對齊項目 (全週彙整，不裁切)
         let taskAlignText = '';
         let weekTaskLines = [];
         let weekAlignLines = [];
@@ -1042,7 +1047,7 @@
         });
 
         weekTaskLines = [...new Set(weekTaskLines)];
-        weekAlignLines = [...new Set(weekAlignLines)].slice(0, 3);
+        weekAlignLines = [...new Set(weekAlignLines)]; // 保留全部對齊項目，不限制顯示筆數
 
         if (weekTaskLines.length > 0) taskAlignText += `【交辦事項（整週）】\n${weekTaskLines.join('\n')}\n\n`;
         if (weekAlignLines.length > 0) taskAlignText += `【本週新增對齊項目】\n${weekAlignLines.join('\n')}`;
@@ -1050,33 +1055,30 @@
         if(!taskAlignText) taskAlignText = '本週無交辦與對齊項目。';
         document.getElementById('report-special-items').innerText = taskAlignText.trim();
 
-        let lastDiscDate = null;
-        let lastDiscLines = [];
-        for (let i = weekDates.length - 1; i >= 0; i--) {
-            const dStr = weekDates[i];
+        // 2. 意見討論與結果 (全週完整彙整，包含所有日期)
+        let weekDiscLines = [];
+        weekDates.forEach(dStr => {
             const dayData = weekDataMap[dStr];
-            if (!dayData || !dayData.discussions) continue;
-            const lines = dayData.discussions.map(d => {
-                const t = typeof d === 'string' ? d : d.topic;
-                const r = typeof d === 'string' ? '' : (d.result || '');
-                return t && t.trim() !== '' ? `• ${t}${r ? ` (結果: ${r})` : ''}` : '';
-            }).filter(Boolean);
-            if (lines.length > 0) {
-                lastDiscDate = dStr;
-                lastDiscLines = lines;
-                break;
-            }
-        }
+            if (!dayData || !dayData.discussions) return;
+            const [, mmLabel, ddLabel] = dStr.split('-');
 
-        let discText;
-        if (lastDiscLines.length > 0) {
-            const [, mmLast, ddLast] = lastDiscDate.split('-');
-            discText = `（${mmLast}/${ddLast}）\n` + lastDiscLines.join('\n');
-        } else {
-            discText = '本週無意見討論內容。';
-        }
+            if (Array.isArray(dayData.discussions)) {
+                dayData.discussions.forEach(d => {
+                    const t = typeof d === 'string' ? d : d.topic;
+                    const r = typeof d === 'string' ? '' : (d.result || '');
+                    if (t && t.trim() !== '') {
+                        weekDiscLines.push(`• [${mmLabel}/${ddLabel}] ${t.trim()}${r && r.trim() ? ` (結果: ${r.trim()})` : ''}`);
+                    }
+                });
+            } else if (typeof dayData.discussions === 'string' && dayData.discussions.trim() !== '') {
+                weekDiscLines.push(`• [${mmLabel}/${ddLabel}] ${dayData.discussions.trim()}`);
+            }
+        });
+
+        let discText = weekDiscLines.length > 0 ? weekDiscLines.join('\n') : '本週無意見討論內容。';
         document.getElementById('report-discussion-items').innerText = discText;
 
+        // 繪製 Chart.js 圖表
         const ctx = document.getElementById('weeklyChart').getContext('2d');
         if (window.weeklyChartInstance) { window.weeklyChartInstance.destroy(); }
         
@@ -1099,12 +1101,14 @@
             }
         });
 
+        // 觸發 html2canvas 生成無裁切影像
         const container = document.getElementById('report-export-container');
-        container.style.top = '0'; container.style.left = '0'; container.style.zIndex = '-1';
+        container.style.left = '0px';
+        container.style.zIndex = '-9999';
         
         setTimeout(() => {
-            html2canvas(container, { scale: 2 }).then(canvas => {
-                container.style.top = '-9999px'; container.style.left = '-9999px';
+            html2canvas(container, { scale: 2, useCORS: true, logging: false }).then(canvas => {
+                container.style.left = '-9999px';
                 const isMobileOrTablet = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 1024;
                 
                 canvas.toBlob(blob => {
@@ -1123,7 +1127,7 @@
                     }
                 }, 'image/jpeg', 0.9);
             });
-        }, 800);
+        }, 600);
     }
 </script>
 
