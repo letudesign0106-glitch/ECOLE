@@ -599,15 +599,15 @@
     </div>
 </div>
 
-<!-- 隱藏的營運週報報表容器：用於生成 JPG（已優化：高度自適應，不裁切不隱藏） -->
+<!-- 隱藏的營運週報報表容器：用於生成 JPG（已優化： align-items: flex-start 解決切邊，文字完整延伸） -->
 <div id="report-export-container" style="position: fixed; top: 0; left: -9999px; width: 800px; background: #ffffff; padding: 36px; border-radius: 12px; font-family: sans-serif; color: #111; box-sizing: border-box;">
     <div style="text-align: center; margin-bottom: 16px; border-bottom: 2px solid #333; padding-bottom: 12px;">
         <h2 style="font-size: 24px; margin-bottom: 4px; font-weight: 800;">ÉCOLE CAFÉ 營運週報</h2>
         <p id="report-date-range" style="color: #666; font-size: 14px; margin: 0;"></p>
     </div>
 
-    <!-- 兩欄式左右對齊排版 -->
-    <div style="display: flex; gap: 16px; margin-bottom: 14px;">
+    <!-- 兩欄式左右對齊排版：使用 align-items: flex-start 防止兩欄互相擠壓與切邊 -->
+    <div style="display: flex; gap: 16px; margin-bottom: 14px; align-items: flex-start;">
         <!-- 左側欄位 -->
         <div style="flex: 1.2; display: flex; flex-direction: column; gap: 14px;">
             <div style="background: #f7f8f9; border: 1px solid #e1e4e8; padding: 12px; border-radius: 8px; text-align: center;">
@@ -631,12 +631,12 @@
             <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 14px; border-radius: 8px; display: flex; flex-direction: column;">
                 <h3 style="font-size: 15px; margin-bottom: 10px; border-left: 3px solid #111; padding-left: 8px; color: #333;">交辦與新增項目摘要</h3>
                 <!-- 解除 max-height 與 overflow，確保完整展開不裁切 -->
-                <div id="report-special-items" style="font-size: 13px; line-height: 1.6; color: #333; white-space: pre-wrap; word-break: break-word;"></div>
+                <div id="report-special-items" style="font-size: 13px; line-height: 1.6; color: #333; white-space: pre-wrap; word-break: break-word; padding-bottom: 4px;"></div>
             </div>
         </div>
     </div>
 
-    <!-- 意見討論與結果內容 (全週完整呈現) -->
+    <!-- 意見討論與結果內容 -->
     <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 14px; border-radius: 8px; display: flex; flex-direction: column;">
         <h3 style="font-size: 15px; margin-bottom: 10px; border-left: 3px solid #111; padding-left: 8px; color: #333;">意見討論與結果內容 (全週彙整)</h3>
         <!-- 解除 max-height 與 overflow，確保完整展開不裁切 -->
@@ -1040,14 +1040,14 @@
                     const cat = typeof item === 'string' ? '通用' : (item.category || '通用');
                     const isNew = typeof item === 'string' ? false : item.isNew;
                     if (val && isNew) {
-                        weekAlignLines.push(`• [${cat}] ${val.split('\n')[0]}`);
+                        weekAlignLines.push(`• [${cat}] ${val.split('\n').join('\n  ')}`);
                     }
                 });
             }
         });
 
         weekTaskLines = [...new Set(weekTaskLines)];
-        weekAlignLines = [...new Set(weekAlignLines)]; // 保留全部對齊項目，不限制顯示筆數
+        weekAlignLines = [...new Set(weekAlignLines)]; // 保留全部對齊項目，不限制筆數
 
         if (weekTaskLines.length > 0) taskAlignText += `【交辦事項（整週）】\n${weekTaskLines.join('\n')}\n\n`;
         if (weekAlignLines.length > 0) taskAlignText += `【本週新增對齊項目】\n${weekAlignLines.join('\n')}`;
@@ -1055,7 +1055,7 @@
         if(!taskAlignText) taskAlignText = '本週無交辦與對齊項目。';
         document.getElementById('report-special-items').innerText = taskAlignText.trim();
 
-        // 2. 意見討論與結果 (全週完整彙整，包含所有日期)
+        // 2. 意見討論與結果 (取消項目標題前贅餘點號，保持格式乾淨)
         let weekDiscLines = [];
         weekDates.forEach(dStr => {
             const dayData = weekDataMap[dStr];
@@ -1067,11 +1067,11 @@
                     const t = typeof d === 'string' ? d : d.topic;
                     const r = typeof d === 'string' ? '' : (d.result || '');
                     if (t && t.trim() !== '') {
-                        weekDiscLines.push(`• [${mmLabel}/${ddLabel}] ${t.trim()}${r && r.trim() ? ` (結果: ${r.trim()})` : ''}`);
+                        weekDiscLines.push(`[${mmLabel}/${ddLabel}] ${t.trim()}${r && r.trim() ? ` (結果: ${r.trim()})` : ''}`);
                     }
                 });
             } else if (typeof dayData.discussions === 'string' && dayData.discussions.trim() !== '') {
-                weekDiscLines.push(`• [${mmLabel}/${ddLabel}] ${dayData.discussions.trim()}`);
+                weekDiscLines.push(`[${mmLabel}/${ddLabel}] ${dayData.discussions.trim()}`);
             }
         });
 
