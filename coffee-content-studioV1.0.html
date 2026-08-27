@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COFFEE CONTENT STUDIO — 咖啡店短影音創作工作台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F5F2EC;
+  --bg-panel:#FDFCFA;
+  --bg-alt:#ECE6D9;
+  --ink:#211E1A;
+  --ink-soft:#5C564C;
+  --ink-faint:#9A9384;
+  --line:#DDD5C4;
+  --line-soft:#E9E3D6;
+  --accent:#3E332A;
+  --accent-soft:#EDE1CD;
+  --accent-line:#C9B79B;
+  --white:#FFFFFF;
+  --radius:2px;
+  --serif:'Noto Serif TC', serif;
+  --sans:'Noto Sans TC','Inter',sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-weight:300;
+  -webkit-font-smoothing:antialiased;
+  letter-spacing:.01em;
+}
+::selection{background:var(--accent-soft);}
+button{font-family:inherit;cursor:pointer;}
+input,textarea,select{font-family:inherit;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+
+/* ---------- Shell ---------- */
+.shell{
+  display:grid;
+  grid-template-columns:240px 1fr 320px;
+  grid-template-rows:64px 1fr;
+  height:100vh;
+  min-height:600px;
+}
+.topbar{
+  grid-column:1 / 4;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 28px;
+  border-bottom:1px solid var(--line);
+  background:var(--bg-panel);
+}
+.brandmark{
+  display:flex;align-items:baseline;gap:10px;
+}
+.brandmark .mark{
+  font-family:var(--serif);
+  font-size:19px;
+  font-weight:600;
+  letter-spacing:.06em;
+}
+.brandmark .sub{
+  font-size:11px;
+  color:var(--ink-faint);
+  letter-spacing:.14em;
+}
+.topbar-meta{
+  display:flex;align-items:center;gap:22px;
+  font-size:11px;color:var(--ink-faint);letter-spacing:.08em;
+}
+.topbar-meta span b{color:var(--ink-soft);font-weight:500;}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--accent-line);}
+
+/* ---------- Sidebar ---------- */
+.sidebar{
+  border-right:1px solid var(--line);
+  background:var(--bg-panel);
+  overflow-y:auto;
+  padding:18px 0 24px;
+}
+.step-item{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:11px 20px;
+  cursor:pointer;
+  border-left:2px solid transparent;
+  transition:background .15s;
+}
+.step-item:hover{background:var(--bg-alt);}
+.step-item.active{
+  background:var(--accent-soft);
+  border-left:2px solid var(--accent);
+}
+.step-num{
+  font-family:var(--serif);
+  font-size:12px;
+  color:var(--ink-faint);
+  padding-top:1px;
+  min-width:18px;
+}
+.step-item.active .step-num{color:var(--accent);font-weight:600;}
+.step-item.done .step-num::after{content:'';}
+.step-label{
+  font-size:13px;
+  color:var(--ink-soft);
+  line-height:1.5;
+}
+.step-item.active .step-label{color:var(--ink);font-weight:500;}
+.step-item.locked{opacity:.4;pointer-events:none;}
+.sidebar-divider{height:1px;background:var(--line);margin:14px 20px;}
+.sidebar-note{
+  padding:0 20px;font-size:10.5px;color:var(--ink-faint);line-height:1.7;letter-spacing:.04em;
+}
+
+/* ---------- Main ---------- */
+.main{
+  overflow-y:auto;
+  padding:36px 40px 80px;
+}
+.main-inner{max-width:760px;margin:0 auto;}
+.section{display:none;}
+.section.active{display:block;animation:fadein .25s ease;}
+@keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+.section-eyebrow{
+  font-size:11px;letter-spacing:.18em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:6px;
+}
+.section-title{
+  font-family:var(--serif);
+  font-size:26px;
+  font-weight:600;
+  margin:0 0 8px;
+}
+.section-desc{
+  font-size:13px;color:var(--ink-soft);line-height:1.8;margin:0 0 30px;max-width:560px;
+}
+
+.field-group{margin-bottom:22px;}
+.field-label{
+  display:block;font-size:12px;color:var(--ink-soft);margin-bottom:8px;letter-spacing:.04em;
+}
+.field-label .req{color:var(--accent-line);margin-left:2px;}
+.field-input,.field-textarea,.field-select{
+  width:100%;
+  padding:11px 13px;
+  border:1px solid var(--line);
+  background:var(--bg-panel);
+  color:var(--ink);
+  font-size:13.5px;
+  border-radius:var(--radius);
+  outline:none;
+  transition:border-color .15s;
+}
+.field-input:focus,.field-textarea:focus,.field-select:focus{border-color:var(--accent);}
+.field-textarea{resize:vertical;min-height:64px;line-height:1.7;}
+.field-hint{font-size:11px;color:var(--ink-faint);margin-top:6px;}
+
+.tag-input-wrap{
+  display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px;border:1px solid var(--line);background:var(--bg-panel);border-radius:var(--radius);
+}
+.tag-chip{
+  display:flex;align-items:center;gap:6px;
+  background:var(--accent-soft);border:1px solid var(--accent-line);
+  padding:4px 8px 4px 10px;font-size:12px;border-radius:2px;color:var(--accent);
+}
+.tag-chip button{background:none;border:none;color:var(--accent);font-size:13px;line-height:1;padding:0;}
+.tag-input-wrap input{border:none;outline:none;flex:1;min-width:120px;font-size:13px;background:transparent;padding:4px 2px;}
+
+.btn-row{display:flex;gap:10px;margin-top:34px;padding-top:22px;border-top:1px solid var(--line);}
+.btn{
+  padding:11px 22px;font-size:12.5px;letter-spacing:.05em;border-radius:var(--radius);
+  border:1px solid var(--line);background:var(--bg-panel);color:var(--ink-soft);
+  display:inline-flex;align-items:center;gap:6px;transition:.15s;
+}
+.btn:hover{border-color:var(--accent);color:var(--ink);}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--white);}
+.btn.primary:hover{background:#2c241d;}
+.btn.ghost{border-color:transparent;background:transparent;}
+.btn.ghost:hover{background:var(--bg-alt);}
+.btn.small{padding:7px 12px;font-size:11.5px;}
+.btn:disabled{opacity:.35;pointer-events:none;}
+.btn-spacer{flex:1;}
+
+/* theme buttons */
+.pill-grid{display:flex;flex-wrap:wrap;gap:10px;}
+.pill{
+  padding:10px 18px;border:1px solid var(--line);border-radius:20px;font-size:13px;color:var(--ink-soft);
+  background:var(--bg-panel);transition:.15s;user-select:none;
+}
+.pill:hover{border-color:var(--accent-line);}
+.pill.selected{background:var(--accent);border-color:var(--accent);color:var(--white);}
+.radio-grid{display:flex;flex-wrap:wrap;gap:10px;}
+.radio-pill{
+  padding:9px 16px;border:1px solid var(--line);border-radius:2px;font-size:12.5px;color:var(--ink-soft);background:var(--bg-panel);
+}
+.radio-pill.selected{background:var(--ink);color:var(--white);border-color:var(--ink);}
+
+.fixed-tags{display:flex;gap:8px;flex-wrap:wrap;}
+.fixed-tag{padding:8px 14px;border:1px dashed var(--line);font-size:12px;color:var(--ink-faint);border-radius:20px;}
+
+/* upload */
+.upload-zone{
+  border:1px dashed var(--line);border-radius:var(--radius);padding:30px;text-align:center;
+  background:var(--bg-panel);cursor:pointer;transition:.15s;
+}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--accent-soft);}
+.upload-zone .icon{font-size:22px;color:var(--ink-faint);margin-bottom:8px;}
+.upload-zone .txt{font-size:13px;color:var(--ink-soft);}
+.upload-zone .sub{font-size:11px;color:var(--ink-faint);margin-top:4px;}
+
+.material-filter{display:flex;gap:8px;margin:22px 0 16px;flex-wrap:wrap;}
+.material-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;}
+.material-card{
+  border:1px solid var(--line);background:var(--bg-panel);border-radius:var(--radius);overflow:hidden;cursor:grab;
+}
+.material-card:active{cursor:grabbing;}
+.material-thumb{width:100%;height:110px;background:var(--bg-alt);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;}
+.material-thumb img,.material-thumb video{width:100%;height:100%;object-fit:cover;}
+.material-thumb .type-badge{position:absolute;top:6px;left:6px;background:rgba(33,30,26,.72);color:#fff;font-size:9.5px;padding:2px 6px;border-radius:2px;letter-spacing:.05em;}
+.material-body{padding:9px 10px 11px;}
+.material-name{font-size:12px;color:var(--ink);margin-bottom:4px;font-weight:500;}
+.material-meta{font-size:10.5px;color:var(--ink-faint);display:flex;gap:6px;flex-wrap:wrap;}
+.material-meta span{background:var(--bg-alt);padding:2px 6px;border-radius:8px;}
+.material-del{position:absolute;top:6px;right:6px;background:rgba(33,30,26,.72);color:#fff;border:none;width:18px;height:18px;border-radius:50%;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;}
+.material-empty{padding:40px 0;text-align:center;color:var(--ink-faint);font-size:12.5px;}
+
+.mini-form{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+.mini-form .full{grid-column:1/3;}
+
+/* plan cards */
+.plan-grid{display:flex;flex-direction:column;gap:14px;}
+.plan-card{
+  border:1px solid var(--line);background:var(--bg-panel);padding:20px 22px;border-radius:var(--radius);
+  transition:.15s;
+}
+.plan-card.selected{border-color:var(--accent);background:var(--accent-soft);}
+.plan-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+.plan-title{font-family:var(--serif);font-size:17px;font-weight:600;}
+.plan-emotion{font-size:11px;color:var(--accent);border:1px solid var(--accent-line);padding:3px 9px;border-radius:12px;letter-spacing:.04em;}
+.plan-row{font-size:12.5px;color:var(--ink-soft);line-height:1.9;margin-bottom:4px;}
+.plan-row b{color:var(--ink-faint);font-weight:500;margin-right:6px;font-size:11.5px;}
+.plan-actions{display:flex;gap:8px;margin-top:14px;}
+
+/* timeline */
+.timeline-strip{display:flex;flex-direction:column;gap:1px;background:var(--line);border:1px solid var(--line);}
+.seg-row{
+  display:grid;grid-template-columns:78px 1fr;background:var(--bg-panel);
+}
+.seg-time{
+  background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;
+  font-family:var(--serif);font-size:13px;letter-spacing:.03em;writing-mode:horizontal-tb;
+}
+.seg-body{padding:16px 18px;}
+.seg-topline{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.seg-visual{font-size:13.5px;font-weight:500;}
+.seg-drop{
+  min-height:64px;border:1px dashed var(--line);border-radius:var(--radius);display:flex;align-items:center;gap:10px;padding:8px;margin-bottom:10px;background:var(--bg-alt);
+}
+.seg-drop.over{border-color:var(--accent);background:var(--accent-soft);}
+.seg-drop-thumb{width:56px;height:56px;border-radius:2px;overflow:hidden;background:var(--line-soft);flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.seg-drop-thumb img,.seg-drop-thumb video{width:100%;height:100%;object-fit:cover;}
+.seg-drop-text{font-size:11.5px;color:var(--ink-faint);}
+.seg-drop-text b{color:var(--ink-soft);font-weight:500;display:block;font-size:12.5px;}
+.seg-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.seg-fields .full{grid-column:1/3;}
+.seg-fields label{font-size:10.5px;color:var(--ink-faint);display:block;margin-bottom:4px;letter-spacing:.04em;}
+.seg-fields input,.seg-fields select,.seg-fields textarea{
+  width:100%;padding:8px 9px;font-size:12.5px;border:1px solid var(--line);background:var(--bg-panel);border-radius:2px;
+}
+
+/* subtitle style preview */
+.subtitle-style-grid{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:26px;}
+.style-card{border:1px solid var(--line);padding:14px 16px;border-radius:var(--radius);cursor:pointer;min-width:130px;background:var(--bg-panel);}
+.style-card.selected{border-color:var(--accent);background:var(--accent-soft);}
+.style-card .style-name{font-size:12px;color:var(--ink-soft);margin-bottom:8px;}
+.style-preview{
+  background:#141210;color:#F5F2EC;height:60px;display:flex;align-items:center;justify-content:center;font-size:11px;text-align:center;padding:6px;
+}
+.style-preview.minimal{font-weight:300;letter-spacing:.05em;}
+.style-preview.cinema{font-family:var(--serif);font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:10px;}
+.style-preview.magazine{font-family:var(--serif);font-style:italic;letter-spacing:.02em;}
+.style-preview.indie{font-weight:300;letter-spacing:.15em;font-size:10px;}
+
+/* camera guide */
+.camera-guide{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:26px;}
+.camera-item{border:1px solid var(--line);padding:12px 14px;border-radius:var(--radius);background:var(--bg-panel);font-size:12px;color:var(--ink-soft);}
+.camera-item b{display:block;font-size:12.5px;color:var(--ink);margin-bottom:3px;}
+
+/* prompt cards */
+.prompt-card{border:1px solid var(--line);background:var(--bg-panel);border-radius:var(--radius);margin-bottom:14px;overflow:hidden;}
+.prompt-head{background:var(--bg-alt);padding:9px 14px;font-size:11.5px;color:var(--ink-soft);display:flex;justify-content:space-between;align-items:center;}
+.prompt-body{padding:14px;font-size:12.5px;line-height:1.9;color:var(--ink);white-space:pre-wrap;font-family:var(--serif);}
+.prompt-actions{padding:0 14px 14px;display:flex;justify-content:flex-end;}
+
+/* preview player */
+.preview-wrap{display:flex;gap:30px;align-items:flex-start;flex-wrap:wrap;}
+.phone-frame{
+  width:230px;height:409px;background:#141210;border-radius:20px;padding:8px;box-shadow:0 20px 40px -20px rgba(0,0,0,.35);flex-shrink:0;
+}
+.phone-screen{
+  width:100%;height:100%;background:#000;border-radius:14px;overflow:hidden;position:relative;
+}
+.phone-screen .frame-media{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:0;transition:opacity .5s ease;}
+.phone-screen .frame-media.show{opacity:1;}
+.phone-screen .empty-state{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#666;font-size:11px;text-align:center;padding:20px;}
+.phone-caption{position:absolute;bottom:34px;left:0;right:0;text-align:center;color:#fff;font-size:13px;padding:0 18px;text-shadow:0 1px 6px rgba(0,0,0,.6);z-index:5;}
+.phone-progress{position:absolute;top:10px;left:10px;right:10px;height:2px;background:rgba(255,255,255,.25);display:flex;gap:3px;}
+.phone-progress i{flex:1;background:rgba(255,255,255,.3);position:relative;overflow:hidden;}
+.phone-progress i b{display:block;height:100%;width:0;background:#fff;}
+.preview-controls{display:flex;gap:10px;margin-top:16px;}
+.preview-info{flex:1;min-width:260px;}
+.preview-seglist{display:flex;flex-direction:column;gap:8px;}
+.preview-seg-item{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:2px;font-size:12px;color:var(--ink-soft);}
+.preview-seg-item.active{border-color:var(--accent);background:var(--accent-soft);}
+.preview-seg-item .t{font-family:var(--serif);color:var(--ink);min-width:56px;}
+
+/* IG caption */
+.caption-block{border:1px solid var(--line);background:var(--bg-panel);border-radius:var(--radius);padding:20px 22px;margin-bottom:16px;}
+.caption-block-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.caption-block-head span{font-size:12px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase;}
+.caption-text{font-size:13.5px;line-height:2;white-space:pre-wrap;font-family:var(--serif);color:var(--ink);}
+.hashtag-wrap{display:flex;flex-wrap:wrap;gap:6px;}
+.hashtag{font-size:12px;color:var(--accent);background:var(--accent-soft);padding:4px 10px;border-radius:12px;}
+
+/* favorites */
+.fav-grid{display:flex;flex-direction:column;gap:12px;}
+.fav-card{border:1px solid var(--line);background:var(--bg-panel);padding:16px 20px;border-radius:var(--radius);display:flex;justify-content:space-between;align-items:center;gap:16px;}
+.fav-title{font-family:var(--serif);font-size:15px;font-weight:600;margin-bottom:4px;}
+.fav-meta{font-size:11.5px;color:var(--ink-faint);}
+.fav-actions{display:flex;gap:8px;flex-shrink:0;}
+.empty-block{border:1px dashed var(--line);padding:40px;text-align:center;color:var(--ink-faint);font-size:12.5px;border-radius:var(--radius);}
+
+/* ---------- Right panel ---------- */
+.rightpanel{
+  border-left:1px solid var(--line);background:var(--bg-panel);overflow-y:auto;padding:26px 22px 60px;
+}
+.rp-block{margin-bottom:28px;}
+.rp-title{font-size:11px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:12px;display:flex;justify-content:space-between;}
+.rp-brand-name{font-family:var(--serif);font-size:17px;font-weight:600;margin-bottom:4px;}
+.rp-brand-sub{font-size:11.5px;color:var(--ink-soft);line-height:1.7;}
+.rp-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.rp-tag{font-size:10.5px;background:var(--bg-alt);padding:3px 8px;border-radius:10px;color:var(--ink-soft);}
+.rp-line{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-soft);padding:6px 0;border-bottom:1px solid var(--line-soft);}
+.rp-line b{color:var(--ink);font-weight:500;}
+.rp-empty{font-size:11.5px;color:var(--ink-faint);line-height:1.7;}
+.rp-mini-timeline{display:flex;flex-direction:column;gap:6px;}
+.rp-mini-seg{display:flex;gap:8px;font-size:11px;color:var(--ink-soft);align-items:flex-start;}
+.rp-mini-seg .t{font-family:var(--serif);color:var(--accent);min-width:52px;flex-shrink:0;}
+.rp-plan-title{font-family:var(--serif);font-size:15px;font-weight:600;margin-bottom:6px;}
+.rp-progress{display:flex;flex-direction:column;gap:4px;margin-top:6px;}
+.rp-progress .p-item{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ink-faint);}
+.rp-progress .p-item.done{color:var(--ink-soft);}
+.rp-progress .p-item .dotcheck{width:6px;height:6px;border-radius:50%;background:var(--line);flex-shrink:0;}
+.rp-progress .p-item.done .dotcheck{background:var(--accent);}
+
+@media (max-width:1100px){
+  .shell{grid-template-columns:210px 1fr;}
+  .rightpanel{display:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="topbar">
+    <div class="brandmark">
+      <div class="mark">COFFEE CONTENT STUDIO</div>
+      <div class="sub">咖啡店短影音創作工作台</div>
+    </div>
+    <div class="topbar-meta">
+      <span>格式 <b>9:16</b></span>
+      <span class="dot"></span>
+      <span>時長 <b>15 秒</b></span>
+      <span class="dot"></span>
+      <span id="topbarBrand">尚未設定品牌</span>
+    </div>
+  </div>
+
+  <div class="sidebar" id="sidebar"></div>
+
+  <div class="main">
+    <div class="main-inner" id="mainInner"></div>
+  </div>
+
+  <div class="rightpanel" id="rightPanel"></div>
+</div>
+
+<input type="file" id="fileInput" accept="image/*,video/*" multiple style="display:none">
+
+<script>
+/* ==================================================================
+   COFFEE CONTENT STUDIO — 狀態與資料
+   ================================================================== */
+const STEPS = [
+  {id:1,label:'品牌設定'},
+  {id:2,label:'主題與影片類型'},
+  {id:3,label:'素材庫'},
+  {id:4,label:'產生短影音企劃'},
+  {id:5,label:'選擇企劃'},
+  {id:6,label:'15秒腳本'},
+  {id:7,label:'配置素材'},
+  {id:8,label:'編輯字幕'},
+  {id:9,label:'設定鏡頭'},
+  {id:10,label:'時間軸預覽'},
+  {id:11,label:'IG 文案'},
+  {id:12,label:'我的企劃庫'},
+];
+
+const THEME_POOL = ['咖啡','餐點','空間','寵物','獨處','連結','療癒','工作'];
+const VIDEO_TYPES = ['氛圍型','無劇情','POV','ASMR','空間型','餐點型','咖啡型'];
+const CAMERA_MOVES = ['固定','慢慢推近','慢慢拉遠','水平移動','輕微Zoom','自然景深','靜態畫面'];
+const SUBTITLE_STYLES = ['極簡','電影','雜誌','文青'];
+const TRANSITIONS = ['淡入','淡出','簡單切換'];
+const MATERIAL_CATS = ['咖啡','餐點','空間','寵物','人物','其他'];
+
+const TITLE_BANK = ['有些連結很安靜','一杯咖啡的時間','今天慢一點','有你陪著','一個人的下午','光落下來的地方','慢慢來，慢慢好','安靜也是一種陪伴','留白的時間','這裡，剛剛好','不說話也很好','讓時間慢下來','一份剛好的份量','在角落裡呼吸','與自己喝杯咖啡','晴天的空氣裡','貓咪知道的事','療癒，從一杯開始','日常的縫隙','窗邊的那個位置','剛剛好的距離','慢下來，才看得見'];
+const EMOTION_BANK = ['平靜','安心','溫柔','放鬆','陪伴感','專注','療癒感','踏實','鬆一口氣'];
+const MUSIC_BANK = ['低音量的爵士鋼琴，不搶畫面','氛圍系 Lo-fi，帶一點顆粒感','極簡鋼琴單音，留白多於旋律','以自然環境音為主，音樂僅作襯底','溫暖的木吉他分解和弦，節奏放慢','輕電子氛圍音，near-silent 的層次'];
+
+const THEME_VISUAL = {
+  '咖啡':{cat:'咖啡', desc:'咖啡沖煮過程 / 拉花 / 杯緣蒸氣特寫'},
+  '餐點':{cat:'餐點', desc:'餐點擺盤細節、刀叉觸碰、醬汁流動的近拍'},
+  '空間':{cat:'空間', desc:'店內光線、桌椅陳設、窗邊角落的廣角畫面'},
+  '寵物':{cat:'寵物', desc:'店貓或店狗慵懶、走動或凝視鏡頭外的瞬間'},
+  '獨處':{cat:'人物', desc:'單人身影、翻書或滑手機的手部動作，不露臉特寫'},
+  '連結':{cat:'人物', desc:'兩人共處但避開正臉，聚焦手部、杯子、對話留白'},
+  '療癒':{cat:'其他', desc:'光影、綠植、蒸氣、木質紋理等療癒感細節'},
+  '工作':{cat:'其他', desc:'筆記本、筆電、桌面文具與咖啡並置的畫面'},
+};
+
+const CAMERA_DESC = {
+  '固定':'鏡頭完全靜止，讓畫面內容自己說話',
+  '慢慢推近':'極緩慢地向主體推進，製造靠近感與專注感',
+  '慢慢拉遠':'從特寫緩慢拉開，揭露更多空間與情境',
+  '水平移動':'鏡頭以極慢速度水平橫移，保持穩定',
+  '輕微Zoom':'極輕微的焦段變化，幾乎不易察覺的呼吸感',
+  '自然景深':'前景或背景自然模糊，凸顯主體層次',
+  '靜態畫面':'完全不移動，畫面如同一張會呼吸的照片',
+};
+
+let state = {
+  brand:{name:'',positioning:'',audience:'',keywords:['沉穩','空間感','內向','療癒','獨處','咖啡','餐點','寵物','連結']},
+  video:{duration:15,ratio:'9:16',type:'氛圍型'},
+  themes:new Set(),
+  materials:[],
+  plans:[],
+  currentPlan:null,
+  favorites:[],
+  activeStep:1,
+  captions:null,
+  preview:{playing:false,index:0,timer:null},
+};
+
+let uid = 1;
+const genId = ()=> 'id'+(uid++)+'_'+Math.random().toString(36).slice(2,7);
+
+/* ==================================================================
+   共用工具
+   ================================================================== */
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+function buildTimelineSkeleton(planTitle, themesArr, videoType){
+  const ranges = ['00–03秒','03–06秒','06–09秒','09–12秒','12–15秒'];
+  const themeList = themesArr.length? themesArr : ['空間','咖啡'];
+  // pick visual order: 空間開場 → 主題特寫1 → 主題特寫2/情感 → 細節 → 空間或情緒收尾
+  const order = [];
+  order.push('空間');
+  themeList.filter(t=>t!=='空間').forEach(t=>order.push(t));
+  while(order.length<5){ order.push(pick(themeList)); }
+  const finalOrder = order.slice(0,5);
+  finalOrder[4] = Math.random()>0.4 ? '空間' : finalOrder[4];
+
+  const cameras = shuffle(CAMERA_MOVES).slice(0,5);
+  const subtitles = ['', pick(['慢慢來','安靜也很好','今天，剛剛好','留一點時間給自己']), '', '', planTitle];
+
+  return finalOrder.map((theme,i)=>{
+    const info = THEME_VISUAL[theme] || THEME_VISUAL['空間'];
+    return {
+      range:ranges[i],
+      themeRef:theme,
+      visual:`${theme} — ${info.desc}`,
+      materialType:info.cat,
+      subtitle:subtitles[i],
+      subtitleStyle:'極簡',
+      camera:cameras[i],
+      sound: i===0 ? '環境音淡入（磨豆機／環境雜音）' : i===4 ? '音樂與環境音一起淡出' : '音樂持續，維持低干擾音量',
+      transition: i===0? '淡入' : (i===4? '淡出':'簡單切換'),
+      materialId:null,
+    };
+  });
+}
+
+function generatePlans(){
+  const themesArr = Array.from(state.themes);
+  const themeText = themesArr.length? themesArr.join('＋') : '氛圍日常';
+  const titles = shuffle(TITLE_BANK).slice(0,5);
+  state.plans = titles.map(title=>{
+    const emotion = pick(EMOTION_BANK);
+    const concept = `以「${themeText}」為主題方向的無劇情氛圍片段。不安排明確事件或人物故事，只用真實素材的排列與節奏，讓「${emotion}」的感受自然浮現。畫面以${state.video.type}為主要語言，維持沉穩、留白、不過度說明的節奏。`;
+    const materialSuggestion = themesArr.length
+      ? themesArr.map(t=>`${t}｜${THEME_VISUAL[t].desc}`).join('　')
+      : '空間廣角、咖啡特寫、光影細節';
+    const subtitleDirection = `字幕以短句、留白為主，例如「${pick(TITLE_BANK)}」。全片字幕不超過 2～3 句，避免說明性文字。`;
+    const musicDirection = pick(MUSIC_BANK);
+    return {
+      id:genId(),
+      title, emotion, concept, materialSuggestion, subtitleDirection, musicDirection,
+      themesUsed:themesArr.slice(),
+      videoType:state.video.type,
+      timeline: buildTimelineSkeleton(title, themesArr, state.video.type),
+      createdAt:Date.now(),
+    };
+  });
+}
+
+/* ==================================================================
+   Render：Sidebar
+   ================================================================== */
+function stepUnlocked(id){
+  if(id<=2) return true;
+  if(id===3) return true;
+  if(id===4) return state.themes.size>0;
+  if(id===5) return state.plans.length>0;
+  if(id>=6 && id<=11) return !!state.currentPlan;
+  if(id===12) return true;
+  return true;
+}
+function renderSidebar(){
+  const el = document.getElementById('sidebar');
+  el.innerHTML = STEPS.map(s=>{
+    const active = state.activeStep===s.id ? 'active':'';
+    const locked = stepUnlocked(s.id) ? '' : 'locked';
+    return `<div class="step-item ${active} ${locked}" data-step="${s.id}">
+      <div class="step-num">${String(s.id).padStart(2,'0')}</div>
+      <div class="step-label">${s.label}</div>
+    </div>`;
+  }).join('') + `
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-note">依序完成品牌設定、主題與素材，即可自動產生 15 秒短影音企劃與腳本。點選任一已解鎖步驟可直接跳轉。</div>`;
+  el.querySelectorAll('.step-item').forEach(node=>{
+    node.addEventListener('click',()=>{
+      const id = parseInt(node.dataset.step);
+      if(!stepUnlocked(id)) return;
+      state.activeStep = id;
+      renderAll();
+    });
+  });
+}
+
+/* ==================================================================
+   Render：Right Panel
+   ================================================================== */
+function renderRightPanel(){
+  const el = document.getElementById('rightPanel');
+  const b = state.brand;
+  let html = '';
+
+  html += `<div class="rp-block">
+    <div class="rp-title">品牌</div>
+    ${b.name? `<div class="rp-brand-name">${escapeHtml(b.name)}</div><div class="rp-brand-sub">${escapeHtml(b.positioning||'尚未填寫品牌定位')}</div>
+    <div class="rp-tags">${b.keywords.map(k=>`<span class="rp-tag">${escapeHtml(k)}</span>`).join('')}</div>`
+    : `<div class="rp-empty">尚未設定品牌資訊，請由步驟 01 開始。</div>`}
+  </div>`;
+
+  html += `<div class="rp-block">
+    <div class="rp-title">影片設定</div>
+    <div class="rp-line"><span>長度</span><b>${state.video.duration} 秒</b></div>
+    <div class="rp-line"><span>比例</span><b>${state.video.ratio}</b></div>
+    <div class="rp-line"><span>類型</span><b>${state.video.type}</b></div>
+    <div class="rp-line" style="border-bottom:none;"><span>主題</span><b>${state.themes.size? Array.from(state.themes).join('、'):'—'}</b></div>
+  </div>`;
+
+  html += `<div class="rp-block">
+    <div class="rp-title">素材庫 <span>${state.materials.length} 件</span></div>
+    ${state.materials.length? `<div class="rp-empty">共 ${state.materials.length} 件素材，涵蓋 ${Array.from(new Set(state.materials.map(m=>m.cat))).join('、')}。</div>` : `<div class="rp-empty">尚未上傳素材。</div>`}
+  </div>`;
+
+  if(state.currentPlan){
+    const p = state.currentPlan;
+    html += `<div class="rp-block">
+      <div class="rp-title">目前企劃</div>
+      <div class="rp-plan-title">${escapeHtml(p.title)}</div>
+      <div class="rp-brand-sub" style="margin-bottom:10px;">核心情緒｜${escapeHtml(p.emotion)}</div>
+      <div class="rp-mini-timeline">
+        ${p.timeline.map(seg=>`<div class="rp-mini-seg"><div class="t">${seg.range}</div><div>${escapeHtml(seg.visual.split(' — ')[0])}${seg.materialId? ' ✓已配置':''}</div></div>`).join('')}
+      </div>
+    </div>`;
+  } else {
+    html += `<div class="rp-block"><div class="rp-title">目前企劃</div><div class="rp-empty">尚未選擇企劃。</div></div>`;
+  }
+
+  html += `<div class="rp-block">
+    <div class="rp-title">流程進度</div>
+    <div class="rp-progress">
+      ${STEPS.map(s=>`<div class="p-item ${state.activeStep>=s.id? 'done':''}"><span class="dotcheck"></span>${s.label}</div>`).join('')}
+    </div>
+  </div>`;
+
+  html += `<div class="rp-block">
+    <div class="rp-title">我的企劃庫 <span>${state.favorites.length} 件</span></div>
+    <div class="rp-empty">${state.favorites.length? '已收藏 '+state.favorites.length+' 個企劃，於步驟 12 管理。' : '尚無收藏企劃。'}</div>
+  </div>`;
+
+  el.innerHTML = html;
+  document.getElementById('topbarBrand').textContent = b.name? `品牌｜${b.name}` : '尚未設定品牌';
+}
+
+function escapeHtml(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ==================================================================
+   Render：Main sections
+   ================================================================== */
+function renderAll(){
+  renderSidebar();
+  renderRightPanel();
+  renderMain();
+}
+
+function navBtns({backTo=null, nextTo=null, nextDisabled=false, nextLabel='下一步', extra=''}={}){
+  return `<div class="btn-row">
+    ${backTo? `<button class="btn" data-nav="${backTo}">← 返回</button>`:''}
+    ${extra}
+    <div class="btn-spacer"></div>
+    ${nextTo? `<button class="btn primary" data-nav="${nextTo}" ${nextDisabled?'disabled':''}>${nextLabel} →</button>`:''}
+  </div>`;
+}
+
+function renderMain(){
+  const el = document.getElementById('mainInner');
+  let html = '';
+  switch(state.activeStep){
+    case 1: html = section1(); break;
+    case 2: html = section2(); break;
+    case 3: html = section3(); break;
+    case 4: html = section4(); break;
+    case 5: html = section5(); break;
+    case 6: html = section6(); break;
+    case 7: html = section7(); break;
+    case 8: html = section8(); break;
+    case 9: html = section9(); break;
+    case 10: html = section10(); break;
+    case 11: html = section11(); break;
+    case 12: html = section12(); break;
+  }
+  el.innerHTML = `<div class="section active">${html}</div>`;
+  bindMainEvents();
+}
+
+/* ---------- Section 1：品牌設定 ---------- */
+function section1(){
+  const b = state.brand;
+  return `
+  <div class="section-eyebrow">Step 01</div>
+  <h1 class="section-title">品牌設定</h1>
+  <p class="section-desc">建立品牌的基本方向，這些資訊將用來產生短影音企劃、字幕方向與 IG 文案的語氣。</p>
+
+  <div class="field-group">
+    <label class="field-label">品牌名稱 <span class="req">*</span></label>
+    <input class="field-input" id="f-brandName" placeholder="例如：無事咖啡 Nothing Much Coffee" value="${escapeHtml(b.name)}">
+  </div>
+  <div class="field-group">
+    <label class="field-label">品牌定位</label>
+    <textarea class="field-textarea" id="f-brandPos" placeholder="例如：一間讓人可以安靜獨處、慢下來的街角咖啡店">${escapeHtml(b.positioning)}</textarea>
+  </div>
+  <div class="field-group">
+    <label class="field-label">目標客群</label>
+    <input class="field-input" id="f-brandAud" placeholder="例如：25–40 歲、喜歡安靜空間與療癒感的都市工作者" value="${escapeHtml(b.audience)}">
+  </div>
+  <div class="field-group">
+    <label class="field-label">品牌關鍵字</label>
+    <div class="tag-input-wrap" id="tagWrap">
+      ${b.keywords.map(k=>`<span class="tag-chip">${escapeHtml(k)}<button data-del-tag="${escapeHtml(k)}">×</button></span>`).join('')}
+      <input id="tagInput" placeholder="輸入關鍵字後按 Enter">
+    </div>
+    <div class="field-hint">預設方向：沉穩、空間感、內向、療癒、獨處、咖啡、餐點、寵物、連結。可自行增減。</div>
+  </div>
+  ${navBtns({nextTo:2, nextDisabled:false, nextLabel:'下一步：主題與影片類型'})}
+  `;
+}
+
+/* ---------- Section 2：主題與影片類型 ---------- */
+function section2(){
+  return `
+  <div class="section-eyebrow">Step 02</div>
+  <h1 class="section-title">主題與影片類型</h1>
+  <p class="section-desc">選擇這支短影音想傳達的內容主題（可複選），並決定影片的整體類型。時長與比例已依 IG 短影音規格固定。</p>
+
+  <div class="field-group">
+    <label class="field-label">內容主題（可複選）</label>
+    <div class="pill-grid" id="themePills">
+      ${THEME_POOL.map(t=>`<div class="pill ${state.themes.has(t)?'selected':''}" data-theme="${t}">${t}</div>`).join('')}
+    </div>
+  </div>
+
+  <div class="field-group">
+    <label class="field-label">影片類型</label>
+    <div class="radio-grid" id="typePills">
+      ${VIDEO_TYPES.map(t=>`<div class="radio-pill ${state.video.type===t?'selected':''}" data-type="${t}">${t}</div>`).join('')}
+    </div>
+  </div>
+
+  <div class="field-group">
+    <label class="field-label">影片規格（固定）</label>
+    <div class="fixed-tags">
+      <span class="fixed-tag">長度｜15 秒</span>
+      <span class="fixed-tag">比例｜9:16</span>
+    </div>
+  </div>
+
+  ${navBtns({backTo:1, nextTo:3, nextLabel:'下一步：素材庫'})}
+  `;
+}
+
+/* ---------- Section 3：素材庫 ---------- */
+let materialFilter = '全部';
+function section3(){
+  const filtered = materialFilter==='全部'? state.materials : state.materials.filter(m=>m.cat===materialFilter);
+  return `
+  <div class="section-eyebrow">Step 03</div>
+  <h1 class="section-title">素材庫</h1>
+  <p class="section-desc">上傳咖啡店現有的照片與影片素材，並為每個素材標記分類、標籤與適合用途，之後可拖曳到 15 秒時間軸使用。</p>
+
+  <div class="upload-zone" id="uploadZone">
+    <div class="icon">＋</div>
+    <div class="txt">點擊或拖曳檔案到此處上傳</div>
+    <div class="sub">支援照片與影片，可一次選取多個檔案</div>
+  </div>
+
+  <div class="material-filter" id="materialFilterRow">
+    ${['全部',...MATERIAL_CATS].map(c=>`<div class="radio-pill ${materialFilter===c?'selected':''}" data-filter="${c}">${c}</div>`).join('')}
+  </div>
+
+  <div class="material-grid">
+    ${filtered.length? filtered.map(materialCardHtml).join('') : `<div class="material-empty" style="grid-column:1/-1;">尚無素材，請於上方上傳照片或影片。</div>`}
+  </div>
+
+  ${navBtns({backTo:2, nextTo:4, nextLabel:'下一步：產生企劃'})}
+  `;
+}
+function materialCardHtml(m){
+  const media = m.mtype==='video'
+    ? `<video src="${m.src}" muted></video>`
+    : `<img src="${m.src}">`;
+  return `<div class="material-card" draggable="true" data-mat-id="${m.id}">
+    <div class="material-thumb">
+      ${media}
+      <div class="type-badge">${m.mtype==='video'?'影片':'照片'}</div>
+      <button class="material-del" data-del-mat="${m.id}">×</button>
+    </div>
+    <div class="material-body">
+      <div class="material-name">${escapeHtml(m.name)}</div>
+      <div class="material-meta">
+        <span>${m.cat}</span><span>${m.orientation}</span><span>${m.shot}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---------- Section 4：產生企劃 ---------- */
+function section4(){
+  return `
+  <div class="section-eyebrow">Step 04</div>
+  <h1 class="section-title">產生短影音企劃</h1>
+  <p class="section-desc">根據所選主題「${Array.from(state.themes).join('＋')||'（尚未選擇）'}」與影片類型「${state.video.type}」，自動產生數個 15 秒短影音企劃方向。</p>
+
+  <button class="btn primary" id="btnGeneratePlans">${state.plans.length? '重新產生企劃' : '產生企劃'}</button>
+
+  ${state.plans.length? `
+  <div class="plan-grid" style="margin-top:26px;">
+    ${state.plans.map((p,i)=>planCardHtml(p,i+1)).join('')}
+  </div>` : `<div class="empty-block" style="margin-top:26px;">按下「產生企劃」，將依照你選擇的主題自動建立多個企劃方向。</div>`}
+
+  ${navBtns({backTo:3, nextTo: state.currentPlan?5:null, nextLabel:'下一步：選擇企劃', nextDisabled:!state.plans.length})}
+  `;
+}
+function planCardHtml(p, index){
+  const isSel = state.currentPlan && state.currentPlan.id===p.id;
+  return `<div class="plan-card ${isSel?'selected':''}">
+    <div class="plan-head">
+      <div class="plan-title">${index}. ${escapeHtml(p.title)}</div>
+      <div class="plan-emotion">${escapeHtml(p.emotion)}</div>
+    </div>
+    <div class="plan-row"><b>影片概念</b>${escapeHtml(p.concept)}</div>
+    <div class="plan-row"><b>素材建議</b>${escapeHtml(p.materialSuggestion)}</div>
+    <div class="plan-row"><b>字幕方向</b>${escapeHtml(p.subtitleDirection)}</div>
+    <div class="plan-row"><b>音樂方向</b>${escapeHtml(p.musicDirection)}</div>
+    <div class="plan-actions">
+      <button class="btn small ${isSel?'primary':''}" data-select-plan="${p.id}">${isSel?'已選擇 ✓':'選擇此企劃'}</button>
+      <button class="btn small ghost" data-fav-plan="${p.id}">＋ 收藏</button>
+    </div>
+  </div>`;
+}
+
+/* ---------- Section 5：選擇企劃 ---------- */
+function section5(){
+  return `
+  <div class="section-eyebrow">Step 05</div>
+  <h1 class="section-title">選擇企劃</h1>
+  <p class="section-desc">從已產生的企劃中選出一個，作為接下來腳本、素材配置與字幕編輯的基礎。</p>
+  <div class="plan-grid">
+    ${state.plans.map((p,i)=>planCardHtml(p,i+1)).join('')}
+  </div>
+  ${navBtns({backTo:4, nextTo:6, nextLabel:'下一步：15秒腳本', nextDisabled:!state.currentPlan})}
+  `;
+}
+
+/* ---------- Section 6：15秒腳本 ---------- */
+function section6(){
+  const p = state.currentPlan;
+  if(!p) return emptyPlanNotice();
+  return `
+  <div class="section-eyebrow">Step 06</div>
+  <h1 class="section-title">15 秒腳本</h1>
+  <p class="section-desc">企劃「${escapeHtml(p.title)}」的時間軸已自動建立。以無劇情、氛圍型為主，不設計人物故事，僅呈現真實素材的排列與情緒。</p>
+
+  <div class="timeline-strip">
+    ${p.timeline.map((seg,i)=>segRowHtml(seg,i,false)).join('')}
+  </div>
+
+  ${navBtns({backTo:5, nextTo:7, nextLabel:'下一步：配置素材', extra:`<button class="btn" id="btnRegenTimeline">重新產生腳本</button>`})}
+  `;
+}
+function segRowHtml(seg,i,showDrop){
+  return `<div class="seg-row">
+    <div class="seg-time">${seg.range}</div>
+    <div class="seg-body">
+      <div class="seg-topline"><div class="seg-visual">${escapeHtml(seg.visual)}</div></div>
+      <div class="seg-fields">
+        <div><label>素材類型</label><div style="font-size:12.5px;color:var(--ink-soft);padding:8px 0;">${seg.materialType}</div></div>
+        <div><label>鏡頭方式</label><div style="font-size:12.5px;color:var(--ink-soft);padding:8px 0;">${seg.camera}</div></div>
+        <div class="full"><label>字幕</label><div style="font-size:12.5px;color:var(--ink-soft);padding:8px 0;">${seg.subtitle? escapeHtml(seg.subtitle) : '（無字幕，畫面為主）'}</div></div>
+        <div class="full"><label>音效 / 音樂</label><div style="font-size:12.5px;color:var(--ink-soft);padding:8px 0;">${escapeHtml(seg.sound)}</div></div>
+      </div>
+    </div>
+  </div>`;
+}
+function emptyPlanNotice(){
+  return `<div class="section-eyebrow">尚未選擇企劃</div>
+  <h1 class="section-title">請先選擇企劃</h1>
+  <div class="empty-block">此步驟需要先在「產生短影音企劃」或「選擇企劃」中選定一個企劃方向。</div>
+  ${navBtns({backTo:4})}`;
+}
+
+/* ---------- Section 7：配置素材 ---------- */
+function section7(){
+  const p = state.currentPlan;
+  if(!p) return emptyPlanNotice();
+  return `
+  <div class="section-eyebrow">Step 07</div>
+  <h1 class="section-title">配置素材</h1>
+  <p class="section-desc">將素材庫中的照片或影片拖曳到對應時間段，或使用下拉選單手動更換。系統已依主題提供建議分類。</p>
+
+  <div class="timeline-strip" id="assignTimeline">
+    ${p.timeline.map((seg,i)=>assignRowHtml(seg,i)).join('')}
+  </div>
+
+  <div class="field-group" style="margin-top:28px;">
+    <label class="field-label">可用素材（可拖曳至上方時間段）</label>
+    <div class="material-grid">
+      ${state.materials.length? state.materials.map(materialCardHtml).join('') : `<div class="material-empty" style="grid-column:1/-1;">素材庫目前是空的，請回到步驟 03 上傳素材。</div>`}
+    </div>
+  </div>
+
+  ${navBtns({backTo:6, nextTo:8, nextLabel:'下一步：編輯字幕'})}
+  `;
+}
+function assignRowHtml(seg,i){
+  const mat = state.materials.find(m=>m.id===seg.materialId);
+  const opts = state.materials.map(m=>`<option value="${m.id}" ${m.id===seg.materialId?'selected':''}>${escapeHtml(m.name)}（${m.cat}）</option>`).join('');
+  return `<div class="seg-row">
+    <div class="seg-time">${seg.range}</div>
+    <div class="seg-body">
+      <div class="seg-topline"><div class="seg-visual">${escapeHtml(seg.visual)}</div><span style="font-size:11px;color:var(--ink-faint);">建議分類：${seg.materialType}</span></div>
+      <div class="seg-drop" data-drop-seg="${i}">
+        <div class="seg-drop-thumb">${mat? (mat.mtype==='video'?`<video src="${mat.src}" muted></video>`:`<img src="${mat.src}">`) : ''}</div>
+        <div class="seg-drop-text">${mat? `<b>${escapeHtml(mat.name)}</b>${mat.cat}｜${mat.shot}` : '尚未配置素材，將素材卡片拖曳到此處'}</div>
+      </div>
+      <select data-assign-select="${i}">
+        <option value="">— 手動選擇素材 —</option>
+        ${opts}
+      </select>
+    </div>
+  </div>`;
+}
+
+/* ---------- Section 8：編輯字幕 ---------- */
+function section8(){
+  const p = state.currentPlan;
+  if(!p) return emptyPlanNotice();
+  return `
+  <div class="section-eyebrow">Step 08</div>
+  <h1 class="section-title">編輯字幕</h1>
+  <p class="section-desc">選擇整體字幕風格，並針對每個時間段編輯字幕內容。以沉穩、留白、低干擾為原則，不建議大量動畫或過大字體。</p>
+
+  <div class="field-group">
+    <label class="field-label">字幕風格</label>
+    <div class="subtitle-style-grid" id="subtitleStyleGrid">
+      ${SUBTITLE_STYLES.map(s=>styleCardHtml(s)).join('')}
+    </div>
+  </div>
+
+  <div class="timeline-strip">
+    ${p.timeline.map((seg,i)=>subtitleRowHtml(seg,i)).join('')}
+  </div>
+
+  ${navBtns({backTo:7, nextTo:9, nextLabel:'下一步：設定鏡頭'})}
+  `;
+}
+function styleCardHtml(s){
+  const classMap = {'極簡':'minimal','電影':'cinema','雜誌':'magazine','文青':'indie'};
+  const active = state.currentPlan && state.currentPlan.timeline[0].subtitleStyle===s;
+  return `<div class="style-card ${active?'selected':''}" data-style="${s}">
+    <div class="style-name">${s}</div>
+    <div class="style-preview ${classMap[s]}">今天，慢一點</div>
+  </div>`;
+}
+function subtitleRowHtml(seg,i){
+  return `<div class="seg-row">
+    <div class="seg-time">${seg.range}</div>
+    <div class="seg-body">
+      <div class="seg-topline"><div class="seg-visual">${escapeHtml(seg.visual.split(' — ')[0])}</div><span style="font-size:11px;color:var(--ink-faint);">字幕風格：${seg.subtitleStyle}</span></div>
+      <input type="text" data-subtitle-input="${i}" value="${escapeHtml(seg.subtitle)}" placeholder="（留白／不加字幕）" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:2px;font-size:13px;">
+    </div>
+  </div>`;
+}
+
+/* ---------- Section 9：設定鏡頭 ---------- */
+function section9(){
+  const p = state.currentPlan;
+  if(!p) return emptyPlanNotice();
+  return `
+  <div class="section-eyebrow">Step 09</div>
+  <h1 class="section-title">設定鏡頭</h1>
+  <p class="section-desc">為每個時間段選擇鏡頭運動方式。建議避免快速轉場與大量特效，維持沉穩、緩慢的節奏。</p>
+
+  <div class="camera-guide">
+    ${CAMERA_MOVES.map(c=>`<div class="camera-item"><b>${c}</b>${CAMERA_DESC[c]}</div>`).join('')}
+  </div>
+
+  <div class="timeline-strip">
+    ${p.timeline.map((seg,i)=>cameraRowHtml(seg,i)).join('')}
+  </div>
+
+  ${navBtns({backTo:8, nextTo:10, nextLabel:'下一步：時間軸預覽'})}
+  `;
+}
+function cameraRowHtml(seg,i){
+  return `<div class="seg-row">
+    <div class="seg-time">${seg.range}</div>
+    <div class="seg-body">
+      <div class="seg-topline"><div class="seg-visual">${escapeHtml(seg.visual.split(' — ')[0])}</div></div>
+      <select data-camera-select="${i}" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:2px;font-size:13px;">
+        ${CAMERA_MOVES.map(c=>`<option value="${c}" ${seg.camera===c?'selected':''}>${c}</option>`).join('')}
+      </select>
+      <div class="field-hint" style="margin-top:8px;">${CAMERA_DESC[seg.camera]}</div>
+    </div>
+  </div>`;
+}
+
+/* ---------- Section 9.5 helper：AI Prompt (kept as separate accessible block within camera step navigation via step 9->10, but spec item 10 is AI提示詞; adding as its own accessible view through button) ---------- */
+function buildAiPrompt(seg){
+  const matName = (()=>{
+    const m = state.materials.find(x=>x.id===seg.materialId);
+    return m? m.name : `（${seg.materialType} 類別素材，尚未指定）`;
+  })();
+  return `素材：${matName}
+指令：保留原始素材內容，不要任意改變空間、家具、咖啡、餐點、寵物、人物與色彩。
+僅新增以下效果：
+・鏡頭運動：${seg.camera}（${CAMERA_DESC[seg.camera]}）
+・輕微推進與自然景深
+・細微環境動態（如蒸氣、光影、窗簾或葉片的微小晃動）
+時長：${seg.range}
+風格：沉穩、無劇情、不加入誇張特效或快速轉場。`;
+}
+
+/* ---------- Section 10：時間軸預覽 (含AI提示詞 + 影片預覽) ---------- */
+function section10(){
+  const p = state.currentPlan;
+  if(!p) return emptyPlanNotice();
+  return `
+  <div class="section-eyebrow">Step 10</div>
+  <h1 class="section-title">AI 影片提示詞 ＋ 時間軸預覽</h1>
+  <p class="section-desc">根據已配置的素材與鏡頭方式，自動產生每個時間段的 AI 影片製作提示詞，可一鍵複製；下方為 15 秒直式影片預覽。</p>
+
+  <div id="promptList">
+    ${p.timeline.map((seg,i)=>`
+    <div class="prompt-card">
+      <div class="prompt-head"><span>${seg.range}｜${seg.materialType}</span><span>${seg.camera}</span></div>
+      <div class="prompt-body" id="promptBody${i}">${escapeHtml(buildAiPrompt(seg))}</div>
+      <div class="prompt-actions"><button class="btn small" data-copy-prompt="${i}">複製提示詞</button></div>
+    </div>`).join('')}
+  </div>
+
+  <div class="field-group" style="margin-top:34px;">
+    <label class="field-label">15 秒時間軸預覽</label>
+    <div class="preview-wrap">
+      <div>
+        <div class="phone-frame">
+          <div class="phone-screen" id="phoneScreen">
+            <div class="phone-progress" id="phoneProgress">
+              ${p.timeline.map(()=>`<i><b></b></i>`).join('')}
+            </div>
+            <div class="empty-state" id="phoneEmptyState">尚未播放</div>
+            <div class="phone-caption" id="phoneCaption"></div>
+          </div>
+        </div>
+        <div class="preview-controls">
+          <button class="btn small primary" id="btnPlay">▶ 播放</button>
+          <button class="btn small" id="btnPause">⏸ 暫停</button>
+          <button class="btn small" id="btnRestart">⟲ 重新開始</button>
+        </div>
+      </div>
+      <div class="preview-info">
+        <label class="field-label">時間軸清單</label>
+        <div class="preview-seglist" id="previewSeglist">
+          ${p.timeline.map((seg,i)=>`<div class="preview-seg-item" data-preview-item="${i}"><div class="t">${seg.range}</div><div>${escapeHtml(seg.visual.split(' — ')[0])}　·　轉場：${seg.transition}</div></div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  ${navBtns({backTo:9, nextTo:11, nextLabel:'下一步：IG 文案'})}
+  `;
+}
+
+/* ---------- Section 11：IG文案 ---------- */
+function section11(){
+  const p = state.currentPlan;
+  if(!p) return emptyPlanNotice();
+  if(!state.captions) state.captions = buildCaptions(p);
+  const c = state.captions;
+  return `
+  <div class="section-eyebrow">Step 11</div>
+  <h1 class="section-title">IG 文案</h1>
+  <p class="section-desc">依據企劃主題自動產生 Instagram 文案，語氣沉穩、自然、不過度銷售，並帶有生活感與療癒感。</p>
+
+  <button class="btn" id="btnRegenCaptions" style="margin-bottom:20px;">重新產生文案</button>
+
+  <div class="caption-block">
+    <div class="caption-block-head"><span>完整版文案</span><button class="btn small" data-copy-caption="full">複製</button></div>
+    <div class="caption-text" id="captionFull">${escapeHtml(c.full)}</div>
+  </div>
+  <div class="caption-block">
+    <div class="caption-block-head"><span>短版文案</span><button class="btn small" data-copy-caption="short">複製</button></div>
+    <div class="caption-text" id="captionShort">${escapeHtml(c.short)}</div>
+  </div>
+  <div class="caption-block">
+    <div class="caption-block-head"><span>文青版文案</span><button class="btn small" data-copy-caption="indie">複製</button></div>
+    <div class="caption-text" id="captionIndie">${escapeHtml(c.indie)}</div>
+  </div>
+  <div class="caption-block">
+    <div class="caption-block-head"><span>Hashtags</span><button class="btn small" data-copy-caption="tags">複製</button></div>
+    <div class="hashtag-wrap" id="captionTags">${c.tags.map(t=>`<span class="hashtag">#${t}</span>`).join('')}</div>
+  </div>
+
+  ${navBtns({backTo:10, nextTo:12, nextLabel:'下一步：我的企劃庫', extra:`<button class="btn primary" id="btnSaveFav">收藏此企劃</button>`})}
+  `;
+}
+function buildCaptions(p){
+  const themesArr = p.themesUsed.length? p.themesUsed : ['日常'];
+  const themeText = themesArr.join('、');
+  const brandLine = state.brand.name? `— ${state.brand.name}` : '';
+  const full = `${p.title}\n\n有時候不需要特別的理由，一杯咖啡、一個安靜的位置，就足夠讓一天慢下來。\n這裡的日常裡有${themeText}，也有剛剛好的留白。\n\n${brandLine}`.trim();
+  const short = `${p.title}。剛剛好的時間，剛剛好的位置。 ${brandLine}`.trim();
+  const indie = `慢慢地，把${themesArr[0]||'咖啡'}喝完。\n這個下午，什麼都不必解釋。\n${p.title}。`;
+  const tags = Array.from(new Set([
+    '咖啡店日常','慢生活','療癒系咖啡店','安靜的角落',
+    ...(state.brand.keywords||[]).map(k=>k.replace(/\s/g,'')),
+    ...themesArr,
+    state.brand.name? state.brand.name.replace(/\s/g,'') : null,
+  ].filter(Boolean))).slice(0,12);
+  return {full, short, indie, tags};
+}
+
+/* ---------- Section 12：我的企劃庫 ---------- */
+function section12(){
+  return `
+  <div class="section-eyebrow">Step 12</div>
+  <h1 class="section-title">我的短影音企劃庫</h1>
+  <p class="section-desc">管理已收藏的企劃，可重新編輯、複製或刪除。</p>
+
+  ${state.favorites.length? `<div class="fav-grid">
+    ${state.favorites.map(f=>`<div class="fav-card">
+      <div>
+        <div class="fav-title">${escapeHtml(f.title)}</div>
+        <div class="fav-meta">核心情緒｜${escapeHtml(f.emotion)}　·　主題｜${f.themesUsed.join('、')||'—'}　·　收藏於 ${new Date(f.createdAt).toLocaleString('zh-TW')}</div>
+      </div>
+      <div class="fav-actions">
+        <button class="btn small" data-fav-edit="${f.id}">重新編輯</button>
+        <button class="btn small" data-fav-dup="${f.id}">複製</button>
+        <button class="btn small ghost" data-fav-del="${f.id}">刪除</button>
+      </div>
+    </div>`).join('')}
+  </div>` : `<div class="empty-block">尚無收藏企劃。可於「產生企劃」或「IG 文案」步驟中點選「收藏」。</div>`}
+
+  ${navBtns({backTo:11})}
+  `;
+}
+
+/* ==================================================================
+   Events
+   ================================================================== */
+function bindMainEvents(){
+  document.querySelectorAll('[data-nav]').forEach(b=>{
+    b.addEventListener('click',()=>{ state.activeStep = parseInt(b.dataset.nav); renderAll(); });
+  });
+
+  // Step1
+  const fName = document.getElementById('f-brandName');
+  if(fName){
+    fName.addEventListener('input',e=>{ state.brand.name=e.target.value; renderRightPanel(); });
+    document.getElementById('f-brandPos').addEventListener('input',e=>{ state.brand.positioning=e.target.value; renderRightPanel(); });
+    document.getElementById('f-brandAud').addEventListener('input',e=>{ state.brand.audience=e.target.value; });
+    const tagInput = document.getElementById('tagInput');
+    tagInput.addEventListener('keydown',e=>{
+      if(e.key==='Enter' && tagInput.value.trim()){
+        e.preventDefault();
+        state.brand.keywords.push(tagInput.value.trim());
+        renderMain(); renderRightPanel();
+      }
+    });
+    document.querySelectorAll('[data-del-tag]').forEach(b=>{
+      b.addEventListener('click',()=>{
+        state.brand.keywords = state.brand.keywords.filter(k=>k!==b.dataset.delTag);
+        renderMain(); renderRightPanel();
+      });
+    });
+  }
+
+  // Step2
+  document.querySelectorAll('[data-theme]').forEach(p=>{
+    p.addEventListener('click',()=>{
+      const t = p.dataset.theme;
+      if(state.themes.has(t)) state.themes.delete(t); else state.themes.add(t);
+      renderMain(); renderRightPanel(); renderSidebar();
+    });
+  });
+  document.querySelectorAll('[data-type]').forEach(p=>{
+    p.addEventListener('click',()=>{ state.video.type = p.dataset.type; renderMain(); renderRightPanel(); });
+  });
+
+  // Step3 upload
+  const uploadZone = document.getElementById('uploadZone');
+  if(uploadZone){
+    uploadZone.addEventListener('click',()=> document.getElementById('fileInput').click());
+    uploadZone.addEventListener('dragover',e=>{ e.preventDefault(); uploadZone.classList.add('drag'); });
+    uploadZone.addEventListener('dragleave',()=> uploadZone.classList.remove('drag'));
+    uploadZone.addEventListener('drop',e=>{
+      e.preventDefault(); uploadZone.classList.remove('drag');
+      handleFiles(e.dataTransfer.files);
+    });
+    document.querySelectorAll('[data-filter]').forEach(p=>{
+      p.addEventListener('click',()=>{ materialFilter = p.dataset.filter; renderMain(); });
+    });
+    document.querySelectorAll('[data-del-mat]').forEach(b=>{
+      b.addEventListener('click',(e)=>{
+        e.stopPropagation();
+        state.materials = state.materials.filter(m=>m.id!==b.dataset.delMat);
+        renderMain(); renderRightPanel();
+      });
+    });
+    document.querySelectorAll('.material-card').forEach(card=>{
+      card.addEventListener('dragstart',e=>{
+        e.dataTransfer.setData('text/material-id', card.dataset.matId);
+      });
+    });
+  }
+
+  // Step4 generate plans
+  const btnGen = document.getElementById('btnGeneratePlans');
+  if(btnGen){
+    btnGen.addEventListener('click',()=>{
+      generatePlans();
+      state.currentPlan = null;
+      renderAll();
+    });
+  }
+  document.querySelectorAll('[data-select-plan]').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const plan = state.plans.find(p=>p.id===b.dataset.selectPlan);
+      state.currentPlan = JSON.parse(JSON.stringify(plan));
+      state.captions = null;
+      renderAll();
+    });
+  });
+  document.querySelectorAll('[data-fav-plan]').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const plan = state.plans.find(p=>p.id===b.dataset.favPlan);
+      state.favorites.push(JSON.parse(JSON.stringify(plan)));
+      renderRightPanel();
+      b.textContent = '已收藏 ✓';
+    });
+  });
+
+  // Step6 regen timeline
+  const btnRegenT = document.getElementById('btnRegenTimeline');
+  if(btnRegenT){
+    btnRegenT.addEventListener('click',()=>{
+      state.currentPlan.timeline = buildTimelineSkeleton(state.currentPlan.title, state.currentPlan.themesUsed, state.video.type);
+      renderAll();
+    });
+  }
+
+  // Step7 drag & assign
+  document.querySelectorAll('[data-drop-seg]').forEach(zone=>{
+    zone.addEventListener('dragover',e=>{ e.preventDefault(); zone.classList.add('over'); });
+    zone.addEventListener('dragleave',()=> zone.classList.remove('over'));
+    zone.addEventListener('drop',e=>{
+      e.preventDefault(); zone.classList.remove('over');
+      const matId = e.dataTransfer.getData('text/material-id');
+      if(!matId) return;
+      const idx = parseInt(zone.dataset.dropSeg);
+      state.currentPlan.timeline[idx].materialId = matId;
+      renderAll();
+    });
+  });
+  document.querySelectorAll('[data-assign-select]').forEach(sel=>{
+    sel.addEventListener('change',()=>{
+      const idx = parseInt(sel.dataset.assignSelect);
+      state.currentPlan.timeline[idx].materialId = sel.value || null;
+      renderAll();
+    });
+  });
+
+  // Step8 subtitle style & text
+  document.querySelectorAll('[data-style]').forEach(card=>{
+    card.addEventListener('click',()=>{
+      state.currentPlan.timeline.forEach(seg=> seg.subtitleStyle = card.dataset.style);
+      renderMain();
+    });
+  });
+  document.querySelectorAll('[data-subtitle-input]').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      const idx = parseInt(inp.dataset.subtitleInput);
+      state.currentPlan.timeline[idx].subtitle = inp.value;
+      renderRightPanel();
+    });
+  });
+
+  // Step9 camera select
+  document.querySelectorAll('[data-camera-select]').forEach(sel=>{
+    sel.addEventListener('change',()=>{
+      const idx = parseInt(sel.dataset.cameraSelect);
+      state.currentPlan.timeline[idx].camera = sel.value;
+      renderMain();
+    });
+  });
+
+  // Step10 prompts + preview
+  document.querySelectorAll('[data-copy-prompt]').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const idx = b.dataset.copyPrompt;
+      const text = document.getElementById('promptBody'+idx).textContent;
+      copyText(text, b);
+    });
+  });
+  const btnPlay = document.getElementById('btnPlay');
+  if(btnPlay){
+    btnPlay.addEventListener('click', startPreview);
+    document.getElementById('btnPause').addEventListener('click', pausePreview);
+    document.getElementById('btnRestart').addEventListener('click', restartPreview);
+  }
+
+  // Step11 captions
+  const btnRegenC = document.getElementById('btnRegenCaptions');
+  if(btnRegenC){
+    btnRegenC.addEventListener('click',()=>{
+      state.captions = buildCaptions(state.currentPlan);
+      renderMain();
+    });
+  }
+  document.querySelectorAll('[data-copy-caption]').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const key = b.dataset.copyCaption;
+      let text = '';
+      if(key==='tags') text = state.captions.tags.map(t=>'#'+t).join(' ');
+      else text = state.captions[key];
+      copyText(text, b);
+    });
+  });
+  const btnSaveFav = document.getElementById('btnSaveFav');
+  if(btnSaveFav){
+    btnSaveFav.addEventListener('click',()=>{
+      state.favorites.push(JSON.parse(JSON.stringify(state.currentPlan)));
+      renderRightPanel();
+      btnSaveFav.textContent = '已收藏 ✓';
+    });
+  }
+
+  // Step12 favorites
+  document.querySelectorAll('[data-fav-edit]').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const f = state.favorites.find(x=>x.id===b.dataset.favEdit);
+      state.currentPlan = JSON.parse(JSON.stringify(f));
+      state.captions = null;
+      state.activeStep = 6;
+      renderAll();
+    });
+  });
+  document.querySelectorAll('[data-fav-dup]').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const f = state.favorites.find(x=>x.id===b.dataset.favDup);
+      const dup = JSON.parse(JSON.stringify(f));
+      dup.id = genId(); dup.title = f.title + '（複製）'; dup.createdAt = Date.now();
+      state.favorites.push(dup);
+      renderMain(); renderRightPanel();
+    });
+  });
+  document.querySelectorAll('[data-fav-del]').forEach(b=>{
+    b.addEventListener('click',()=>{
+      state.favorites = state.favorites.filter(x=>x.id!==b.dataset.favDel);
+      renderMain(); renderRightPanel();
+    });
+  });
+}
+
+function copyText(text, btn){
+  const done = ()=>{
+    const old = btn.textContent; btn.textContent='已複製 ✓';
+    setTimeout(()=> btn.textContent=old, 1400);
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));
+  } else fallbackCopy(text,done);
+}
+function fallbackCopy(text,cb){
+  const ta = document.createElement('textarea');
+  ta.value = text; document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); }catch(e){}
+  document.body.removeChild(ta); cb();
+}
+
+/* ---------- File upload handling ---------- */
+const fileInput = document.getElementById('fileInput');
+fileInput.addEventListener('change', e=> handleFiles(e.target.files));
+function handleFiles(fileList){
+  Array.from(fileList).forEach(file=>{
+    const isVideo = file.type.startsWith('video');
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      state.materials.push({
+        id:genId(),
+        name:file.name.replace(/\.[^.]+$/,''),
+        cat:'其他',
+        tags:[],
+        mtype:isVideo?'video':'photo',
+        orientation:'直向',
+        shot:'中景',
+        usage:'',
+        src:reader.result,
+      });
+      renderMain(); renderRightPanel();
+    };
+    reader.readAsDataURL(file);
+  });
+  fileInput.value = '';
+}
+
+/* ---------- Preview player ---------- */
+function stopPreviewTimer(){
+  if(state.preview.timer){ clearInterval(state.preview.timer); state.preview.timer=null; }
+}
+function renderPreviewFrame(){
+  const p = state.currentPlan; if(!p) return;
+  const screen = document.getElementById('phoneScreen');
+  if(!screen) return;
+  const idx = state.preview.index;
+  const seg = p.timeline[idx];
+  const mat = state.materials.find(m=>m.id===seg.materialId);
+  const emptyState = document.getElementById('phoneEmptyState');
+  screen.querySelectorAll('.frame-media').forEach(n=>n.remove());
+  if(mat){
+    emptyState.style.display='none';
+    const node = document.createElement(mat.mtype==='video'?'video':'img');
+    node.src = mat.src; node.className='frame-media';
+    if(mat.mtype==='video'){ node.muted=true; node.loop=true; node.autoplay=true; node.playsInline=true; }
+    screen.insertBefore(node, document.getElementById('phoneProgress'));
+    requestAnimationFrame(()=> node.classList.add('show'));
+  } else {
+    emptyState.style.display='flex';
+    emptyState.textContent = `（${seg.materialType} 尚未配置素材）`;
+  }
+  document.getElementById('phoneCaption').textContent = seg.subtitle || '';
+  document.querySelectorAll('.preview-seg-item').forEach((n,i)=> n.classList.toggle('active', i===idx));
+  const bars = document.querySelectorAll('#phoneProgress i b');
+  bars.forEach((b,i)=>{
+    if(i<idx) b.style.width='100%';
+    else if(i>idx) b.style.width='0%';
+  });
+}
+function startPreview(){
+  const p = state.currentPlan; if(!p) return;
+  stopPreviewTimer();
+  state.preview.playing = true;
+  renderPreviewFrame();
+  let segStart = Date.now();
+  const bars = document.querySelectorAll('#phoneProgress i b');
+  state.preview.timer = setInterval(()=>{
+    const elapsed = Date.now()-segStart;
+    const pct = Math.min(100, elapsed/3000*100);
+    if(bars[state.preview.index]) bars[state.preview.index].style.width = pct+'%';
+    if(elapsed>=3000){
+      state.preview.index++;
+      if(state.preview.index>=p.timeline.length){
+        state.preview.index=0;
+        segStart = Date.now();
+        renderPreviewFrame();
+        return;
+      }
+      segStart = Date.now();
+      renderPreviewFrame();
+    }
+  },50);
+}
+function pausePreview(){ stopPreviewTimer(); }
+function restartPreview(){
+  state.preview.index = 0;
+  stopPreviewTimer();
+  renderPreviewFrame();
+  startPreview();
+}
+
+/* ==================================================================
+   Init
+   ================================================================== */
+renderAll();
+</script>
+</body>
+</html>
