@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ÉCOLE CAFÉ 智慧交班系統</title>
+    <title>ÉCOLE CAFÉ 交班系統</title>
     <meta name="theme-color" content="#111111">
     <link rel="apple-touch-icon" href="data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23111'/><text x='50' y='65' fill='white' font-size='50' text-anchor='middle'>E</text></svg>">
     
@@ -330,7 +330,7 @@
 <div class="container">
     <header>
         <div class="header-title-row">
-            <h1>ÉCOLE CAFÉ 智慧交班系統</h1>
+            <h1>ÉCOLE CAFÉ 交班系統</h1>
             <span id="cloud-status"></span>
         </div>
         
@@ -1172,7 +1172,7 @@
                 navigator.serviceWorker.register(blobUrl).catch(e => console.log('PWA ServiceWorker Registration Bypassed:', e));
 
                 const manifest = {
-                    name: "ÉCOLE CAFÉ 智慧交班系統", short_name: "交班系統", display: "standalone",
+                    name: "ÉCOLE CAFÉ 交班系統", short_name: "交班系統", display: "standalone",
                     start_url: ".", background_color: "#f4f4f4", theme_color: "#111111",
                     icons: [{ src: "data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23111'/><text x='50' y='65' fill='white' font-size='50' text-anchor='middle'>E</text></svg>", sizes: "192x192", type: "image/svg+xml" }]
                 };
@@ -1213,12 +1213,12 @@
         return '多雲';
     }
 
-    /* 自動抓取台北市當天整天天氣狀況與氣溫 */
+    /* 自動抓取台北市當天整天天氣狀況、氣溫與 9:00-21:00 平均降雨機率 */
     async function fetchDayWeather(dateStr) {
         const displayEl = document.getElementById('auto-weather-display');
         if (!displayEl) return;
         try {
-            const resp = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=25.0330&longitude=121.5654&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTaipei&start_date=${dateStr}&end_date=${dateStr}`);
+            const resp = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=25.0330&longitude=121.5654&daily=weather_code,temperature_2m_max,temperature_2m_min&hourly=precipitation_probability&timezone=Asia%2FTaipei&start_date=${dateStr}&end_date=${dateStr}`);
             if (!resp.ok) throw new Error('氣象資料請求失敗');
             const data = await resp.json();
             const daily = data && data.daily;
@@ -1229,7 +1229,28 @@
             const rawCode = daily.weather_code ? daily.weather_code[0] : (daily.weathercode ? daily.weathercode[0] : null);
             const weatherDesc = rawCode !== null ? getWmoWeatherText(rawCode) : '';
 
-            autoWeatherText = weatherDesc ? `${weatherDesc} ${minT}°C ~ ${maxT}°C` : `${minT}°C ~ ${maxT}°C`;
+            // 解析並計算 9:00 - 21:00 時段之平均降雨機率
+            let avgRainStr = '';
+            if (data.hourly && Array.isArray(data.hourly.time) && Array.isArray(data.hourly.precipitation_probability)) {
+                const probs = [];
+                data.hourly.time.forEach((timeStr, idx) => {
+                    const hourMatch = timeStr.match(/T(\d{2}):/);
+                    if (hourMatch) {
+                        const hour = parseInt(hourMatch[1], 10);
+                        if (hour >= 9 && hour <= 21) {
+                            const p = data.hourly.precipitation_probability[idx];
+                            if (typeof p === 'number') probs.push(p);
+                        }
+                    }
+                });
+                if (probs.length > 0) {
+                    const avgP = Math.round(probs.reduce((sum, val) => sum + val, 0) / probs.length);
+                    avgRainStr = `降雨率 ${avgP}%`;
+                }
+            }
+
+            const baseWeather = weatherDesc ? `${weatherDesc} ${minT}°C ~ ${maxT}°C` : `${minT}°C ~ ${maxT}°C`;
+            autoWeatherText = avgRainStr ? `${baseWeather} (${avgRainStr})` : baseWeather;
             displayEl.innerText = autoWeatherText;
         } catch (err) {
             displayEl.innerText = autoWeatherText || '（無該日期氣象資料）';
