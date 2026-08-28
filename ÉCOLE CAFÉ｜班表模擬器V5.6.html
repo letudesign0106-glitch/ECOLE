@@ -102,6 +102,26 @@
         .icon-btn.is-primary:hover { background: #1f2937; border-color: #1f2937; }
         .icon-btn.is-danger { color: #b91c1c; }
         .icon-btn.is-danger:hover { background-color: #fef2f2; border-color: #fecaca; }
+
+        /* 鎖定按鈕專屬樣式：虛線外框與莫蘭迪紅主題 */
+        .icon-btn-lock {
+            border-style: dashed !important;
+            border-width: 1.5px !important;
+            border-color: #9ca3af !important;
+        }
+        .icon-btn-lock:hover {
+            background-color: #f9fafb;
+            border-color: #4b5563 !important;
+        }
+        .icon-btn-lock.is-locked {
+            background-color: #b56c6c !important; /* 莫蘭迪紅 */
+            color: #ffffff !important;
+            border-color: #8e4b4b !important;
+        }
+        .icon-btn-lock.is-locked:hover {
+            background-color: #a35d5d !important;
+        }
+
         .toolbar-divider { width: 1px; height: 34px; background: #e5e7eb; margin: 0 2px; flex: 0 0 auto; }
     </style>
 </head>
@@ -116,21 +136,28 @@
             <h1 class="text-xl font-bold tracking-widest text-gray-900 flex items-center gap-2">
                 ÉCOLE CAFÉ <span class="text-sm font-normal text-gray-500 ml-2">CLOUD SCHEDULE</span>
             </h1>
-            <div class="text-sm text-gray-600 mt-2 flex gap-4 items-center">
+            <div class="text-sm text-gray-600 mt-2 flex gap-3 items-center flex-wrap">
                 <span>選擇月份：</span>
                 <input type="month" id="monthSelector" class="border border-gray-300 rounded px-2 py-1 text-gray-700 outline-none focus:border-black">
+                <span id="lockBadge" class="hidden bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded border border-red-200 font-bold items-center gap-1">🔒 班表已鎖定</span>
             </div>
         </div>
 
         <div class="toolbar">
-            <div id="authArea" class="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200 mr-2"></div>
+            <div id="authArea" class="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200 mr-1"></div>
+
+            <!-- 班表鎖定/解鎖按鈕（放置於登入區後第一個，具備虛線外框與莫蘭迪紅狀態切換） -->
+            <button onclick="toggleScheduleLock()" title="鎖定/解鎖當月班表" id="lockBtn" class="icon-btn icon-btn-lock admin-only">
+                <svg id="lockIcon" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2zm10-10V7a4 4 0 0 0-8 0v4h8z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span id="lockText">鎖定</span>
+            </button>
+
+            <div class="toolbar-divider admin-only"></div>
 
             <button onclick="openGanttDialog()" title="單日進度表" class="icon-btn">
                 <svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 <span>進度表</span>
             </button>
-
-            <div class="toolbar-divider admin-only"></div>
 
             <button onclick="manageEmployees()" title="人員管理" class="icon-btn admin-only">
                 <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 1 0 7.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -174,7 +201,6 @@
         <div class="border border-gray-200 flex-1 table-container relative" id="scheduleCaptureArea">
             <table id="scheduleTable">
                 <thead id="tableHead"></thead>
-                <!-- 調整 A：備註列移動至日期下方 -->
                 <tbody id="noteBody" class="border-b-2 border-gray-300"></tbody>
                 <tbody id="tableBody"></tbody>
                 <tbody id="stationBody" class="border-t-2 border-gray-300"></tbody>
@@ -328,7 +354,6 @@
                 </div>
             </div>
 
-            <!-- 全員可用：個人特別備註與需求 -->
             <div class="border-t pt-3">
                 <div class="text-xs text-gray-500 font-bold tracking-widest mb-1.5 flex justify-between items-center">
                     <span>個人備註 / 特殊需求</span>
@@ -401,7 +426,6 @@
         </div>
     </dialog>
 
-    <!-- 調整 A：新增「國定假日」選項按鈕 -->
     <dialog id="noteDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-sm border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
             <h3 class="font-bold text-gray-800 tracking-wide" id="noteDialogTitle">當日備註</h3>
@@ -466,6 +490,7 @@
         let currentUserRole = 'admin'; 
         let currentUserEmpId = null;   
         let unsubscribeSnapshot = null;
+        let isCloudLoaded = false; 
 
         try {
             firebase.initializeApp(firebaseConfig);
@@ -530,6 +555,7 @@
                     currentUser = null;
                     currentUserRole = 'admin'; 
                     currentUserEmpId = null;
+                    isCloudLoaded = false;
                     if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
                     
                     authArea.innerHTML = `
@@ -545,6 +571,7 @@
         } catch(e) {
             console.warn("Firebase 尚未正確設定，系統將以本機單機模式運行。");
             document.getElementById('authArea').innerHTML = `<span class="text-xs text-gray-400">單機測試模式</span>`;
+            isCloudLoaded = true;
             updateUIPermissions();
         }
 
@@ -558,7 +585,6 @@
             });
         }
 
-        // 調整 B：預設人員結構加入 totalAnnualLeave 欄位
         let defaultEmployees = [
             { id: 'FT1', name: '織俽', type: 'FT', totalAnnualLeave: 7 }, { id: 'FT2', name: '龍', type: 'FT', totalAnnualLeave: 7 },
             { id: 'FT3', name: '沐', type: 'FT', totalAnnualLeave: 7 }, { id: 'FT4', name: '訓鋒', type: 'FT', totalAnnualLeave: 7 },
@@ -592,6 +618,7 @@
         let stationData = JSON.parse(localStorage.getItem('ecoleStation')) || {};
         let noteData = JSON.parse(localStorage.getItem('ecoleNote')) || {};
         let carryOverData = JSON.parse(localStorage.getItem('ecoleCarryOver')) || {}; 
+        let lockData = JSON.parse(localStorage.getItem('ecoleLock')) || {}; 
         let shiftSettings = JSON.parse(localStorage.getItem('ecoleShiftSettings')) || defaultShiftTypes;
 
         if (!shiftSettings.M1 || shiftSettings.M1 === "1130-2030") {
@@ -609,6 +636,10 @@
         const noteDialog = document.getElementById('noteDialog');
         const confirmDialog = document.getElementById('confirmDialog');
 
+        function isScheduleLocked(ym = currentYearMonth) {
+            return !!(lockData && lockData[ym]);
+        }
+
         function setupCloudSync() {
             if (!currentUser || !db) return;
             
@@ -617,6 +648,7 @@
                 unsubscribeSnapshot = null;
             }
 
+            isCloudLoaded = false;
             document.getElementById('loadingText').innerText = "載入共用班表...";
             const docRef = db.collection("ecoleCafe").doc("main_schedule");
             
@@ -627,6 +659,7 @@
                     stationData = data.stationData || {};
                     noteData = data.noteData || {};
                     carryOverData = data.carryOverData || {};
+                    lockData = data.lockData || {};
                     employees = data.employees || defaultEmployees;
 
                     if (employees.some(e => e.name === 'Rita' || e.name === 'JEFF')) {
@@ -634,9 +667,11 @@
                     }
 
                     shiftSettings = data.shiftSettings || defaultShiftTypes;
+                    isCloudLoaded = true; 
                     renderShiftButtons(); 
                     renderTable();
                 } else {
+                    isCloudLoaded = true;
                     if (currentUserRole === 'admin') saveData();
                 }
                 document.getElementById('loadingOverlay').style.display = 'none';
@@ -646,9 +681,17 @@
             });
         }
 
-        // 欄位級原子更新函式：防範空值拋錯與跨筆覆蓋問題
         function updateFirestoreField(fieldPath, value) {
             if (!currentUser || !db) return;
+            if (!isCloudLoaded) {
+                console.warn("雲端資料尚未載入完畢，取消欄位寫入以防蓋檔。");
+                return;
+            }
+            if (isScheduleLocked(currentYearMonth) && !fieldPath.startsWith('lockData')) {
+                console.warn("當月班表已被鎖定，拒絕寫入變更。");
+                return;
+            }
+
             const safeValue = (value === undefined || value === null) ? '' : value;
             const docRef = db.collection("ecoleCafe").doc("main_schedule");
             
@@ -665,19 +708,48 @@
             });
         }
 
-        // 管理員全域存檔
         function saveData() {
             localStorage.setItem('ecoleSchedule', JSON.stringify(scheduleData));
             localStorage.setItem('ecoleStation', JSON.stringify(stationData));
             localStorage.setItem('ecoleNote', JSON.stringify(noteData));
             localStorage.setItem('ecoleCarryOver', JSON.stringify(carryOverData));
+            localStorage.setItem('ecoleLock', JSON.stringify(lockData));
             localStorage.setItem('ecoleEmployees', JSON.stringify(employees));
             localStorage.setItem('ecoleShiftSettings', JSON.stringify(shiftSettings));
 
             if (currentUser && db) {
-                const dataToSave = { scheduleData, stationData, noteData, carryOverData, employees, shiftSettings };
+                if (!isCloudLoaded) {
+                    console.warn("雲端資料尚未同步完畢，暫緩全域儲存以防舊資料覆蓋！");
+                    return;
+                }
+                const dataToSave = { scheduleData, stationData, noteData, carryOverData, lockData, employees, shiftSettings };
                 db.collection("ecoleCafe").doc("main_schedule").set(dataToSave, { merge: true })
                     .catch((error) => { console.error("雲端存檔失敗:", error); });
+            }
+        }
+
+        async function toggleScheduleLock() {
+            if (currentUserRole !== 'admin') {
+                alertCustom('提醒：只有管理員具備鎖定/解鎖班表的權限！');
+                return;
+            }
+
+            const currentlyLocked = isScheduleLocked(currentYearMonth);
+            const actionText = currentlyLocked ? "解鎖" : "鎖定";
+            const confirmMsg = `確定要 ${actionText} ${currentYearMonth} 月份的班表嗎？\n\n` + 
+                (currentlyLocked ? "解鎖後將恢復所有人依權限編輯。" : "鎖定後所有人（包含管理員）皆無法編輯當月班表與站位，需再次點擊解鎖才可修訂。");
+
+            const confirmed = await customConfirm(confirmMsg);
+            if (confirmed) {
+                if (!lockData) lockData = {};
+                lockData[currentYearMonth] = !currentlyLocked;
+                localStorage.setItem('ecoleLock', JSON.stringify(lockData));
+
+                const fieldPath = `lockData.${currentYearMonth}`;
+                updateFirestoreField(fieldPath, lockData[currentYearMonth]);
+                saveData();
+                renderTable();
+                alertCustom(`${currentYearMonth} 月份班表已成功${actionText}！`);
             }
         }
 
@@ -746,6 +818,12 @@
 
         function updateCarryOver(empId, val) {
             if (currentUserRole !== 'admin') return; 
+            if (isScheduleLocked(currentYearMonth)) {
+                alertCustom("提醒：本月班表已被鎖定，無法進行編輯！");
+                renderTable();
+                return;
+            }
+
             const intVal = parseInt(val, 10) || 0;
             if (!carryOverData[currentYearMonth]) carryOverData[currentYearMonth] = {};
             carryOverData[currentYearMonth][empId] = intVal;
@@ -761,6 +839,23 @@
             const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
             const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
 
+            const locked = isScheduleLocked(currentYearMonth);
+            const lockBadge = document.getElementById('lockBadge');
+            const lockText = document.getElementById('lockText');
+            const lockBtn = document.getElementById('lockBtn');
+
+            if (lockBadge) lockBadge.style.display = locked ? 'inline-flex' : 'none';
+            if (lockText) lockText.innerText = locked ? '解鎖' : '鎖定';
+            
+            // 動態更新鎖定按鈕樣式 (鎖定狀態切換為莫蘭迪紅 border/bg)
+            if (lockBtn) {
+                if (locked) {
+                    lockBtn.classList.add('is-locked');
+                } else {
+                    lockBtn.classList.remove('is-locked');
+                }
+            }
+
             if (!scheduleData[currentYearMonth]) scheduleData[currentYearMonth] = {};
             if (!stationData[currentYearMonth]) stationData[currentYearMonth] = {};
             if (!noteData[currentYearMonth]) noteData[currentYearMonth] = {};
@@ -774,7 +869,6 @@
                 <th rowspan="2" class="sticky-corner px-2 py-1 border-r border-gray-200" style="left: 40px; width: 60px; min-width: 60px; max-width: 60px;">姓名</th>
                 <th rowspan="2" class="sticky-corner px-1 py-1 text-[10px] text-gray-500 font-normal leading-tight border-r-2 border-gray-300" style="left: 100px; width: 40px; min-width: 40px; max-width: 40px;">上月<br>連續</th>`;
             
-            // 調整 A：若備註為「國定假日」，日期數字顯示紅字
             for (let i = 1; i <= daysInMonth; i++) {
                 const dayIndex = (firstDayOfWeek + i - 1) % 7;
                 const isWeekend = dayIndex === 0 || dayIndex === 6;
@@ -785,13 +879,11 @@
                 theadHTML += `<th class="day-col-${i} px-1 pt-2 pb-1 text-sm border-b-0 ${dateClass}">${i}</th>`;
             }
             
-            // 調整 B：修改年假欄位標題為「本月使用年假」與「剩餘年假(天)」
             theadHTML += `<th rowspan="2" class="px-2 py-1 min-w-[60px] text-xs font-normal text-gray-500 border-l-2 border-gray-300 right-name-col">姓名</th>
                           <th rowspan="2" class="px-2 py-1 min-w-[80px] text-xs font-normal text-gray-500 border-l border-gray-200">月休 / 工時</th>
                           <th rowspan="2" class="px-2 py-1 min-w-[60px] text-xs font-normal text-gray-500 border-l border-gray-200">本月使用<br>年假</th>
                           <th rowspan="2" class="px-2 py-1 min-w-[60px] text-xs font-normal text-gray-500 border-l border-gray-200">剩餘年假<br>(天)</th></tr><tr>`;
             
-            // 調整 A：若備註為「國定假日」，星期簡稱顯示紅字
             for (let i = 1; i <= daysInMonth; i++) {
                 const dayIndex = (firstDayOfWeek + i - 1) % 7;
                 const isWeekend = dayIndex === 0 || dayIndex === 6;
@@ -804,12 +896,11 @@
             theadHTML += `</tr>`;
             document.getElementById('tableHead').innerHTML = theadHTML;
 
-            // 調整 A：渲染移動到日期正下方的備註列
             let noteHTML = `<tr><th colspan="3" class="sticky-col px-2 py-1 text-sm font-normal text-gray-700 bg-white border-r-2 border-gray-300" style="left: 0; z-index: 10;">備註</th>`;
             for (let i = 1; i <= daysInMonth; i++) {
                 const n = noteData[currentYearMonth]?.[i] || '';
                 const isNatHoliday = n.includes('國定假日');
-                const pointerClass = (currentUserRole === 'admin') ? 'shift-cell' : 'cursor-default';
+                const pointerClass = (currentUserRole === 'admin' && !locked) ? 'shift-cell' : 'cursor-default';
                 const holidayClass = isNatHoliday ? 'text-red-600 font-bold bg-red-50' : 'text-gray-500 bg-white';
                 noteHTML += `<td class="day-col-${i} ${pointerClass} ${holidayClass} text-[10px]" onclick="openNoteDialog(${i})">${escapeHTML(n)}</td>`;
             }
@@ -818,7 +909,7 @@
 
             let tbodyHTML = '';
             let currentType = '';
-            const inputDisabledAttr = (currentUserRole !== 'admin') ? 'disabled' : '';
+            const inputDisabledAttr = (currentUserRole !== 'admin' || locked) ? 'disabled' : '';
 
             employees.forEach(emp => {
                 let typeLabel = '';
@@ -863,7 +954,8 @@
                         totalHours += calculateHours(shift);
                     }
 
-                    let pointerClass = (currentUserRole === 'admin' || currentUserEmpId === emp.id) ? '' : 'cursor-default opacity-90';
+                    let canEdit = !locked && (currentUserRole === 'admin' || currentUserEmpId === emp.id);
+                    let pointerClass = canEdit ? '' : 'cursor-default opacity-90';
                     tbodyHTML += `<td class="day-col-${i} ${cellClass} ${pointerClass}" onclick="openDialog('${escapeHTML(emp.id)}', ${i}, '${escapeHTML(emp.name)}')">${displayText}</td>`;
                 }
 
@@ -871,7 +963,6 @@
                     ? `<span class="${daysOff < 8 ? 'text-black font-bold' : 'text-gray-600'}">${daysOff} 天</span>`
                     : `<span class="text-gray-600">${totalHours.toFixed(1)} hr</span>`;
                 
-                // 調整 B：計算剩餘年假 (總年假 - 本月使用年假)
                 const totalAnnualLeave = (emp.totalAnnualLeave !== undefined) ? emp.totalAnnualLeave : 0;
                 const remainingAnnualLeave = totalAnnualLeave - annualLeaves;
                 const remainingClass = remainingAnnualLeave < 0 ? 'text-red-600 font-bold' : 'text-gray-700 font-bold';
@@ -883,7 +974,6 @@
             });
             document.getElementById('tableBody').innerHTML = tbodyHTML;
 
-            // 內外場配置區塊
             let stationHTML = `<tr><td colspan="${daysInMonth + 7}" class="station-title-row bg-gray-100 text-left px-4 py-1 text-xs text-gray-500 font-bold tracking-widest border-t-2 border-gray-300">STATION ASSIGNMENTS (內外場配置)</td></tr>`;
             stations.forEach(st => {
                 const rowClass = st === '外場' ? 'station-row-light' : 'station-row-deep';
@@ -907,7 +997,7 @@
                     }
                     
                     const cellClass = isError ? "shift-cell text-xs text-red-600 font-bold bg-red-50" : "shift-cell text-xs";
-                    const pointerClass = (currentUserRole === 'admin') ? '' : 'cursor-default';
+                    const pointerClass = (currentUserRole === 'admin' && !locked) ? '' : 'cursor-default';
                     const displayHTML = isError ? `⚠️<br>${escapeHTML(sName)}` : escapeHTML(sName);
 
                     stationHTML += `<td class="day-col-${i} ${cellClass} ${pointerClass}" onclick="openStationDialog('${st}', ${i})">${displayHTML}</td>`;
@@ -925,7 +1015,6 @@
             return parsedHours;
         }
 
-        // 時間字串解析防禦升級（加入上限計數器 loopGuard 確保絕對不發生無窮迴圈）
         function parseTimeRanges(shiftStr) {
             let ranges = [];
             let searchStr = shiftStr;
@@ -964,6 +1053,10 @@
         }
 
         function openDialog(empId, day, empName) {
+            if (isScheduleLocked(currentYearMonth)) {
+                alertCustom('提醒：本月班表已被管理員鎖定，無法進行任何修訂！');
+                return;
+            }
             if (currentUserRole === 'staff' && currentUserEmpId !== empId) {
                 alertCustom('提醒：您只能編輯或預排您自己的班表喔！');
                 return;
@@ -971,7 +1064,6 @@
             selectedCell = { empId, day };
             document.getElementById('dialogSubtitle').innerText = `${empName} - ${currentYearMonth}-${day.toString().padStart(2, '0')}`;
             
-            // 自動帶入當前格子的備註與需求內容
             const currentVal = scheduleData[currentYearMonth]?.[empId]?.[day] || '';
             document.getElementById('empCellNote').value = currentVal;
 
@@ -983,6 +1075,10 @@
         }
 
         function setShift(val) {
+            if (isScheduleLocked(currentYearMonth)) {
+                alertCustom('提醒：本月班表已被鎖定，無法進行修改！');
+                return;
+            }
             if (currentUserRole === 'staff' && currentUserEmpId !== selectedCell.empId) {
                 alertCustom('權限不足：您只能修改自己的班別！');
                 return;
@@ -1008,6 +1104,10 @@
         function closeDialog() { shiftDialog.close(); }
 
         function openStationDialog(station, day) {
+            if (isScheduleLocked(currentYearMonth)) {
+                alertCustom('提醒：本月班表已被鎖定，無法修訂站點分配！');
+                return;
+            }
             if (currentUserRole !== 'admin') return;
             selectedCell = { station, day };
             document.getElementById('stationDialogTitle').innerText = `${station} - ${day}日`;
@@ -1024,6 +1124,10 @@
         }
 
         function setStation(name) {
+            if (isScheduleLocked(currentYearMonth)) {
+                alertCustom('提醒：本月班表已被鎖定，無法修訂站點！');
+                return;
+            }
             if (currentUserRole !== 'admin') return;
             stationData[currentYearMonth][selectedCell.station][selectedCell.day] = name;
             stationDialog.close();
@@ -1036,6 +1140,10 @@
         function closeStationDialog() { stationDialog.close(); }
 
         function openNoteDialog(day) {
+            if (isScheduleLocked(currentYearMonth)) {
+                alertCustom('提醒：本月班表已被鎖定，無法修改每日備註！');
+                return;
+            }
             if (currentUserRole !== 'admin') return;
             selectedCell = { day };
             document.getElementById('noteDialogTitle').innerText = `${day}日 備註`;
@@ -1044,6 +1152,10 @@
         }
 
         function setNote(val) {
+            if (isScheduleLocked(currentYearMonth)) {
+                alertCustom('提醒：本月班表已被鎖定！');
+                return;
+            }
             if (currentUserRole !== 'admin') return;
             noteData[currentYearMonth][selectedCell.day] = val;
             noteDialog.close();
@@ -1061,7 +1173,6 @@
             document.getElementById('empManageDialog').showModal();
         }
 
-        // 調整 B：在人員管理中新增「總年假」欄位
         function renderEmpManageList() {
             let html = '';
             tempEmployees.forEach((emp, index) => {
@@ -1180,7 +1291,6 @@
             document.getElementById('alertDialog').showModal();
         }
 
-        // Promise 懸掛與記憶體洩漏防禦優化
         function customConfirm(msg) {
             document.getElementById('confirmMsg').innerText = msg;
             confirmDialog.showModal();
@@ -1201,6 +1311,10 @@
         }
 
         function autoFill() {
+            if (isScheduleLocked(currentYearMonth)) {
+                alertCustom('提醒：本月班表已被管理員鎖定，無法執行自動排班！');
+                return;
+            }
             document.getElementById('wdHint').innerText = `${document.getElementById('weekdayMinInput').value}-${document.getElementById('weekdayMaxInput').value}`;
             document.getElementById('weHint').innerText = `${document.getElementById('weekendMinInput').value}-${document.getElementById('weekendMaxInput').value}`;
             document.getElementById('autoFillDialog').showModal();
@@ -1220,6 +1334,10 @@
         const isWorkCode = (s) => s && !isOffCode(s);
 
         function executeAutoFill() {
+            if (isScheduleLocked(currentYearMonth)) {
+                alertCustom('提醒：本月班表已被鎖定！');
+                return;
+            }
             document.getElementById('autoFillDialog').close();
             const targetRestDays = parseInt(document.getElementById('ftRestDaysInput').value, 10) || 8;
             const weekdayMin = Math.max(1, parseInt(document.getElementById('weekdayMinInput').value, 10) || 4);
@@ -1624,7 +1742,6 @@
                 }
             }
             
-            // 調整：圖片匯出時修正 stationTitle colspan (7個非日期欄)
             const stationTitle = clone.querySelector('.station-title-row');
             if (stationTitle) {
                 stationTitle.setAttribute('colspan', (endDay - startDay + 1) + 7);
@@ -1676,6 +1793,10 @@
         }
 
         async function clearSchedule() {
+            if (isScheduleLocked(currentYearMonth)) {
+                alertCustom('提醒：本月班表已被管理員鎖定，無法執行清空！');
+                return;
+            }
             const confirm = await customConfirm(`確定要清空 ${currentYearMonth} 的所有排班與站點資料嗎？\n(將保留上月連續設定)`);
             if(confirm) {
                 scheduleData[currentYearMonth] = {};
@@ -1689,7 +1810,7 @@
         }
 
         async function exportJSON() {
-            const data = { scheduleData, stationData, noteData, carryOverData, employees, shiftSettings };
+            const data = { scheduleData, stationData, noteData, carryOverData, lockData, employees, shiftSettings };
             const fileName = `EcoleCafe_Backup_${currentYearMonth}.json`;
             const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
             const file = new File([blob], fileName, { type: 'application/json' });
@@ -1725,6 +1846,7 @@
                     if(data.stationData) stationData = data.stationData;
                     if(data.noteData) noteData = data.noteData;
                     if(data.carryOverData) carryOverData = data.carryOverData;
+                    if(data.lockData) lockData = data.lockData;
                     if(data.employees) employees = data.employees;
                     if(data.shiftSettings) { shiftSettings = data.shiftSettings; renderShiftButtons(); }
                     saveData();
