@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ÉCOLE CAFÉ 交班系統</title>
+    <title>ÉCOLE CAFÉ 智慧交班系統</title>
     <meta name="theme-color" content="#111111">
     <link rel="apple-touch-icon" href="data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23111'/><text x='50' y='65' fill='white' font-size='50' text-anchor='middle'>E</text></svg>">
     
@@ -65,7 +65,6 @@
             letter-spacing: -0.02em;
         }
 
-        /* 控制列佈局 */
         .header-controls {
             display: flex;
             align-items: center;
@@ -89,7 +88,6 @@
             min-width: 160px;
         }
 
-        /* 嚴格約束 SVG 圖示尺寸，防止 iOS WebKit 爆框巨大化 */
         .date-input-wrapper svg {
             width: 16px;
             height: 16px;
@@ -140,7 +138,6 @@
             flex-shrink: 0;
         }
 
-        /* 儲存覆蓋：高對比純黑醒目樣式 */
         #cloud-save-btn {
             background-color: #111111;
             color: #ffffff;
@@ -152,7 +149,6 @@
             border-color: #333333;
         }
 
-        /* 雲端讀取：警示虛線框樣式 */
         #cloud-restore-btn {
             background-color: #f9f9f9;
             color: #333333;
@@ -174,50 +170,19 @@
             white-space: nowrap;
         }
 
-        /* 手機與平板專用響應式排版 */
         @media (max-width: 768px) {
-            body {
-                padding: 12px;
-            }
-            .header-controls {
-                display: grid;
-                grid-template-columns: repeat(4, 1fr);
-                gap: 6px;
-            }
-            .date-input-wrapper {
-                grid-column: span 4;
-                width: 100%;
-                min-width: 0;
-            }
-            .action-icon-btn {
-                padding: 6px 4px;
-                font-size: 0.78rem;
-                height: 38px;
-                flex: none;
-                width: 100%;
-                justify-content: center;
-            }
-            .action-icon-btn svg {
-                width: 13px;
-                height: 13px;
-            }
+            body { padding: 12px; }
+            .header-controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+            .date-input-wrapper { grid-column: span 4; width: 100%; min-width: 0; }
+            .action-icon-btn { padding: 6px 4px; font-size: 0.78rem; height: 38px; flex: none; width: 100%; justify-content: center; }
+            .action-icon-btn svg { width: 13px; height: 13px; }
         }
 
         @media (max-width: 480px) {
-            .header-controls {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .date-input-wrapper {
-                grid-column: span 2;
-            }
-            .action-icon-btn {
-                font-size: 0.82rem;
-                padding: 6px 8px;
-            }
-            .action-icon-btn svg {
-                width: 14px;
-                height: 14px;
-            }
+            .header-controls { grid-template-columns: repeat(2, 1fr); }
+            .date-input-wrapper { grid-column: span 2; }
+            .action-icon-btn { font-size: 0.82rem; padding: 6px 8px; }
+            .action-icon-btn svg { width: 14px; height: 14px; }
         }
 
         .card {
@@ -330,7 +295,7 @@
 <div class="container">
     <header>
         <div class="header-title-row">
-            <h1>ÉCOLE CAFÉ 交班系統</h1>
+            <h1>ÉCOLE CAFÉ 智慧交班系統</h1>
             <span id="cloud-status"></span>
         </div>
         
@@ -359,8 +324,8 @@
                 <span>雲端讀取</span>
             </button>
             
-            <!-- 5. 人員配置 -->
-            <button type="button" class="action-icon-btn" onclick="openStaffModal()" title="人員配置">
+            <!-- 5. 人員配置 (當月獨立) -->
+            <button type="button" class="action-icon-btn" onclick="openStaffModal()" title="當月人員配置管理">
                 <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
                 <span>人員配置</span>
             </button>
@@ -567,7 +532,7 @@
 <div id="staff-modal" class="modal-overlay" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>人員配置管理</h3>
+            <h3 id="staff-modal-title">人員配置管理</h3>
             <button type="button" class="close-modal-btn" onclick="closeStaffModal()">×</button>
         </div>
         <div class="modal-body">
@@ -575,7 +540,7 @@
                 <input type="text" id="new-staff-name" placeholder="輸入新人員姓名">
                 <button type="button" class="action-icon-btn" style="border-radius: 6px; padding: 10px 16px; white-space: nowrap;" onclick="addNewStaff()">新增人員</button>
             </div>
-            <label style="margin-bottom: 6px;">現有人員列表：</label>
+            <label style="margin-bottom: 6px;">該月份人員列表：</label>
             <div id="staff-manage-list" class="list-inputs" style="max-height: 220px; overflow-y: auto; padding-right: 4px;"></div>
         </div>
     </div>
@@ -599,16 +564,14 @@
     </div>
 </div>
 
-<!-- 隱藏的營運週報報表容器：用於生成 JPG（已優化： align-items: flex-start 允許高度自然延伸，Padding 緩衝防護絕不裁切） -->
+<!-- 隱藏的營運週報報表容器 -->
 <div id="report-export-container" style="position: fixed; top: 0; left: -9999px; width: 800px; background: #ffffff; padding: 36px; border-radius: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Microsoft JhengHei', sans-serif; color: #111; box-sizing: border-box; overflow: visible; height: auto;">
     <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #111; padding-bottom: 12px;">
         <h2 style="font-size: 24px; margin-bottom: 6px; font-weight: 800; letter-spacing: -0.02em;">ÉCOLE CAFÉ 營運週報</h2>
         <p id="report-date-range" style="color: #555; font-size: 14px; margin: 0; font-weight: 500;"></p>
     </div>
 
-    <!-- 兩欄式區域：使用 align-items: flex-start 防止右卡片高度被左欄強行壓縮剪裁 -->
     <div style="display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start;">
-        <!-- 左側欄位 -->
         <div style="flex: 1.1; display: flex; flex-direction: column; gap: 16px;">
             <div style="background: #f7f8f9; border: 1px solid #e1e4e8; padding: 14px; border-radius: 8px; text-align: center;">
                 <div style="font-size: 13px; color: #666; font-weight: 600;">本週總營業額</div>
@@ -622,7 +585,6 @@
             </div>
         </div>
 
-        <!-- 右側欄位：允許卡片根據內容長度自然向下伸展 -->
         <div style="flex: 1; display: flex; flex-direction: column; gap: 16px;">
             <div style="background: #f7f8f9; border: 1px solid #e1e4e8; padding: 14px; border-radius: 8px; text-align: center;">
                 <div style="font-size: 13px; color: #666; font-weight: 600;">本月目標達成率</div>
@@ -630,16 +592,13 @@
             </div>
             <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 16px; border-radius: 8px; width: 100%; box-sizing: border-box; height: auto;">
                 <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; border-left: 3px solid #111; padding-left: 8px; color: #111;">交辦與新增項目摘要</h3>
-                <!-- 統一 14px 字級，1.7 行高，底端補 12px 緩衝防護區，防止裁切 -->
                 <div id="report-special-items" style="font-size: 14px; line-height: 1.7; color: #222; white-space: pre-wrap; word-break: break-word; padding-bottom: 12px; overflow: visible; height: auto;"></div>
             </div>
         </div>
     </div>
 
-    <!-- 意見討論與結果內容 (全週彙整)：自然向下長高 -->
     <div style="background: #f9f9f9; border: 1px solid #e1e4e8; padding: 16px; border-radius: 8px; display: flex; flex-direction: column; height: auto;">
         <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; border-left: 3px solid #111; padding-left: 8px; color: #111;">意見討論與結果內容 (全週彙整)</h3>
-        <!-- 統一 14px 字級，1.7 行高，底端補 12px 緩衝防護區，防止裁切 -->
         <div id="report-discussion-items" style="font-size: 14px; line-height: 1.7; color: #222; white-space: pre-wrap; word-break: break-word; padding-bottom: 12px; overflow: visible; height: auto;"></div>
     </div>
 </div>
@@ -657,7 +616,6 @@
             storageBucket: "ecole-1f392.firebasestorage.app",
             messagingSenderId: "117812812078",
             appId: "1:117812812078:web:41664b4e6f0a1c6aff42bf",
-            measurementId: "G-Q1SRBC7T5J"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -669,6 +627,42 @@
     window.isCloudLoaded = false;
     window.cachedPrevMonthCum = 0;
 
+    // 全局資料儲存結構優化：新增 monthlyEmployees 按月份存放人員名單
+    const DEFAULT_STAFF = ['織俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
+    window.globalDataStore = { 
+        monthlyEmployees: {}, 
+        dailyTracking: {} 
+    };
+
+    function getCurrentYM() {
+        return (window.currentDateVal || getTodayDateStr()).substring(0, 7);
+    }
+
+    // 取得指定月份的人員名單（具備跨月繼承機制）
+    window.getStaffListForMonth = function(ym) {
+        if (window.globalDataStore.monthlyEmployees[ym] && Array.isArray(window.globalDataStore.monthlyEmployees[ym])) {
+            return window.globalDataStore.monthlyEmployees[ym];
+        }
+        
+        // 尋找前一個月份進行繼承
+        const [year, month] = ym.split('-').map(Number);
+        const prevMonthDate = new Date(year, month - 2, 1);
+        const prevYM = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
+        
+        if (window.globalDataStore.monthlyEmployees[prevYM] && Array.isArray(window.globalDataStore.monthlyEmployees[prevYM])) {
+            window.globalDataStore.monthlyEmployees[ym] = window.globalDataStore.monthlyEmployees[prevYM].slice();
+            return window.globalDataStore.monthlyEmployees[ym];
+        }
+
+        window.globalDataStore.monthlyEmployees[ym] = DEFAULT_STAFF.slice();
+        return window.globalDataStore.monthlyEmployees[ym];
+    };
+
+    window.getActiveStaffList = function() {
+        const ym = getCurrentYM();
+        return window.getStaffListForMonth(ym);
+    };
+
     async function checkWhitelist(email) {
         try {
             const docRef = doc(db, "systemConfig", "whitelist");
@@ -678,10 +672,8 @@
                 const data = docSnap.data();
                 const adminEmails = data.adminEmails || [];
                 const staffMapping = data.staffMapping || {};
-                
                 const isAdmin = adminEmails.includes(email);
                 const isStaff = staffMapping && Object.prototype.hasOwnProperty.call(staffMapping, email);
-                
                 return isAdmin || isStaff;
             } else {
                 console.warn("未找到白名單設定檔 (systemConfig/whitelist)，預設拒絕登入。");
@@ -763,7 +755,7 @@
         }
     }
 
-    // 儲存覆蓋：點擊防呆確認
+    // 儲存覆蓋：分月份儲存人員名單至 monthlyEmployees/{YYYY-MM}
     window.manualCloudSave = async function() {
         if (!window.currentUser) {
             alert("請先進行 Google 登入！");
@@ -774,13 +766,14 @@
             return;
         }
 
-        const confirmSave = confirm(`【儲存覆蓋確認】\n日期：${window.currentDateVal}\n\n確定要將目前的交班表單內容「儲存覆蓋」至雲端嗎？\n（此操作將會更新並覆蓋雲端資料庫該日紀錄）`);
+        const confirmSave = confirm(`【儲存覆蓋確認】\n日期：${window.currentDateVal}\n\n確定要將目前的交班表單內容及該月人員配置「儲存覆蓋」至雲端嗎？\n（此操作將會更新並覆蓋雲端資料庫該日紀錄）`);
         if (!confirmSave) return;
 
         const statusSpan = document.getElementById('cloud-status');
         if (statusSpan) statusSpan.innerText = '☁️ 儲存中...';
         try {
             const dateToSave = window.currentDateVal;
+            const ym = getCurrentYM();
             if (typeof saveCurrentDayData === 'function') saveCurrentDayData(dateToSave); 
             
             const dailyData = window.globalDataStore.dailyTracking[dateToSave] || {};
@@ -790,9 +783,17 @@
                 updatedAt: new Date().toISOString(),
                 updatedBy: window.currentUser.email || window.currentUser.displayName
             };
+            
+            // 1. 儲存每日交班資料
             await setDoc(doc(db, "dailyTracking", dateToSave), dataToUpload);
             
-            await setDoc(doc(db, "systemConfig", "employees"), { list: window.globalDataStore.employees });
+            // 2. 儲存【該月份獨立】的人員配置名單
+            const currentMonthStaff = window.getActiveStaffList();
+            await setDoc(doc(db, "monthlyEmployees", ym), { 
+                list: currentMonthStaff,
+                updatedAt: new Date().toISOString(),
+                updatedBy: window.currentUser.email || window.currentUser.displayName
+            });
 
             if (statusSpan) statusSpan.innerText = '✅ 儲存成功';
             setTimeout(() => { if (statusSpan && statusSpan.innerText === '✅ 儲存成功') statusSpan.innerText = ''; }, 3000);
@@ -805,7 +806,7 @@
 
     window.fetchMonthlyCumulative = async function() {
         if (!window.currentUser || !window.currentDateVal) return;
-        const ym = window.currentDateVal.substring(0, 7);
+        const ym = getCurrentYM();
         const startDate = `${ym}-01`;
         const prevDate = getPreviousDateStr(window.currentDateVal);
         
@@ -824,7 +825,7 @@
         }
     }
 
-    // 雲端讀取：手動點擊時觸發防覆蓋警示提醒
+    // 雲端讀取：自動讀取該月份的人員配置名單
     window.restoreFromCloud = async function(isSilent = false) {
         if (!window.currentUser) {
             if (!isSilent) alert('請先進行 Google 登入！');
@@ -841,14 +842,23 @@
             const statusSpan = document.getElementById('cloud-status');
             if (statusSpan) statusSpan.innerText = '讀取中...';
 
-            const empSnap = await getDoc(doc(db, "systemConfig", "employees"));
-            if (empSnap.exists() && empSnap.data().list) {
-                window.globalDataStore.employees = empSnap.data().list;
-                if (Array.isArray(window.globalDataStore.employees)) {
-                    staffList = window.globalDataStore.employees.map(e => e.name || e);
+            const ym = getCurrentYM();
+
+            // 1. 優先讀取【該月份專屬】的人員名單
+            const monthEmpSnap = await getDoc(doc(db, "monthlyEmployees", ym));
+            if (monthEmpSnap.exists() && monthEmpSnap.data().list) {
+                window.globalDataStore.monthlyEmployees[ym] = monthEmpSnap.data().list;
+            } else {
+                // 相容性處理：若該月無紀錄，嘗試讀取全域舊版名單或繼承前月
+                const legacySnap = await getDoc(doc(db, "systemConfig", "employees"));
+                if (legacySnap.exists() && legacySnap.data().list) {
+                    window.globalDataStore.monthlyEmployees[ym] = legacySnap.data().list;
+                } else {
+                    window.getStaffListForMonth(ym);
                 }
             }
 
+            // 2. 讀取當日交班資料
             const dailySnap = await getDoc(doc(db, "dailyTracking", window.currentDateVal));
             if (dailySnap.exists()) {
                 window.globalDataStore.dailyTracking[window.currentDateVal] = dailySnap.data();
@@ -856,13 +866,12 @@
 
             await window.fetchMonthlyCumulative();
             
-            if (typeof syncStaffFromEmployees === 'function') syncStaffFromEmployees();
             if (typeof loadStaffList === 'function') loadStaffList();
             if (typeof renderStaffPills === 'function') renderStaffPills();
             if (typeof loadDayData === 'function') loadDayData();
 
             if (statusSpan) statusSpan.innerText = '';
-            if (!isSilent) alert('已成功從雲端讀取最新的交班資料！');
+            if (!isSilent) alert('已成功從雲端讀取最新的交班資料與人員配置！');
             
             window.isCloudLoaded = true;
         } catch (error) {
@@ -877,9 +886,14 @@
         const pickerVal = document.getElementById('briefing-date-picker').value;
         if (!pickerVal || pickerVal === window.currentDateVal) return;
         saveCurrentDayData(window.currentDateVal); 
+        
         window.currentDateVal = pickerVal;
         window.undoStack = [];
         
+        // 切換月份時更新介面上的人員名單
+        loadStaffList();
+        renderStaffPills();
+
         if (window.currentUser) {
             await window.restoreFromCloud(true);
         } else {
@@ -949,7 +963,6 @@
         }
     }
 
-    // 匯出週報：完整彙整當週 7 天的所有交辦、對齊與意見討論（跨電腦、手機、平板極致防裁切）
     window.downloadWeeklyReportJPG = async function() {
         if (!window.currentUser) return alert('請登入以產生雲端週報！');
         if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal); 
@@ -1016,7 +1029,6 @@
         const achieveRate = document.getElementById('rev-achieve-rate').value;
         document.getElementById('report-month-rate').innerText = achieveRate ? `${achieveRate}%` : '0%';
 
-        // 1. 交辦事項與新增對齊項目 (全週彙整，不裁切，多行換行縮排對齊)
         let taskAlignText = '';
         let weekTaskLines = [];
         let weekAlignLines = [];
@@ -1056,7 +1068,6 @@
         if(!taskAlignText) taskAlignText = '本週無交辦與對齊項目。';
         document.getElementById('report-special-items').innerText = taskAlignText.trim();
 
-        // 2. 意見討論與結果 (全週完整彙整)
         let weekDiscLines = [];
         weekDates.forEach(dStr => {
             const dayData = weekDataMap[dStr];
@@ -1079,7 +1090,6 @@
         let discText = weekDiscLines.length > 0 ? weekDiscLines.join('\n') : '本週無意見討論內容。';
         document.getElementById('report-discussion-items').innerText = discText;
 
-        // 繪製 Chart.js 圖表
         const ctx = document.getElementById('weeklyChart').getContext('2d');
         if (window.weeklyChartInstance) { window.weeklyChartInstance.destroy(); }
         
@@ -1102,15 +1112,13 @@
             }
         });
 
-        // 觸發 html2canvas 生成無裁切影像 (跨裝置優化：電腦/手機/平板皆完全相容不裁切)
         const container = document.getElementById('report-export-container');
         container.style.left = '0px';
         container.style.top = '0px';
         container.style.zIndex = '-9999';
         
-        // 延遲確保 DOM Layout 重新計算與繪製完畢
         setTimeout(() => {
-            const targetHeight = container.offsetHeight + 16; // 提供 16px 緩衝區防止底端文字壓裁
+            const targetHeight = container.offsetHeight + 16;
             html2canvas(container, {
                 scale: 2,
                 useCORS: true,
@@ -1172,7 +1180,7 @@
                 navigator.serviceWorker.register(blobUrl).catch(e => console.log('PWA ServiceWorker Registration Bypassed:', e));
 
                 const manifest = {
-                    name: "ÉCOLE CAFÉ 交班系統", short_name: "交班系統", display: "standalone",
+                    name: "ÉCOLE CAFÉ 智慧交班系統", short_name: "交班系統", display: "standalone",
                     start_url: ".", background_color: "#f4f4f4", theme_color: "#111111",
                     icons: [{ src: "data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23111'/><text x='50' y='65' fill='white' font-size='50' text-anchor='middle'>E</text></svg>", sizes: "192x192", type: "image/svg+xml" }]
                 };
@@ -1186,9 +1194,7 @@
         });
     }
 
-    window.globalDataStore = { employees: [], dailyTracking: {} };
     window.currentDateVal = '';
-    let staffList = ['織俽', '龍', '沐', '訓鋒', '沛宜', '耀霆', '煥哲', '書書', '澤凱', '婉庭'];
     window.weeklyChartInstance = null;
     window.currentReportBlob = null;
 
@@ -1201,7 +1207,6 @@
         return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
     }
 
-    /* 將 WMO 氣象代碼轉譯為中文天氣描述 */
     function getWmoWeatherText(code) {
         if (code === 0 || code === 1) return '晴天';
         if (code === 2) return '多雲';
@@ -1213,7 +1218,6 @@
         return '多雲';
     }
 
-    /* 自動抓取台北市當天整天天氣狀況、氣溫與 9:00-21:00 平均降雨機率 */
     async function fetchDayWeather(dateStr) {
         const displayEl = document.getElementById('auto-weather-display');
         if (!displayEl) return;
@@ -1229,7 +1233,6 @@
             const rawCode = daily.weather_code ? daily.weather_code[0] : (daily.weathercode ? daily.weathercode[0] : null);
             const weatherDesc = rawCode !== null ? getWmoWeatherText(rawCode) : '';
 
-            // 解析並計算 9:00 - 21:00 時段之平均降雨機率
             let avgRainStr = '';
             if (data.hourly && Array.isArray(data.hourly.time) && Array.isArray(data.hourly.precipitation_probability)) {
                 const probs = [];
@@ -1299,7 +1302,6 @@
         window.currentDateVal = getTodayDateStr();
         document.getElementById('briefing-date-picker').value = window.currentDateVal;
         
-        syncStaffFromEmployees();
         loadStaffList();
         renderStaffPills();
         loadDayData(); 
@@ -1359,16 +1361,12 @@
         }
     }
 
-    function syncStaffFromEmployees() {
-        if (window.globalDataStore.employees && window.globalDataStore.employees.length > 0) {
-            staffList = window.globalDataStore.employees.map(e => e.name || e);
-        }
-    }
-
     function loadStaffList() {
         const datalist = document.getElementById('staff-options');
+        if (!datalist) return;
         datalist.innerHTML = '';
-        staffList.forEach(name => {
+        const currentStaff = window.getActiveStaffList();
+        currentStaff.forEach(name => {
             const option = document.createElement('option');
             option.value = name;
             datalist.appendChild(option);
@@ -1376,11 +1374,12 @@
     }
 
     function renderStaffPills() {
+        const currentStaff = window.getActiveStaffList();
         ['manager', 'bar', 'counter', 'kitchen'].forEach(type => {
             const container = document.getElementById(`pills-${type}`);
             if (!container) return;
             container.innerHTML = '';
-            staffList.forEach(name => {
+            currentStaff.forEach(name => {
                 const pill = document.createElement('span');
                 pill.className = 'staff-pill'; pill.innerText = name;
                 pill.onclick = () => handleStaffPillClick(type, name);
@@ -1404,26 +1403,43 @@
     }
 
     function openStaffModal() {
+        const ym = (window.currentDateVal || getTodayDateStr()).substring(0, 7);
+        const titleEl = document.getElementById('staff-modal-title');
+        if (titleEl) titleEl.innerText = `人員配置管理 (${ym})`;
+
         const container = document.getElementById('staff-manage-list');
         container.innerHTML = '';
-        staffList.forEach((name, index) => {
+        const currentStaff = window.getActiveStaffList();
+        currentStaff.forEach((name, index) => {
             const div = document.createElement('div'); div.className = 'row-group';
             div.innerHTML = `<input type="text" value="${escapeHTML(name)}" readonly style="background: #f9f9f9;"><button type="button" class="remove-btn" onclick="removeStaff(${index})">×</button>`;
             container.appendChild(div);
         });
         document.getElementById('staff-modal').style.display = 'flex';
     }
+
     function closeStaffModal() { document.getElementById('staff-modal').style.display = 'none'; }
+    
     function addNewStaff() {
-        const input = document.getElementById('new-staff-name'); const name = input.value.trim();
-        if (!name || staffList.includes(name)) return alert(name ? '此人員已存在！' : '請輸入人員姓名！');
-        staffList.push(name); window.globalDataStore.employees.push({ id: 'EMP_' + Date.now(), name: name, type: 'FT' });
-        loadStaffList(); renderStaffPills(); input.value = ''; openStaffModal();
+        const input = document.getElementById('new-staff-name'); 
+        const name = input.value.trim();
+        const currentStaff = window.getActiveStaffList();
+        if (!name || currentStaff.includes(name)) return alert(name ? '此人員已存在於本月名單！' : '請輸入人員姓名！');
+        
+        currentStaff.push(name);
+        loadStaffList(); 
+        renderStaffPills(); 
+        input.value = ''; 
+        openStaffModal();
     }
+
     function removeStaff(index) {
-        if (staffList.length <= 1) return alert('至少需保留一位人員！');
-        staffList.splice(index, 1);
-        loadStaffList(); renderStaffPills(); openStaffModal();
+        const currentStaff = window.getActiveStaffList();
+        if (currentStaff.length <= 1) return alert('至少需保留一位人員！');
+        currentStaff.splice(index, 1);
+        loadStaffList(); 
+        renderStaffPills(); 
+        openStaffModal();
     }
 
     function getPreviousDateStr(dateStr) {
@@ -1677,7 +1693,7 @@
             const isNew = valInput.dataset.isnew === 'true';
             if(val !== '') {
                 const marker = isNew ? '🔹' : '▫️';
-                const formattedVal = val.split('\n').join('\n   ');
+                const formattedVal = val.split('\n').join('\n    ');
                 if(!alignGroups[cat]) alignGroups[cat] = [];
                 alignGroups[cat].push(`${marker} ${formattedVal}`);
             }
@@ -1771,16 +1787,16 @@
     window.exportJSON = function() {
         if (typeof saveCurrentDayData === 'function') saveCurrentDayData(window.currentDateVal); 
         
-        const isMonth = confirm("點擊「確定」將匯出【當月所有本地紀錄】，\n點擊「取消」將僅匯出【今日單筆紀錄】。");
+        const isMonth = confirm("點擊「確定」將匯出【當月所有本地紀錄及人員配置】，\n點擊「取消」將僅匯出【今日單筆紀錄】。");
         const dateVal = window.currentDateVal;
+        const ym = dateVal.substring(0, 7);
         
         let dataToExport = {
-            employees: window.globalDataStore.employees,
+            monthlyEmployees: window.globalDataStore.monthlyEmployees[ym] || [],
             dailyTracking: {}
         };
 
         if (isMonth) {
-            const ym = dateVal.substring(0, 7);
             Object.keys(window.globalDataStore.dailyTracking).forEach(k => {
                 if (k.startsWith(ym)) dataToExport.dailyTracking[k] = window.globalDataStore.dailyTracking[k];
             });
@@ -1792,7 +1808,7 @@
         const imageUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = imageUrl;
-        a.download = `ecole_cafe_backup_${isMonth ? dateVal.substring(0, 7) : dateVal}.json`;
+        a.download = `ecole_cafe_backup_${isMonth ? ym : dateVal}.json`;
         a.click();
         setTimeout(() => URL.revokeObjectURL(imageUrl), 1000);
     }
@@ -1803,11 +1819,21 @@
         reader.onload = function(e) {
             try {
                 const data = JSON.parse(e.target.result);
-                if (data.employees && data.employees.length > 0) window.globalDataStore.employees = data.employees;
+                const ym = (window.currentDateVal || getTodayDateStr()).substring(0, 7);
+                
+                if (data.monthlyEmployees && Array.isArray(data.monthlyEmployees)) {
+                    window.globalDataStore.monthlyEmployees[ym] = data.monthlyEmployees;
+                } else if (data.employees && Array.isArray(data.employees)) {
+                    window.globalDataStore.monthlyEmployees[ym] = data.employees.map(x => x.name || x);
+                }
+
                 if (data.dailyTracking) {
                     Object.assign(window.globalDataStore.dailyTracking, data.dailyTracking);
                 }
-                syncStaffFromEmployees(); loadStaffList(); renderStaffPills(); loadDayData();
+                
+                loadStaffList(); 
+                renderStaffPills(); 
+                loadDayData();
                 alert('已成功讀取本地備份資料！');
             } catch (err) { alert('檔案格式錯誤。'); }
         };
