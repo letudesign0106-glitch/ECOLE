@@ -564,7 +564,9 @@
 
         const OPENING_CODES = ['D1', 'D2', 'H1'];
         const CLOSING_CODES = ['N1', 'N2', 'N4', 'H2'];
-        const stations = ['早吧台', '早廚', '外場', '晚吧台', '晚廚'];
+        
+        // 【站區名稱更新】
+        const stations = ['吧台', '廚房', '外場', '外場+廚助', '收班'];
         
         let tempEmployees = []; 
         let tempShiftSettings = {};
@@ -617,6 +619,25 @@
                 tableContainer.classList.remove('maximized');
                 toggleIcon.innerText = '▼';
             }
+        }
+
+        // 歷史舊站位名稱自動相容轉移機制
+        function migrateStationData(ym) {
+            if (!stationData || !stationData[ym]) return;
+            const legacyMap = {
+                '早吧台': '吧台',
+                '早廚': '廚房',
+                '晚吧台': '外場+廚助',
+                '晚廚': '收班'
+            };
+            Object.keys(legacyMap).forEach(oldKey => {
+                if (stationData[ym][oldKey]) {
+                    if (!stationData[ym][legacyMap[oldKey]]) {
+                        stationData[ym][legacyMap[oldKey]] = stationData[ym][oldKey];
+                    }
+                    delete stationData[ym][oldKey];
+                }
+            });
         }
 
         // 取得當月獨立的人員與班別設定 (無設定時自動承襲前月或系統預設)
@@ -987,6 +1008,9 @@
             if (!noteData[currentYearMonth]) noteData[currentYearMonth] = {};
             if (!carryOverData[currentYearMonth]) carryOverData[currentYearMonth] = {};
 
+            // 執行舊站位 key 相容轉換
+            migrateStationData(currentYearMonth);
+
             currentEmployees.forEach(emp => { if(!scheduleData[currentYearMonth][emp.id]) scheduleData[currentYearMonth][emp.id] = {}; });
             stations.forEach(st => { if(!stationData[currentYearMonth][st]) stationData[currentYearMonth][st] = {}; });
 
@@ -1101,10 +1125,12 @@
             });
             document.getElementById('tableBody').innerHTML = tbodyHTML;
 
+            // 【站點渲染與顏色配比修正】: 外場與外場+廚助底色皆為 #F0F0F0
             let stationHTML = `<tr><td colspan="${daysInMonth + 7}" class="station-title-row bg-gray-100 text-left px-4 py-1 text-xs text-gray-500 font-bold tracking-widest border-t-2 border-gray-300">STATION ASSIGNMENTS (內外場配置)</td></tr>`;
             stations.forEach(st => {
-                const rowClass = st === '外場' ? 'station-row-light' : 'station-row-deep';
-                const bgHex = st === '外場' ? '#F0F0F0' : '#e5e7eb';
+                const isLightStation = (st === '外場' || st === '外場+廚助');
+                const rowClass = isLightStation ? 'station-row-light' : 'station-row-deep';
+                const bgHex = isLightStation ? '#F0F0F0' : '#e5e7eb';
                 
                 stationHTML += `<tr class="${rowClass}"><th colspan="3" class="sticky-col px-2 py-1 text-sm font-normal text-gray-700 border-r-2 border-gray-300" style="left: 0; background-color: ${bgHex}; z-index: 10;">${st}</th>`;
                 for (let i = 1; i <= daysInMonth; i++) {
@@ -1672,12 +1698,13 @@
 
                 if (workingToday.length === 0) continue;
 
+                // 【自動站位指派新架構】
                 if (!stationData[currentYearMonth]['外場'][day]) {
                     stationData[currentYearMonth]['外場'][day] = workingToday[Math.floor(Math.random() * workingToday.length)].name;
                 }
 
                 let assignPool = [...workingToday];
-                ['晚吧台', '晚廚'].forEach(st => {
+                ['外場+廚助', '收班'].forEach(st => {
                     if (!stationData[currentYearMonth][st][day]) {
                         let ftIdx = assignPool.findIndex(e => e.type === 'FT');
                         if (ftIdx !== -1) stationData[currentYearMonth][st][day] = assignPool.splice(ftIdx, 1)[0].name;
@@ -1685,7 +1712,7 @@
                     }
                 });
 
-                ['早吧台', '早廚'].forEach(st => {
+                ['吧台', '廚房'].forEach(st => {
                     if (!stationData[currentYearMonth][st][day] && assignPool.length > 0) {
                         stationData[currentYearMonth][st][day] = assignPool.pop().name;
                     }
@@ -1964,7 +1991,7 @@
             }
         }
 
-        // 需求 A: 匯出完整 JSON (同時包含按月全域資料庫與當月名單快照)
+        // 匯出完整 JSON (包含按月全域資料庫與當月名單快照)
         async function exportJSON() {
             const currentEmployees = getCurrentEmployees(currentYearMonth);
             const currentShiftSettings = getCurrentShiftSettings(currentYearMonth);
@@ -2006,7 +2033,7 @@
 
         function triggerImport() { document.getElementById('importFile').click(); }
 
-        // 需求 A: 匯入完整 JSON (自動識別多月與單月備份，將人員與班別設定寫入對應月份)
+        // 匯入完整 JSON (自動識別多月與單月備份，將人員與班別設定寫入對應月份)
         function importJSON(event) {
             const file = event.target.files[0];
             if(!file) return;
