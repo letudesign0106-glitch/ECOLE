@@ -74,7 +74,7 @@
         /* 未被管理者確認之預排班別樣式 */
         .shift-unconfirmed {
             border: 2px dashed #9ca3af !important;
-            opacity: 0.75;
+            opacity: 0.8;
             position: relative;
         }
         .shift-unconfirmed::after {
@@ -155,7 +155,7 @@
 
         <div id="mainToolbar" class="toolbar w-full md:w-auto">
             <button onclick="toggleScheduleLock()" title="鎖定/解鎖當月班表" id="lockBtn" class="icon-btn icon-btn-lock admin-only">
-                <svg id="lockIcon" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2zm10-10V7a4 4 0 0 0-8 0v4h8z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <svg id="lockIcon" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 2 2zm10-10V7a4 4 0 0 0-8 0v4h8z" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 <span id="lockText">鎖定</span>
             </button>
 
@@ -213,7 +213,7 @@
                 <tbody id="stationBody" class="border-t-2 border-gray-300"></tbody>
             </table>
 
-            <!-- 當月排班班別時間對照表 (顯示班別、時間與扣除時數) -->
+            <!-- 當月排班班別時間對照表 -->
             <div id="shiftLegendContainer" class="p-3.5 border-t border-gray-200 bg-gray-50 text-sm">
                 <div class="font-bold text-gray-800 mb-2.5 tracking-wider text-sm flex items-center gap-1.5">
                     <span>當月排班班別時間對照表 (ACTIVE SHIFT REFERENCE):</span>
@@ -353,7 +353,7 @@
         </div>
     </dialog>
 
-    <!-- Requirement A: 編輯班別與個人需求彈窗 (支援班別複選與指休) -->
+    <!-- Requirement A: 編輯班別與個人需求彈窗 (支援員工複選與管理者單鍵指派定案) -->
     <dialog id="shiftDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-md border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
             <h3 class="font-bold text-gray-800 tracking-wide" id="dialogTitle">編輯班別與個人需求</h3>
@@ -362,6 +362,12 @@
         <div class="p-4 flex flex-col gap-4 bg-white overflow-y-auto max-h-[75vh]">
             <p class="text-sm text-gray-500 font-medium" id="dialogSubtitle"></p>
             
+            <!-- 管理者檢視員工複選意願提示欄 -->
+            <div id="adminReqNotice" class="hidden bg-blue-50 border border-blue-200 rounded p-2.5 text-xs text-blue-900 leading-relaxed font-normal">
+                💡 <span class="font-bold">員工意願複選：</span><span id="adminReqShiftsText" class="font-bold text-blue-700"></span><br>
+                <span class="text-[11px] text-blue-800 opacity-90">提示：點擊下方任何一個班別，將直接為該員工定案並核定該班別。</span>
+            </div>
+
             <div class="grid grid-cols-2 gap-2">
                 <button onclick="setShift('❌')" class="border border-red-200 text-red-600 py-2 rounded text-sm hover:bg-red-50 font-bold shadow-sm">❌ 指定休</button>
                 <button onclick="setShift('')" class="border border-gray-200 text-gray-600 py-2 rounded text-sm hover:bg-gray-50 font-bold shadow-sm">清除重置</button>
@@ -999,7 +1005,7 @@
             if (oContainer) oContainer.innerHTML = buildButtons(groups.SP.concat(groups.other));
         }
 
-        // Requirement A: 切換班別選擇 (複選 toggle)
+        // Requirement A: 切換班別選擇 (管理者點擊單一按鈕可直接核定；員工點擊切換複選 toggle)
         function toggleShiftCode(code) {
             if (isScheduleLocked(currentYearMonth)) {
                 alertCustom('提醒：本月班表已被鎖定，無法修訂！');
@@ -1010,6 +1016,14 @@
                 return;
             }
 
+            // 若目前使用者為管理者，且正在審核員工提報之複選意願，管理者點擊任何一個班別即代表直接「單選核定」
+            if (currentUserRole === 'admin') {
+                const info = getShiftInfo(code, currentYearMonth);
+                setShift(`${code}\n${info.time || ''}`);
+                return;
+            }
+
+            // 員工端：複選 toggle
             const index = tempSelectedShifts.indexOf(code);
             if (index > -1) {
                 tempSelectedShifts.splice(index, 1);
@@ -1230,7 +1244,7 @@
                     if (parsed.shiftCode) {
                         let codeHTML = `<span class="font-extrabold text-xs leading-tight block drop-shadow-sm">${escapeHTML(parsed.shiftCode)}</span>`;
                         // Requirement A: 小字標示複選數量
-                        let multiTagHTML = parsed.isMulti ? `<span class="inline-block text-[9px] bg-gray-700 text-white font-bold px-1 rounded-sm mt-0.5">複選${parsed.shiftCodes.length}個</span>` : '';
+                        let multiTagHTML = parsed.isMulti ? `<span class="inline-block text-[9px] bg-blue-600 text-white font-bold px-1 rounded-sm mt-0.5 shadow-sm">複選${parsed.shiftCodes.length}個</span>` : '';
                         let noteHTML = parsed.noteStr ? `<div class="text-[9px] font-normal leading-tight opacity-90 break-words break-all whitespace-pre-line text-gray-700 mt-0.5">${escapeHTML(parsed.noteStr)}</div>` : '';
                         displayText = `${codeHTML}${multiTagHTML}${noteHTML}`;
 
@@ -1374,7 +1388,7 @@
             return ranges;
         }
 
-        // Requirement A: 開啟編輯彈窗並預載員工已複選之班別
+        // Requirement A: 開啟編輯彈窗並預載員工已複選之班別；若為管理者則顯示核定指派提示
         function openDialog(empId, day, empName) {
             if (isScheduleLocked(currentYearMonth)) {
                 alertCustom('提醒：本月班表已被管理員鎖定，無法進行任何修訂！');
@@ -1389,7 +1403,7 @@
             
             const noticeEl = document.getElementById('roleNotice');
             if (noticeEl) {
-                noticeEl.innerText = (currentUserRole === 'admin') ? '(管理者確認指派模式)' : '(員工預排模式 - 可複選可排班別)';
+                noticeEl.innerText = (currentUserRole === 'admin') ? '(管理者審核核定模式)' : '(員工預排模式 - 可複選可排班別)';
             }
 
             const rawVal = scheduleData[currentYearMonth]?.[empId]?.[day] || '';
@@ -1403,6 +1417,18 @@
                 tempSelectedShifts = [...parsed.shiftCodes];
             } else {
                 tempSelectedShifts = [];
+            }
+
+            // 若為管理者且該儲存格有員工預排提報之複選意願，顯示核定提示框
+            const adminNoticeBox = document.getElementById('adminReqNotice');
+            const adminNoticeText = document.getElementById('adminReqShiftsText');
+            if (currentUserRole === 'admin' && parsed.isReq && parsed.shiftCodes.length > 0) {
+                if (adminNoticeBox && adminNoticeText) {
+                    adminNoticeText.innerText = parsed.shiftCodes.join(' / ');
+                    adminNoticeBox.classList.remove('hidden');
+                }
+            } else if (adminNoticeBox) {
+                adminNoticeBox.classList.add('hidden');
             }
 
             renderShiftButtons();
@@ -1437,6 +1463,7 @@
                     finalValue = val;
                 }
 
+                // 若為員工操作，自動加上 REQ: 標記；若為管理者操作，則為核定定案 (不加 REQ:)
                 if (currentUserRole === 'staff') {
                     finalValue = 'REQ:' + finalValue;
                 }
@@ -2301,7 +2328,7 @@
             const currentShiftSettings = getCurrentShiftSettings(currentYearMonth);
 
             const data = { 
-                version: "2.5",
+                version: "2.6",
                 exportMonth: currentYearMonth,
                 scheduleData, 
                 stationData, 
