@@ -74,7 +74,7 @@
         /* 未被管理者確認之預排班別樣式 */
         .shift-unconfirmed {
             border: 2px dashed #9ca3af !important;
-            opacity: 0.7;
+            opacity: 0.75;
             position: relative;
         }
         .shift-unconfirmed::after {
@@ -213,7 +213,7 @@
                 <tbody id="stationBody" class="border-t-2 border-gray-300"></tbody>
             </table>
 
-            <!-- Requirement A: 當月排班班別時間對照表 (僅顯示班別、時間與扣除時數，不顯示快速操作圖示與指定休) -->
+            <!-- 當月排班班別時間對照表 (顯示班別、時間與扣除時數) -->
             <div id="shiftLegendContainer" class="p-3.5 border-t border-gray-200 bg-gray-50 text-sm">
                 <div class="font-bold text-gray-800 mb-2.5 tracking-wider text-sm flex items-center gap-1.5">
                     <span>當月排班班別時間對照表 (ACTIVE SHIFT REFERENCE):</span>
@@ -353,7 +353,7 @@
         </div>
     </dialog>
 
-    <!-- 編輯班別與個人需求彈窗 -->
+    <!-- Requirement A: 編輯班別與個人需求彈窗 (支援班別複選與指休) -->
     <dialog id="shiftDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-md border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
             <h3 class="font-bold text-gray-800 tracking-wide" id="dialogTitle">編輯班別與個人需求</h3>
@@ -367,10 +367,10 @@
                 <button onclick="setShift('')" class="border border-gray-200 text-gray-600 py-2 rounded text-sm hover:bg-gray-50 font-bold shadow-sm">清除重置</button>
             </div>
 
-            <!-- 可排班別選擇區 -->
+            <!-- 可排班別選擇區 (支援複選) -->
             <div>
-                <div class="text-xs text-gray-400 font-bold tracking-widest border-t pt-2 mb-2 flex justify-between">
-                    <span>可排班別選擇</span>
+                <div class="text-xs text-gray-400 font-bold tracking-widest border-t pt-2 mb-2 flex justify-between items-center">
+                    <span>可排班別選擇 (點擊可複選多個班別)</span>
                     <span id="roleNotice" class="text-[10px] text-gray-500 font-normal"></span>
                 </div>
                 
@@ -397,6 +397,17 @@
                 <div>
                     <div class="text-[11px] text-gray-600 font-bold mb-1">特別班 (SP - 灰色)</div>
                     <div id="dynamicOtherShifts" class="grid grid-cols-2 gap-2 text-sm"></div>
+                </div>
+
+                <!-- Requirement A: 複選統計列與確認按鈕 -->
+                <div class="bg-gray-50 border border-gray-200 rounded p-2.5 mt-3 flex items-center justify-between">
+                    <div class="text-xs text-gray-700 font-bold flex items-center gap-1">
+                        <span>已選可排班別 (<span id="selectedShiftCount" class="text-black font-black">0</span>):</span>
+                        <span id="selectedShiftList" class="text-xs font-bold text-blue-800">無</span>
+                    </div>
+                    <button onclick="confirmShiftSelection()" class="bg-black text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-gray-800 shadow-sm whitespace-nowrap">
+                        確認排入選取班別
+                    </button>
                 </div>
             </div>
 
@@ -507,6 +518,8 @@
         }
 
         const firebaseConfig = {
+
+        const firebaseConfig = {
             apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
             authDomain: "ecole-1f392.firebaseapp.com",
             projectId: "ecole-1f392",
@@ -521,6 +534,9 @@
         let currentUserEmpId = null;   
         let unsubscribeSnapshot = null;
         let isCloudLoaded = false; 
+
+        // 班別複選暫存狀態
+        let tempSelectedShifts = [];
 
         const defaultEmployees = [
             { id: 'FT1', name: '張織俽 Rita', type: 'FT', totalAnnualLeave: 7 },
@@ -622,21 +638,27 @@
             };
         }
 
+        // Requirement A: 解析單選或複選班別字串 (相容舊有與斜線組合格式)
         function parseCellData(rawVal) {
-            if (!rawVal) return { isReq: false, shiftCode: '', timeStr: '', noteStr: '' };
+            if (!rawVal) return { isReq: false, shiftCode: '', shiftCodes: [], isMulti: false, timeStr: '', noteStr: '' };
             let isReq = rawVal.startsWith('REQ:');
             let val = isReq ? rawVal.replace('REQ:', '') : rawVal;
             let lines = val.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             
-            if (lines.length === 0) return { isReq, shiftCode: '', timeStr: '', noteStr: '' };
+            if (lines.length === 0) return { isReq, shiftCode: '', shiftCodes: [], isMulti: false, timeStr: '', noteStr: '' };
 
             const code = lines[0];
             const currentShifts = getCurrentShiftSettings(currentYearMonth);
             const knownOffs = ['✖', '❌', '年假', '行政', '公出', '補修', '會議'];
-            const isKnownCode = currentShifts.hasOwnProperty(code) || knownOffs.includes(code) || code.startsWith('D') || code.startsWith('M') || code.startsWith('N') || code.startsWith('H') || code.startsWith('SP');
+            
+            // 拆解斜線或逗號分隔之複選班別代碼
+            const rawCodes = code.split(/[\/,]/).map(c => c.trim()).filter(Boolean);
+            const isKnownCode = rawCodes.some(c => currentShifts.hasOwnProperty(c) || knownOffs.includes(c) || c.startsWith('D') || c.startsWith('M') || c.startsWith('N') || c.startsWith('H') || c.startsWith('SP'));
 
             if (isKnownCode) {
-                let shiftCode = code;
+                let shiftCode = code; // e.g. "D01/D02"
+                let shiftCodes = rawCodes;
+                let isMulti = rawCodes.length > 1;
                 let timeStr = '';
                 let noteStr = '';
 
@@ -648,9 +670,9 @@
                         noteStr = lines.slice(1).join('\n');
                     }
                 }
-                return { isReq, shiftCode, timeStr, noteStr };
+                return { isReq, shiftCode, shiftCodes, isMulti, timeStr, noteStr };
             } else {
-                return { isReq, shiftCode: '', timeStr: '', noteStr: val };
+                return { isReq, shiftCode: '', shiftCodes: [], isMulti: false, timeStr: '', noteStr: val };
             }
         }
 
@@ -928,6 +950,7 @@
             return 'other';
         }
 
+        // Requirement A: 渲染彈窗班別按鈕 (高亮選取狀態與支援點擊複選)
         function renderShiftButtons() {
             const mContainer = document.getElementById('dynamicMorningShifts');
             const midContainer = document.getElementById('dynamicMidShifts');
@@ -939,11 +962,11 @@
             const groups = { D: [], M: [], N: [], H: [], SP: [], other: [] };
             
             const styleMap = {
-                D: 'bg-[#dbe4d7] text-[#3f4e38]', // 莫蘭迪綠
-                M: 'bg-[#F3E5AB] text-[#4a401c]', // 莫蘭迪黃
-                N: 'bg-[#ebd9d9] text-[#5c3c3c]', // 莫蘭迪紅
-                H: 'bg-[#d6dbe0] text-[#3b4252]', // 莫蘭迪藍
-                SP: 'bg-[#f3f4f6] text-[#374151]', // 灰色
+                D: 'bg-[#dbe4d7] text-[#3f4e38]',
+                M: 'bg-[#F3E5AB] text-[#4a401c]',
+                N: 'bg-[#ebd9d9] text-[#5c3c3c]',
+                H: 'bg-[#d6dbe0] text-[#3b4252]',
+                SP: 'bg-[#f3f4f6] text-[#374151]',
                 other: 'bg-[#f3f4f6] text-[#374151]'
             };
 
@@ -958,7 +981,16 @@
                     const info = getShiftInfo(key);
                     const time = escapeHTML(info.time);
                     const cls = styleMap[classifyShiftKey(key)];
-                    return `<button onclick="setShift('${escapeHTML(key)}\\n${time}')" class="${cls} py-2 px-1 rounded hover:opacity-80 leading-tight font-extrabold text-sm">${escapeHTML(key)}<br><span class="text-[9px] font-normal opacity-80">${time}</span></button>`;
+                    const isSelected = tempSelectedShifts.includes(key);
+                    const selectedStyle = isSelected 
+                        ? 'ring-2 ring-black font-black scale-[1.03] shadow-md border-black' 
+                        : 'border-transparent opacity-90 hover:opacity-100';
+                    const checkMark = isSelected ? '<span class="text-black font-extrabold mr-1 text-xs">✓</span>' : '';
+
+                    return `<button onclick="toggleShiftCode('${escapeHTML(key)}')" class="${cls} ${selectedStyle} transition-all py-2 px-1 rounded leading-tight font-extrabold text-sm flex flex-col items-center justify-center relative">
+                        <span class="flex items-center justify-center">${checkMark}${escapeHTML(key)}</span>
+                        <span class="text-[9px] font-normal opacity-80">${time}</span>
+                    </button>`;
                 }).join('');
             }
 
@@ -967,6 +999,45 @@
             if (eContainer) eContainer.innerHTML = buildButtons(groups.N);
             if (hContainer) hContainer.innerHTML = buildButtons(groups.H);
             if (oContainer) oContainer.innerHTML = buildButtons(groups.SP.concat(groups.other));
+        }
+
+        // Requirement A: 切換班別選擇 (複選 toggle)
+        function toggleShiftCode(code) {
+            if (isScheduleLocked(currentYearMonth)) {
+                alertCustom('提醒：本月班表已被鎖定，無法修訂！');
+                return;
+            }
+            if (currentUserRole === 'staff' && currentUserEmpId !== selectedCell.empId) {
+                alertCustom('權限不足：您只能修改自己的班別需求！');
+                return;
+            }
+
+            const index = tempSelectedShifts.indexOf(code);
+            if (index > -1) {
+                tempSelectedShifts.splice(index, 1);
+            } else {
+                tempSelectedShifts.push(code);
+            }
+            renderShiftButtons();
+            updateShiftSelectionSummary();
+        }
+
+        function updateShiftSelectionSummary() {
+            const countEl = document.getElementById('selectedShiftCount');
+            const listEl = document.getElementById('selectedShiftList');
+            if (countEl) countEl.innerText = tempSelectedShifts.length;
+            if (listEl) {
+                listEl.innerText = tempSelectedShifts.length > 0 ? tempSelectedShifts.join(', ') : '無';
+            }
+        }
+
+        function confirmShiftSelection() {
+            if (tempSelectedShifts.length === 0) {
+                alertCustom('請至少點選一個班別，或使用「❌ 指定休」/「清除重置」');
+                return;
+            }
+            const joinedCode = tempSelectedShifts.join('/');
+            setShift(joinedCode);
         }
 
         function init() {
@@ -997,13 +1068,11 @@
             updateFirestoreField(fieldPath, intVal);
         }
 
-        // Requirement A: 當月排班班別時間對照表 (顯示班別、時間與扣除時數，不顯示快速操作圖示與指定休)
         function renderShiftLegend() {
             const legendContainer = document.getElementById('shiftLegendList');
             if (!legendContainer) return;
 
             const monthSchedule = scheduleData[currentYearMonth] || {};
-            const currentShifts = getCurrentShiftSettings(currentYearMonth);
             const assignedCodes = new Set();
             const knownOffs = ['✖', '❌', '年假', '行政', '公出', '補修', '會議'];
             
@@ -1012,8 +1081,12 @@
                 Object.values(empSchedule).forEach(rawVal => {
                     if (!rawVal) return;
                     const parsed = parseCellData(rawVal);
-                    if (parsed.shiftCode && !knownOffs.includes(parsed.shiftCode)) {
-                        assignedCodes.add(parsed.shiftCode);
+                    if (parsed.shiftCodes && parsed.shiftCodes.length > 0) {
+                        parsed.shiftCodes.forEach(code => {
+                            if (!knownOffs.includes(code)) {
+                                assignedCodes.add(code);
+                            }
+                        });
                     }
                 });
             });
@@ -1048,6 +1121,7 @@
             legendContainer.innerHTML = html;
         }
 
+        // Requirement A: 班表介面上小字標示複選班別數量
         function renderTable() {
             const [year, month] = currentYearMonth.split('-').map(Number);
             const daysInMonth = new Date(year, month, 0).getDate();
@@ -1156,9 +1230,11 @@
                     let displayText = '';
 
                     if (parsed.shiftCode) {
-                        let codeHTML = `<span class="font-extrabold text-sm leading-tight block drop-shadow-sm">${escapeHTML(parsed.shiftCode)}</span>`;
+                        let codeHTML = `<span class="font-extrabold text-xs leading-tight block drop-shadow-sm">${escapeHTML(parsed.shiftCode)}</span>`;
+                        // Requirement A: 小字標示複選數量
+                        let multiTagHTML = parsed.isMulti ? `<span class="inline-block text-[9px] bg-gray-700 text-white font-bold px-1 rounded-sm mt-0.5">複選${parsed.shiftCodes.length}個</span>` : '';
                         let noteHTML = parsed.noteStr ? `<div class="text-[9px] font-normal leading-tight opacity-90 break-words break-all whitespace-pre-line text-gray-700 mt-0.5">${escapeHTML(parsed.noteStr)}</div>` : '';
-                        displayText = `${codeHTML}${noteHTML}`;
+                        displayText = `${codeHTML}${multiTagHTML}${noteHTML}`;
 
                         if (parsed.shiftCode === '✖') { cellClass += 'shift-off'; daysOff++; }
                         else if (parsed.shiftCode === '❌') { cellClass += 'shift-forced-off'; daysOff++; }
@@ -1244,18 +1320,20 @@
             const knownOffs = ['✖', '❌', '年假', '行政', '公出', '補修', '會議'];
             if (knownOffs.includes(parsed.shiftCode)) return 0;
 
-            const ranges = parseTimeRanges(shiftStr);
+            // 若為複選階段且未核定，採首個班別計算時數
+            const primaryCode = parsed.shiftCodes[0] || parsed.shiftCode;
+            const ranges = parseTimeRanges(primaryCode);
             let rawHours = 0;
             ranges.forEach(r => { rawHours += (r.end - r.start); });
             if (rawHours <= 0) return 0;
 
             const currentShifts = getCurrentShiftSettings(currentYearMonth);
             
-            if (currentShifts.hasOwnProperty(parsed.shiftCode)) {
-                const info = getShiftInfo(parsed.shiftCode, currentYearMonth);
+            if (currentShifts.hasOwnProperty(primaryCode)) {
+                const info = getShiftInfo(primaryCode, currentYearMonth);
                 const breakHours = (info.breakHours !== undefined && !isNaN(info.breakHours)) 
                     ? info.breakHours 
-                    : getDefaultBreakHours(parsed.shiftCode);
+                    : getDefaultBreakHours(primaryCode);
                 return Math.max(0, rawHours - breakHours);
             }
 
@@ -1289,14 +1367,16 @@
             
             if (!found) {
                 const parsed = parseCellData(shiftStr);
-                if (parsed.shiftCode) {
-                    const info = getShiftInfo(parsed.shiftCode, currentYearMonth);
+                const codeToParse = parsed.shiftCodes[0] || parsed.shiftCode;
+                if (codeToParse) {
+                    const info = getShiftInfo(codeToParse, currentYearMonth);
                     if (info.time) return parseTimeRanges(info.time);
                 }
             }
             return ranges;
         }
 
+        // Requirement A: 開啟編輯彈窗並預載員工已複選之班別
         function openDialog(empId, day, empName) {
             if (isScheduleLocked(currentYearMonth)) {
                 alertCustom('提醒：本月班表已被管理員鎖定，無法進行任何修訂！');
@@ -1311,13 +1391,24 @@
             
             const noticeEl = document.getElementById('roleNotice');
             if (noticeEl) {
-                noticeEl.innerText = (currentUserRole === 'admin') ? '(管理者直接確認模式)' : '(員工預排模式 - 待管理者確認)';
+                noticeEl.innerText = (currentUserRole === 'admin') ? '(管理者確認指派模式)' : '(員工預排模式 - 可複選可排班別)';
             }
 
             const rawVal = scheduleData[currentYearMonth]?.[empId]?.[day] || '';
             const parsed = parseCellData(rawVal);
             
             document.getElementById('empCellNote').value = parsed.noteStr;
+
+            // 預載先前選取之班別（若有）
+            const knownOffs = ['✖', '❌', '年假', '行政', '公出', '補修', '會議'];
+            if (parsed.shiftCodes && parsed.shiftCodes.length > 0 && !knownOffs.includes(parsed.shiftCodes[0])) {
+                tempSelectedShifts = [...parsed.shiftCodes];
+            } else {
+                tempSelectedShifts = [];
+            }
+
+            renderShiftButtons();
+            updateShiftSelectionSummary();
 
             document.getElementById('customTimeCode').value = '';
             document.getElementById('customTimeStart').value = '';
@@ -1950,7 +2041,6 @@
             document.getElementById('ganttDialog').showModal();
         }
 
-        // Requirement B: 單日排班進度表 姓名欄位加寬(110px)與 Flex 置中行距優化，徹底消除垂直重疊問題
         function renderGanttChart(day) {
             const container = document.getElementById('ganttChartContent');
             if (!container) return;
@@ -1972,7 +2062,7 @@
             }
 
             const rowHeight = 40;
-            const leftWidth = 110; // 欄位由 80px 擴充至 110px
+            const leftWidth = 110; 
             let height = workingEmployees.length * rowHeight + 45;
             let html = `<div class="relative w-full rounded" style="height: ${height}px; background: #ffffff;">`;
             html += `<div class="absolute top-0 left-0 w-[${leftWidth}px] text-xs font-bold text-gray-500 text-right pr-3 z-10 pt-1">姓名</div>`;
@@ -1993,7 +2083,6 @@
                 const parsed = parseCellData(shiftStr);
                 const ranges = parseTimeRanges(shiftStr);
                 
-                // Requirement B: 使用 Flex 垂直置中 (h-[32px] flex flex-col justify-center leading-tight) 避免名字與下方重疊
                 html += `<div class="absolute left-0 w-[${leftWidth}px] h-[32px] flex flex-col justify-center text-xs text-gray-800 font-bold text-right pr-3 z-10 leading-tight" style="top: ${yOffset}px;">${escapeHTML(emp.name)}</div>`;
                 html += `<div class="absolute border-b border-gray-100 z-0" style="top: ${yOffset + 32}px; left: ${leftWidth}px; right: 0;"></div>`;
                 
@@ -2004,10 +2093,11 @@
                         let left = ((start - minTime) / totalHours) * 100;
                         let width = ((end - start) / totalHours) * 100;
                         let colorClass = "bg-[#f3f4f6] text-[#374151] border border-gray-300"; 
-                        if (parsed.shiftCode.startsWith('D')) colorClass = "bg-[#dbe4d7] text-[#3f4e38] border border-[#b8cbb3]";
-                        else if (parsed.shiftCode.startsWith('M')) colorClass = "bg-[#F3E5AB] text-[#4a401c] border border-[#d4c593]";
-                        else if (parsed.shiftCode.startsWith('N')) colorClass = "bg-[#ebd9d9] text-[#5c3c3c] border border-[#d6bcbc]";
-                        else if (parsed.shiftCode.startsWith('H')) colorClass = "bg-[#d6dbe0] text-[#3b4252] border border-[#b5bcc7]";
+                        const primaryCode = parsed.shiftCodes[0] || parsed.shiftCode;
+                        if (primaryCode.startsWith('D')) colorClass = "bg-[#dbe4d7] text-[#3f4e38] border border-[#b8cbb3]";
+                        else if (primaryCode.startsWith('M')) colorClass = "bg-[#F3E5AB] text-[#4a401c] border border-[#d4c593]";
+                        else if (primaryCode.startsWith('N')) colorClass = "bg-[#ebd9d9] text-[#5c3c3c] border border-[#d6bcbc]";
+                        else if (primaryCode.startsWith('H')) colorClass = "bg-[#d6dbe0] text-[#3b4252] border border-[#b5bcc7]";
 
                         html += `<div class="absolute h-[26px] rounded flex items-center justify-center text-[11px] font-extrabold overflow-hidden whitespace-nowrap shadow-sm z-20 hover:opacity-80 transition ${colorClass}" 
                                       style="top: ${yOffset + 3}px; left: calc(${leftWidth}px + (100% - ${leftWidth}px) * ${left / 100}); width: calc((100% - ${leftWidth}px) * ${width / 100});">
@@ -2213,7 +2303,7 @@
             const currentShiftSettings = getCurrentShiftSettings(currentYearMonth);
 
             const data = { 
-                version: "2.4",
+                version: "2.5",
                 exportMonth: currentYearMonth,
                 scheduleData, 
                 stationData, 
