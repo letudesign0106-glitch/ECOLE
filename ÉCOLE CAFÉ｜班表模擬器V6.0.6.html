@@ -483,14 +483,13 @@
         </div>
     </dialog>
 
-    <!-- 當日備註彈窗 (新增功能 A：支援系統警示檢視與管理員自主解除/恢復) -->
+    <!-- 當日備註彈窗 -->
     <dialog id="noteDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-sm border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
             <h3 class="font-bold text-gray-800 tracking-wide" id="noteDialogTitle">當日備註與人力警示設定</h3>
             <button onclick="closeNoteDialog()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
         </div>
         <div class="p-4 bg-white flex flex-col gap-3">
-            <!-- 系統警示動態顯示與管理員手動控制按鈕區 -->
             <div id="noteSysWarningContainer" class="bg-gray-50 border border-gray-200 rounded p-3 text-xs flex flex-col gap-2">
                 <div id="noteSysWarningNotice" class="leading-relaxed font-normal"></div>
                 <button id="toggleWarningBtn" onclick="toggleDismissWarning(selectedCell.day)" class="admin-only w-full mt-1 border py-1.5 rounded font-bold text-xs transition-colors shadow-sm"></button>
@@ -542,7 +541,6 @@
                 .replace(/'/g, '&#039;');
         }
 
-        // 自動清洗備註中殘留之警告標籤
         function getCleanUserNote(rawNote) {
             if (!rawNote) return '';
             return String(rawNote)
@@ -626,7 +624,7 @@
         let noteData = JSON.parse(localStorage.getItem('ecoleNote')) || {};
         let carryOverData = JSON.parse(localStorage.getItem('ecoleCarryOver')) || {}; 
         let lockData = JSON.parse(localStorage.getItem('ecoleLock')) || {}; 
-        let dismissedWarningsData = JSON.parse(localStorage.getItem('ecoleDismissedWarnings')) || {}; // 需求 A：管理員手動解除警示記憶
+        let dismissedWarningsData = JSON.parse(localStorage.getItem('ecoleDismissedWarnings')) || {};
 
         const todayDate = new Date();
         let currentYearMonth = todayDate.getFullYear() + '-' + String(todayDate.getMonth() + 1).padStart(2, '0');
@@ -1229,7 +1227,6 @@
             legendContainer.innerHTML = html;
         }
 
-        // 修改需求 A 核心：全方位巡檢當日排班（區分 FT 與 PT 支援例外，並辨識空白班表）
         function checkDailyOpeningClosing(dayIndex) {
             const currentEmployees = getCurrentEmployees(currentYearMonth);
             let workingTotal = 0;
@@ -1265,16 +1262,12 @@
             return { isEmpty, hasOpenFT, hasOpenPT, hasCloseFT, hasClosePT };
         }
 
-        // 修改需求 A 核心：動態計算系統人力警示 (排班後顯示/空白不顯示/支援PT例外/管理員手動解除)
         function getDailySystemWarnings(dayIndex) {
-            // 管理員已手動解除本條警示
             if (dismissedWarningsData[currentYearMonth]?.[dayIndex]) {
                 return [];
             }
 
             const status = checkDailyOpeningClosing(dayIndex);
-            
-            // 空白班表，不顯示任何系統警示
             if (status.isEmpty) {
                 return [];
             }
@@ -1290,7 +1283,6 @@
             } else if (!hasClose) {
                 warnings.push('⚠️無收班人員');
             } else {
-                // 若有開/收班，但為 PT 支援例外，獨立標註說明
                 if (!status.hasOpenFT && status.hasOpenPT) {
                     warnings.push('ℹ️PT支援開班');
                 }
@@ -1302,7 +1294,6 @@
             return warnings;
         }
 
-        // 修改需求 A 核心：管理員手動切換/解除警示狀態
         function toggleDismissWarning(day) {
             if (currentUserRole !== 'admin') {
                 alertCustom('提醒：只有管理員具備解除或恢復警示的權限！');
@@ -1393,7 +1384,6 @@
             theadHTML += `</tr>`;
             document.getElementById('tableHead').innerHTML = theadHTML;
 
-            // 修正需求 A 核心：動態計算警示 + 備註列呈顯
             let noteHTML = `<tr><th colspan="3" class="sticky-col px-2 py-1 text-sm font-normal text-gray-700 bg-white border-r-2 border-gray-300" style="left: 0; z-index: 10;">備註</th>`;
             for (let i = 1; i <= daysInMonth; i++) {
                 const sysWarnings = getDailySystemWarnings(i);
@@ -1864,7 +1854,6 @@
         }
         function closeStationDialog() { stationDialog.close(); }
 
-        // 修正需求 A 核心：開啟備註彈窗，顯示系統警示並提供管理員自主解除/恢復按鈕
         function openNoteDialog(day) {
             if (isScheduleLocked(currentYearMonth)) {
                 alertCustom('提醒：本月班表已被鎖定，無法修改每日備註！');
@@ -2126,27 +2115,20 @@
             renderShiftSettingsForm();
         }
 
+        /* 修正點：移除多餘的跨月份覆蓋連動迴圈，確保月份班別設定徹底獨立 */
         function saveShiftSettings() {
             if (isScheduleLocked(currentYearMonth)) {
-                alertCustom('提醒：本月班表已被鎖定，無法變定！');
+                alertCustom('提醒：本月班表已被鎖定，無法變更！');
                 return;
             }
             const newSettings = JSON.parse(JSON.stringify(tempShiftSettings));
             shiftSettingsData[currentYearMonth] = newSettings;
 
-            if (shiftSettingsData && typeof shiftSettingsData === 'object') {
-                Object.keys(shiftSettingsData).forEach(ym => {
-                    if (ym > currentYearMonth) {
-                        shiftSettingsData[ym] = JSON.parse(JSON.stringify(newSettings));
-                    }
-                });
-            }
-
             saveData();
             renderShiftButtons(); 
             document.getElementById('shiftSettingsDialog').close();
             renderTable();
-            alertCustom(`${currentYearMonth} 月份班別設定已儲存！(變定已自動延續套用至後續月份)`);
+            alertCustom(`${currentYearMonth} 月份班別設定已儲存！`);
         }
 
         function alertCustom(msg) {
@@ -2381,7 +2363,7 @@
 
                     let code = 'D03';
                     let info = getShiftInfo(code, currentYearMonth);
-                    tempSchedule[openEmp.id][d] = `D03\n${info.time || '0930-1830'}${reqSuffix}`;
+                    tempSchedule[closeEmp.id][d] = `D03\n${info.time || '0930-1830'}${reqSuffix}`;
                     hasCloseFT = true;
                 }
 
@@ -2793,21 +2775,22 @@
             }
         }
 
+        /* 修正點：匯出時僅截取 currentYearMonth 獨立月份切片，避免多月份交叉干擾 */
         async function exportJSON() {
             const currentEmployees = getCurrentEmployees(currentYearMonth);
             const currentShiftSettings = getCurrentShiftSettings(currentYearMonth);
 
             const data = { 
-                version: "3.4",
+                version: "3.5",
                 exportMonth: currentYearMonth,
-                scheduleData, 
-                stationData, 
-                noteData, 
-                carryOverData, 
-                lockData, 
-                employeesData, 
-                shiftSettingsData,
-                dismissedWarningsData,
+                scheduleData: { [currentYearMonth]: scheduleData[currentYearMonth] || {} }, 
+                stationData: { [currentYearMonth]: stationData[currentYearMonth] || {} }, 
+                noteData: { [currentYearMonth]: noteData[currentYearMonth] || {} }, 
+                carryOverData: { [currentYearMonth]: carryOverData[currentYearMonth] || {} }, 
+                lockData: { [currentYearMonth]: lockData[currentYearMonth] || false }, 
+                employeesData: { [currentYearMonth]: employeesData[currentYearMonth] || currentEmployees }, 
+                shiftSettingsData: { [currentYearMonth]: shiftSettingsData[currentYearMonth] || currentShiftSettings },
+                dismissedWarningsData: { [currentYearMonth]: dismissedWarningsData[currentYearMonth] || {} },
                 employees: currentEmployees,
                 shiftSettings: currentShiftSettings
             };
@@ -2837,6 +2820,7 @@
 
         function triggerImport() { document.getElementById('importFile').click(); }
 
+        /* 修正點：匯入時根據 targetYM 進行精確覆蓋，防止 10 月匯入干擾 11 月 */
         function importJSON(event) {
             const file = event.target.files[0];
             if(!file) return;
@@ -2846,44 +2830,78 @@
                     const data = JSON.parse(e.target.result);
                     const targetYM = data.exportMonth || currentYearMonth;
                     
-                    if(data.scheduleData) scheduleData = Object.assign({}, scheduleData, data.scheduleData);
-                    if(data.stationData) stationData = Object.assign({}, stationData, data.stationData);
-                    if(data.dismissedWarningsData) dismissedWarningsData = Object.assign({}, dismissedWarningsData, data.dismissedWarningsData);
-                    
-                    if(data.noteData) {
-                        const cleanNotes = {};
-                        Object.keys(data.noteData).forEach(ym => {
-                            cleanNotes[ym] = {};
-                            if(data.noteData[ym] && typeof data.noteData[ym] === 'object') {
-                                Object.keys(data.noteData[ym]).forEach(d => {
-                                    cleanNotes[ym][d] = getCleanUserNote(data.noteData[ym][d]);
-                                });
-                            }
-                        });
-                        noteData = Object.assign({}, noteData, cleanNotes);
-                    }
-
-                    if(data.carryOverData) carryOverData = Object.assign({}, carryOverData, data.carryOverData);
-                    if(data.lockData) lockData = Object.assign({}, lockData, data.lockData);
-                    
-                    if (data.employeesData && typeof data.employeesData === 'object' && !Array.isArray(data.employeesData)) {
-                        employeesData = Object.assign({}, employeesData, data.employeesData);
-                    }
-                    if (Array.isArray(data.employees)) {
-                        employeesData[targetYM] = JSON.parse(JSON.stringify(data.employees));
-                    }
-
-                    if (data.shiftSettingsData && typeof data.shiftSettingsData === 'object') {
-                        shiftSettingsData = Object.assign({}, shiftSettingsData, data.shiftSettingsData);
-                    }
-                    if (data.shiftSettings && typeof data.shiftSettings === 'object') {
-                        shiftSettingsData[targetYM] = JSON.parse(JSON.stringify(data.shiftSettings));
+                    if (data.exportMonth) {
+                        if (data.scheduleData && data.scheduleData[targetYM]) {
+                            if (!scheduleData[targetYM]) scheduleData[targetYM] = {};
+                            scheduleData[targetYM] = data.scheduleData[targetYM];
+                        }
+                        if (data.stationData && data.stationData[targetYM]) {
+                            if (!stationData[targetYM]) stationData[targetYM] = {};
+                            stationData[targetYM] = data.stationData[targetYM];
+                        }
+                        if (data.noteData && data.noteData[targetYM]) {
+                            if (!noteData[targetYM]) noteData[targetYM] = {};
+                            const cleanNotes = {};
+                            Object.keys(data.noteData[targetYM]).forEach(d => {
+                                cleanNotes[d] = getCleanUserNote(data.noteData[targetYM][d]);
+                            });
+                            noteData[targetYM] = cleanNotes;
+                        }
+                        if (data.carryOverData && data.carryOverData[targetYM] !== undefined) {
+                            carryOverData[targetYM] = data.carryOverData[targetYM];
+                        }
+                        if (data.lockData && data.lockData[targetYM] !== undefined) {
+                            lockData[targetYM] = data.lockData[targetYM];
+                        }
+                        if (data.dismissedWarningsData && data.dismissedWarningsData[targetYM]) {
+                            dismissedWarningsData[targetYM] = data.dismissedWarningsData[targetYM];
+                        }
+                        if (data.employeesData && data.employeesData[targetYM]) {
+                            employeesData[targetYM] = data.employeesData[targetYM];
+                        } else if (Array.isArray(data.employees)) {
+                            employeesData[targetYM] = JSON.parse(JSON.stringify(data.employees));
+                        }
+                        if (data.shiftSettingsData && data.shiftSettingsData[targetYM]) {
+                            shiftSettingsData[targetYM] = data.shiftSettingsData[targetYM];
+                        } else if (data.shiftSettings && typeof data.shiftSettings === 'object') {
+                            shiftSettingsData[targetYM] = JSON.parse(JSON.stringify(data.shiftSettings));
+                        }
+                    } else {
+                        if(data.scheduleData) scheduleData = Object.assign({}, scheduleData, data.scheduleData);
+                        if(data.stationData) stationData = Object.assign({}, stationData, data.stationData);
+                        if(data.dismissedWarningsData) dismissedWarningsData = Object.assign({}, dismissedWarningsData, data.dismissedWarningsData);
+                        if(data.noteData) {
+                            const cleanNotes = {};
+                            Object.keys(data.noteData).forEach(ym => {
+                                cleanNotes[ym] = {};
+                                if(data.noteData[ym] && typeof data.noteData[ym] === 'object') {
+                                    Object.keys(data.noteData[ym]).forEach(d => {
+                                        cleanNotes[ym][d] = getCleanUserNote(data.noteData[ym][d]);
+                                    });
+                                }
+                            });
+                            noteData = Object.assign({}, noteData, cleanNotes);
+                        }
+                        if(data.carryOverData) carryOverData = Object.assign({}, carryOverData, data.carryOverData);
+                        if(data.lockData) lockData = Object.assign({}, lockData, data.lockData);
+                        if (data.employeesData && typeof data.employeesData === 'object' && !Array.isArray(data.employeesData)) {
+                            employeesData = Object.assign({}, employeesData, data.employeesData);
+                        }
+                        if (Array.isArray(data.employees)) {
+                            employeesData[targetYM] = JSON.parse(JSON.stringify(data.employees));
+                        }
+                        if (data.shiftSettingsData && typeof data.shiftSettingsData === 'object') {
+                            shiftSettingsData = Object.assign({}, shiftSettingsData, data.shiftSettingsData);
+                        }
+                        if (data.shiftSettings && typeof data.shiftSettings === 'object') {
+                            shiftSettingsData[targetYM] = JSON.parse(JSON.stringify(data.shiftSettings));
+                        }
                     }
 
                     saveData();
                     renderShiftButtons();
                     renderTable();
-                    alertCustom(`資料匯入成功！已同步 ${targetYM} 月份之班表與設定。`);
+                    alertCustom(`資料匯入成功！已同步 ${targetYM} 月份之獨立班表與設定。`);
                 } catch(err) {
                     console.error("匯入失敗:", err);
                     alertCustom('檔案格式錯誤，請確定是本系統匯出的 JSON 備份檔。');
