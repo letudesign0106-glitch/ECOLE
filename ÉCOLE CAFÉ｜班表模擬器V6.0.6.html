@@ -74,7 +74,7 @@
         /* 未被管理者確認之預排班別樣式 */
         .shift-unconfirmed {
             border: 2px dashed #9ca3af !important;
-            opacity: 0.8;
+            opacity: 0.85;
             position: relative;
         }
         .shift-unconfirmed::after {
@@ -155,7 +155,7 @@
 
         <div id="mainToolbar" class="toolbar w-full md:w-auto">
             <button onclick="toggleScheduleLock()" title="鎖定/解鎖當月班表" id="lockBtn" class="icon-btn icon-btn-lock admin-only">
-                <svg id="lockIcon" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2zm10-10V7a4 4 0 0 0-8 0v4h8z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <svg id="lockIcon" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 2 2zm10-10V7a4 4 0 0 0-8 0v4h8z" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 <span id="lockText">鎖定</span>
             </button>
 
@@ -229,6 +229,8 @@
             <span class="flex items-center gap-1"><div class="w-3.5 h-3.5 bg-[#ebd9d9] border border-[#d6bcbc]"></div> 晚班(N)</span>
             <span class="flex items-center gap-1"><div class="w-3.5 h-3.5 bg-[#f3f4f6] border border-gray-300"></div> 特別班(SP)/年假</span>
             <span class="flex items-center gap-1"><span class="border-2 border-dashed border-gray-400 px-1 bg-gray-100 font-bold">❓</span> 員工預排(待確認)</span>
+            <span class="flex items-center gap-1"><span class="bg-red-100 border border-red-400 text-red-800 px-1 font-bold">⚠️開/收班缺失</span></span>
+            <span class="flex items-center gap-1"><span class="bg-blue-50 border border-blue-300 text-blue-800 px-1 font-bold">ℹ️PT開/收班(例外)</span></span>
             <span class="flex items-center gap-1"><span class="text-red-600 font-bold">❌</span> 指定休</span>
             <span class="flex items-center gap-1"><span class="font-bold">✖</span> 排休</span>
         </div>
@@ -310,10 +312,10 @@
                 </div>
             </div>
             <div class="text-xs text-gray-600 bg-gray-50 p-3 rounded border border-gray-200 leading-relaxed font-normal">
-                📌 <span class="font-bold text-gray-800">全新開/收班與站位自動化規範：</span><br>
-                1. <b>正職開/收班保障</b>：每日強制由正職擔任 D01/D02(開班) 與 D03(收班)。<br>
-                2. <b>站位自動配比</b>：D03 自動指派至『收班』站位，開班人員自動指派至『吧台』，其餘人員均勻分配至內外場。<br>
-                3. <b>雙重異常標記</b>：缺失開/收班標記 <code>⚠️無開/收班人員</code>，人力未達標標記 <code>⚠️人力不足</code>。
+                📌 <span class="font-bold text-gray-800">開/收班保障與意願保留規範：</span><br>
+                1. <b>正職開/收班保障</b>：每日優先由正職擔任 D01/D02 (開班) 與 D03 (收班)；若由 PT 支援開/收班系統自動識別例外。<br>
+                2. <b>預排意願與核定對照</b>：編輯彈窗內完整清晰對照管理者核定班別與員工預排班別。<br>
+                3. <b>站位自動配比</b>：D03 自動指派至『收班』站位，開班人員自動指派至『吧台』。
             </div>
             <div class="flex justify-end gap-2 mt-2">
                 <button onclick="document.getElementById('autoFillDialog').close()" class="border border-gray-300 text-gray-600 px-4 py-2 rounded hover:bg-gray-50">取消</button>
@@ -370,10 +372,9 @@
                 </div>
             </div>
 
-            <!-- 管理者檢視員工複選意願提示欄 -->
-            <div id="adminReqNotice" class="hidden bg-blue-50 border border-blue-200 rounded p-2.5 text-xs text-blue-900 leading-relaxed font-normal">
-                💡 <span class="font-bold">員工意願複選：</span><span id="adminReqShiftsText" class="font-bold text-blue-700"></span><br>
-                <span class="text-[11px] text-blue-800 opacity-90">提示：點擊下方任何一個班別，將直接為該員工定案並核定該班別。</span>
+            <!-- 對照檢視面板 -->
+            <div id="adminReqNotice" class="bg-blue-50 border border-blue-200 rounded p-3 text-xs text-blue-900 leading-relaxed font-normal shadow-sm">
+                <!-- 動態注入對照面板 -->
             </div>
 
             <div class="grid grid-cols-2 gap-2">
@@ -381,15 +382,15 @@
                 <button onclick="setShift('')" class="border border-gray-200 text-gray-600 py-2 rounded text-sm hover:bg-gray-50 font-bold shadow-sm">清除重置</button>
             </div>
 
-            <!-- 可排班別選擇區 (支援複選) -->
+            <!-- 可排班別選擇區 -->
             <div>
                 <div class="text-xs text-gray-400 font-bold tracking-widest border-t pt-2 mb-2 flex justify-between items-center">
-                    <span>可排班別選擇 (點擊可複選多個班別)</span>
+                    <span>可排班別選擇 (點擊可選取班別)</span>
                     <span id="roleNotice" class="text-[10px] text-gray-500 font-normal"></span>
                 </div>
                 
                 <div class="mb-2">
-                    <div class="text-[11px] text-[#3f4e38] font-bold mb-1">早班系列 (D - 莫蘭迪綠)</div>
+                    <div class="text-[11px] text-[#3f4e38] font-bold mb-1">早班系列 (D - 莫蘭迪綠 / 含開班/收班)</div>
                     <div id="dynamicMorningShifts" class="grid grid-cols-3 gap-2 text-sm"></div>
                 </div>
 
@@ -416,7 +417,7 @@
                 <!-- 複選統計列與確認按鈕 -->
                 <div class="bg-gray-50 border border-gray-200 rounded p-2.5 mt-3 flex items-center justify-between">
                     <div class="text-xs text-gray-700 font-bold flex items-center gap-1">
-                        <span>已選可排班別 (<span id="selectedShiftCount" class="text-black font-black">0</span>):</span>
+                        <span>已選班別 (<span id="selectedShiftCount" class="text-black font-black">0</span>):</span>
                         <span id="selectedShiftList" class="text-xs font-bold text-blue-800">無</span>
                     </div>
                     <button onclick="confirmShiftSelection()" class="bg-black text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-gray-800 shadow-sm whitespace-nowrap">
@@ -482,23 +483,33 @@
         </div>
     </dialog>
 
-    <!-- 當日備註彈窗 -->
+    <!-- 當日備註彈窗 (新增功能 A：支援系統警示檢視與管理員自主解除/恢復) -->
     <dialog id="noteDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-sm border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-            <h3 class="font-bold text-gray-800 tracking-wide" id="noteDialogTitle">當日備註</h3>
+            <h3 class="font-bold text-gray-800 tracking-wide" id="noteDialogTitle">當日備註與人力警示設定</h3>
             <button onclick="closeNoteDialog()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
         </div>
         <div class="p-4 bg-white flex flex-col gap-3">
+            <!-- 系統警示動態顯示與管理員手動控制按鈕區 -->
+            <div id="noteSysWarningContainer" class="bg-gray-50 border border-gray-200 rounded p-3 text-xs flex flex-col gap-2">
+                <div id="noteSysWarningNotice" class="leading-relaxed font-normal"></div>
+                <button id="toggleWarningBtn" onclick="toggleDismissWarning(selectedCell.day)" class="admin-only w-full mt-1 border py-1.5 rounded font-bold text-xs transition-colors shadow-sm"></button>
+            </div>
+
+            <div class="text-xs text-gray-500 font-bold mb-0.5">快速選擇自訂備註：</div>
             <div class="grid grid-cols-4 gap-1.5">
                 <button onclick="setNote('國定假日')" class="border border-red-200 text-red-600 py-2 rounded text-xs font-bold hover:bg-red-50">國定假日</button>
                 <button onclick="setNote('員工會議')" class="border border-gray-200 py-2 rounded text-xs font-bold hover:bg-gray-50">員工會議</button>
                 <button onclick="setNote('主管會議')" class="border border-gray-200 py-2 rounded text-xs font-bold hover:bg-gray-50">主管會議</button>
                 <button onclick="setNote('店休')" class="border border-red-200 text-red-600 py-2 rounded text-xs font-bold hover:bg-red-50">店休</button>
             </div>
-            <textarea id="customNote" rows="3" class="border border-gray-300 rounded p-2 text-sm w-full mt-2 outline-none focus:border-black" placeholder="輸入自訂備註..."></textarea>
-            <div class="flex gap-2">
-                <button onclick="setNote('')" class="border border-gray-300 text-gray-600 py-2 rounded text-sm flex-1 hover:bg-gray-50">清除</button>
-                <button onclick="setNote(document.getElementById('customNote').value)" class="bg-black text-white py-2 rounded text-sm flex-1 hover:bg-gray-800">儲存備註</button>
+            
+            <div class="text-xs text-gray-500 font-bold mt-1 mb-0.5">自訂備註內容 (可自由刪除/修改)：</div>
+            <textarea id="customNote" rows="3" class="border border-gray-300 rounded p-2 text-sm w-full outline-none focus:border-black resize-y" placeholder="請輸入自訂備註 (例如: 14:00大盤點)..."></textarea>
+            
+            <div class="flex gap-2 mt-1">
+                <button onclick="setNote('')" class="border border-red-300 text-red-600 py-2 rounded text-sm flex-1 hover:bg-red-50 font-bold">🗑️ 清除自訂備註</button>
+                <button onclick="setNote(document.getElementById('customNote').value)" class="bg-black text-white py-2 rounded text-sm flex-1 hover:bg-gray-800 font-bold">💾 儲存備註</button>
             </div>
         </div>
     </dialog>
@@ -529,6 +540,19 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
+        }
+
+        // 自動清洗備註中殘留之警告標籤
+        function getCleanUserNote(rawNote) {
+            if (!rawNote) return '';
+            return String(rawNote)
+                .replace(/⚠️無開\/收班人員\n?/g, '')
+                .replace(/⚠️無開班人員\n?/g, '')
+                .replace(/⚠️無收班人員\n?/g, '')
+                .replace(/ℹ️PT支援開班\n?/g, '')
+                .replace(/ℹ️PT支援收班\n?/g, '')
+                .replace(/⚠️人力不足\n?/g, '')
+                .trim();
         }
 
         function formatNameWithLineBreak(str) {
@@ -562,6 +586,7 @@
         let isCloudLoaded = false; 
 
         let tempSelectedShifts = [];
+        let activeDialogRawReq = ''; 
         let adminDialogMode = localStorage.getItem('ecoleAdminDialogMode') || 'approve'; 
 
         const defaultEmployees = [
@@ -601,6 +626,7 @@
         let noteData = JSON.parse(localStorage.getItem('ecoleNote')) || {};
         let carryOverData = JSON.parse(localStorage.getItem('ecoleCarryOver')) || {}; 
         let lockData = JSON.parse(localStorage.getItem('ecoleLock')) || {}; 
+        let dismissedWarningsData = JSON.parse(localStorage.getItem('ecoleDismissedWarnings')) || {}; // 需求 A：管理員手動解除警示記憶
 
         const todayDate = new Date();
         let currentYearMonth = todayDate.getFullYear() + '-' + String(todayDate.getMonth() + 1).padStart(2, '0');
@@ -666,39 +692,70 @@
         }
 
         function parseCellData(rawVal) {
-            if (!rawVal) return { isReq: false, shiftCode: '', shiftCodes: [], isMulti: false, timeStr: '', noteStr: '' };
-            let isReq = rawVal.startsWith('REQ:');
-            let val = isReq ? rawVal.replace('REQ:', '') : rawVal;
-            let lines = val.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            if (!rawVal) return { isReq: false, shiftCode: '', shiftCodes: [], reqCodes: [], isMulti: false, timeStr: '', noteStr: '', rawReq: '' };
             
-            if (lines.length === 0) return { isReq, shiftCode: '', shiftCodes: [], isMulti: false, timeStr: '', noteStr: '' };
+            let isReq = rawVal.startsWith('REQ:');
+            let lines = rawVal.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            
+            let reqCodes = [];
+            let rawReq = '';
+            let cleanLines = [];
+            
+            lines.forEach(line => {
+                if (line.startsWith('REQ:')) {
+                    rawReq = line.replace('REQ:', '').trim();
+                    reqCodes = rawReq.split(/[\/,]/).map(c => c.trim()).filter(Boolean);
+                } else {
+                    cleanLines.push(line);
+                }
+            });
 
-            const code = lines[0];
+            if (cleanLines.length === 0) {
+                return {
+                    isReq: true,
+                    shiftCode: rawReq,
+                    shiftCodes: reqCodes,
+                    reqCodes: reqCodes,
+                    isMulti: reqCodes.length > 1,
+                    timeStr: '',
+                    noteStr: '',
+                    rawReq: rawReq
+                };
+            }
+
+            const code = cleanLines[0];
             const currentShifts = getCurrentShiftSettings(currentYearMonth);
             const knownOffs = ['✖', '❌', '年假', '行政', '公出', '補修', '會議'];
-            
             const rawCodes = code.split(/[\/,]/).map(c => c.trim()).filter(Boolean);
             const isKnownCode = rawCodes.some(c => currentShifts.hasOwnProperty(c) || knownOffs.includes(c) || c.startsWith('D') || c.startsWith('M') || c.startsWith('N') || c.startsWith('H') || c.startsWith('SP'));
 
-            if (isKnownCode) {
-                let shiftCode = code; 
-                let shiftCodes = rawCodes;
-                let isMulti = rawCodes.length > 1;
-                let timeStr = '';
-                let noteStr = '';
+            let shiftCode = isKnownCode ? code : '';
+            let shiftCodes = rawCodes;
+            let isMulti = rawCodes.length > 1;
+            let timeStr = '';
+            let noteStr = '';
 
-                if (lines.length > 1) {
-                    if (/^\d{1,2}:?\d{0,2}\s*[-~|/]\s*\d{1,2}:?\d{0,2}$/.test(lines[1])) {
-                        timeStr = lines[1];
-                        noteStr = lines.slice(2).join('\n');
-                    } else {
-                        noteStr = lines.slice(1).join('\n');
-                    }
+            let restLines = isKnownCode ? cleanLines.slice(1) : cleanLines;
+
+            if (restLines.length > 0) {
+                if (/^\d{1,2}:?\d{0,2}\s*[-~|/]\s*\d{1,2}:?\d{0,2}$/.test(restLines[0])) {
+                    timeStr = restLines[0];
+                    noteStr = restLines.slice(1).join('\n');
+                } else {
+                    noteStr = restLines.join('\n');
                 }
-                return { isReq, shiftCode, shiftCodes, isMulti, timeStr, noteStr };
-            } else {
-                return { isReq, shiftCode: '', shiftCodes: [], isMulti: false, timeStr: '', noteStr: val };
             }
+
+            return {
+                isReq: isReq,
+                shiftCode: shiftCode || (!isKnownCode ? '' : code),
+                shiftCodes: shiftCodes,
+                reqCodes: reqCodes,
+                isMulti: isMulti,
+                timeStr: timeStr,
+                noteStr: noteStr,
+                rawReq: rawReq
+            };
         }
 
         function migrateStationData(ym) {
@@ -870,7 +927,6 @@
         function setupCloudSync() {
             if (!currentUser || !db) return;
             
-            // 安全防護：釋放現有監聽器，防止重複建立造成 Listeners 累積
             if (unsubscribeSnapshot) {
                 unsubscribeSnapshot();
                 unsubscribeSnapshot = null;
@@ -890,6 +946,7 @@
                     lockData = data.lockData || {};
                     employeesData = data.employeesData || {};
                     shiftSettingsData = data.shiftSettingsData || {};
+                    dismissedWarningsData = data.dismissedWarningsData || {};
 
                     isCloudLoaded = true; 
                     renderShiftButtons(); 
@@ -940,6 +997,7 @@
             localStorage.setItem('ecoleLock', JSON.stringify(lockData));
             localStorage.setItem('ecoleEmployeesData', JSON.stringify(employeesData));
             localStorage.setItem('ecoleShiftSettingsData', JSON.stringify(shiftSettingsData));
+            localStorage.setItem('ecoleDismissedWarnings', JSON.stringify(dismissedWarningsData));
 
             if (currentUser && db) {
                 if (!isCloudLoaded) {
@@ -948,7 +1006,7 @@
                 }
                 const dataToSave = { 
                     scheduleData, stationData, noteData, carryOverData, lockData, 
-                    employeesData, shiftSettingsData 
+                    employeesData, shiftSettingsData, dismissedWarningsData 
                 };
                 db.collection("ecoleCafe").doc("main_schedule").set(dataToSave, { merge: true })
                     .catch((error) => { console.error("雲端存檔失敗:", error); });
@@ -1016,18 +1074,25 @@
                 else groups.other.push(key);
             });
 
+            const reqList = activeDialogRawReq ? activeDialogRawReq.split(/[\/,]/).map(c => c.trim()) : [];
+
             function buildButtons(keys) {
                 return keys.map(key => {
                     const info = getShiftInfo(key);
                     const time = escapeHTML(info.time);
                     const cls = styleMap[classifyShiftKey(key)];
                     const isSelected = tempSelectedShifts.includes(key);
+                    const isRequested = reqList.includes(key);
+
                     const selectedStyle = isSelected 
                         ? 'ring-2 ring-black font-black scale-[1.03] shadow-md border-black' 
                         : 'border-transparent opacity-90 hover:opacity-100';
+                    
                     const checkMark = isSelected ? '<span class="text-black font-extrabold mr-1 text-xs">✓</span>' : '';
+                    const reqBadge = isRequested ? `<span class="bg-blue-600 text-white text-[9px] px-1 rounded-sm font-bold absolute -top-1.5 -right-1 shadow">預排</span>` : '';
 
                     return `<button onclick="toggleShiftCode('${escapeHTML(key)}')" class="${cls} ${selectedStyle} transition-all py-2 px-1 rounded leading-tight font-extrabold text-sm flex flex-col items-center justify-center relative">
+                        ${reqBadge}
                         <span class="flex items-center justify-center">${checkMark}${escapeHTML(key)}</span>
                         <span class="text-[9px] font-normal opacity-80">${time}</span>
                     </button>`;
@@ -1164,6 +1229,101 @@
             legendContainer.innerHTML = html;
         }
 
+        // 修改需求 A 核心：全方位巡檢當日排班（區分 FT 與 PT 支援例外，並辨識空白班表）
+        function checkDailyOpeningClosing(dayIndex) {
+            const currentEmployees = getCurrentEmployees(currentYearMonth);
+            let workingTotal = 0;
+            let hasOpenFT = false;
+            let hasOpenPT = false;
+            let hasCloseFT = false;
+            let hasClosePT = false;
+
+            currentEmployees.forEach(emp => {
+                let rawVal = scheduleData[currentYearMonth]?.[emp.id]?.[dayIndex] || '';
+                let parsed = parseCellData(rawVal);
+                
+                if (parsed.shiftCode && !['✖', '❌', '年假', '行政', '公出', '補修', '會議'].includes(parsed.shiftCode)) {
+                    workingTotal++;
+                    const isFT = emp.type === 'FT';
+                    const isPT = emp.type === 'PT';
+
+                    const isOpen = parsed.shiftCodes.some(c => c.startsWith('D01') || c.startsWith('D02'));
+                    const isClose = parsed.shiftCodes.some(c => c.startsWith('D03'));
+
+                    if (isOpen) {
+                        if (isFT) hasOpenFT = true;
+                        if (isPT) hasOpenPT = true;
+                    }
+                    if (isClose) {
+                        if (isFT) hasCloseFT = true;
+                        if (isPT) hasClosePT = true;
+                    }
+                }
+            });
+
+            const isEmpty = (workingTotal === 0);
+            return { isEmpty, hasOpenFT, hasOpenPT, hasCloseFT, hasClosePT };
+        }
+
+        // 修改需求 A 核心：動態計算系統人力警示 (排班後顯示/空白不顯示/支援PT例外/管理員手動解除)
+        function getDailySystemWarnings(dayIndex) {
+            // 管理員已手動解除本條警示
+            if (dismissedWarningsData[currentYearMonth]?.[dayIndex]) {
+                return [];
+            }
+
+            const status = checkDailyOpeningClosing(dayIndex);
+            
+            // 空白班表，不顯示任何系統警示
+            if (status.isEmpty) {
+                return [];
+            }
+
+            const warnings = [];
+            const hasOpen = status.hasOpenFT || status.hasOpenPT;
+            const hasClose = status.hasCloseFT || status.hasClosePT;
+
+            if (!hasOpen && !hasClose) {
+                warnings.push('⚠️無開/收班人員');
+            } else if (!hasOpen) {
+                warnings.push('⚠️無開班人員');
+            } else if (!hasClose) {
+                warnings.push('⚠️無收班人員');
+            } else {
+                // 若有開/收班，但為 PT 支援例外，獨立標註說明
+                if (!status.hasOpenFT && status.hasOpenPT) {
+                    warnings.push('ℹ️PT支援開班');
+                }
+                if (!status.hasCloseFT && status.hasClosePT) {
+                    warnings.push('ℹ️PT支援收班');
+                }
+            }
+
+            return warnings;
+        }
+
+        // 修改需求 A 核心：管理員手動切換/解除警示狀態
+        function toggleDismissWarning(day) {
+            if (currentUserRole !== 'admin') {
+                alertCustom('提醒：只有管理員具備解除或恢復警示的權限！');
+                return;
+            }
+            if (!dismissedWarningsData[currentYearMonth]) {
+                dismissedWarningsData[currentYearMonth] = {};
+            }
+            const currentStatus = !!dismissedWarningsData[currentYearMonth][day];
+            const newStatus = !currentStatus;
+            
+            dismissedWarningsData[currentYearMonth][day] = newStatus;
+            localStorage.setItem('ecoleDismissedWarnings', JSON.stringify(dismissedWarningsData));
+            
+            const fieldPath = `dismissedWarningsData.${currentYearMonth}.${day}`;
+            updateFirestoreField(fieldPath, newStatus);
+            
+            openNoteDialog(day);
+            renderTable();
+        }
+
         function renderTable() {
             const [year, month] = currentYearMonth.split('-').map(Number);
             const daysInMonth = new Date(year, month, 0).getDate();
@@ -1203,8 +1363,9 @@
             for (let i = 1; i <= daysInMonth; i++) {
                 const dayIndex = (firstDayOfWeek + i - 1) % 7;
                 const isWeekend = dayIndex === 0 || dayIndex === 6;
-                const n = noteData[currentYearMonth]?.[i] || '';
-                const isNationalHoliday = n.includes('國定假日');
+                const rawNote = noteData[currentYearMonth]?.[i] || '';
+                const userNote = getCleanUserNote(rawNote);
+                const isNationalHoliday = userNote.includes('國定假日');
 
                 let dateClass = 'text-gray-500 font-normal';
                 if (isWeekend || isNationalHoliday) dateClass = 'text-red-600 font-bold';
@@ -1220,8 +1381,9 @@
             for (let i = 1; i <= daysInMonth; i++) {
                 const dayIndex = (firstDayOfWeek + i - 1) % 7;
                 const isWeekend = dayIndex === 0 || dayIndex === 6;
-                const n = noteData[currentYearMonth]?.[i] || '';
-                const isNationalHoliday = n.includes('國定假日');
+                const rawNote = noteData[currentYearMonth]?.[i] || '';
+                const userNote = getCleanUserNote(rawNote);
+                const isNationalHoliday = userNote.includes('國定假日');
 
                 let weekdayClass = 'text-gray-400 font-normal';
                 if (isWeekend || isNationalHoliday) weekdayClass = 'text-red-600 font-bold';
@@ -1231,18 +1393,36 @@
             theadHTML += `</tr>`;
             document.getElementById('tableHead').innerHTML = theadHTML;
 
+            // 修正需求 A 核心：動態計算警示 + 備註列呈顯
             let noteHTML = `<tr><th colspan="3" class="sticky-col px-2 py-1 text-sm font-normal text-gray-700 bg-white border-r-2 border-gray-300" style="left: 0; z-index: 10;">備註</th>`;
             for (let i = 1; i <= daysInMonth; i++) {
-                const n = noteData[currentYearMonth]?.[i] || '';
-                const isNatHoliday = n.includes('國定假日');
-                const isShortage = n.includes('⚠️人力不足') || n.includes('⚠️無開/收班人員');
+                const sysWarnings = getDailySystemWarnings(i);
+                const rawNote = noteData[currentYearMonth]?.[i] || '';
+                const userNote = getCleanUserNote(rawNote);
+
+                const hasHardWarning = sysWarnings.some(w => w.startsWith('⚠️'));
+                const hasPtNotice = sysWarnings.some(w => w.startsWith('ℹ️'));
+                const isNatHoliday = userNote.includes('國定假日');
                 const pointerClass = (currentUserRole === 'admin' && !locked) ? 'shift-cell' : 'cursor-default';
                 
                 let holidayClass = 'text-gray-500 bg-white';
-                if (isShortage) holidayClass = 'text-red-700 font-bold bg-red-100 border border-red-300';
+                if (hasHardWarning) holidayClass = 'text-red-800 font-extrabold bg-red-100 border-2 border-red-300';
+                else if (hasPtNotice) holidayClass = 'text-blue-800 font-bold bg-blue-50 border border-blue-200';
                 else if (isNatHoliday) holidayClass = 'text-red-600 font-bold bg-red-50';
 
-                noteHTML += `<td class="day-col-${i} ${pointerClass} ${holidayClass} text-[10px] break-words break-all whitespace-pre-line" onclick="openNoteDialog(${i})">${escapeHTML(n)}</td>`;
+                let displayParts = [];
+                if (sysWarnings.length > 0) {
+                    const warnText = sysWarnings.map(w => escapeHTML(w)).join('<br>');
+                    const warnCls = hasHardWarning ? 'text-red-700 font-extrabold' : 'text-blue-700 font-bold';
+                    displayParts.push(`<span class="${warnCls} block leading-tight">${warnText}</span>`);
+                }
+                if (userNote) {
+                    displayParts.push(`<span class="text-gray-800 font-normal block leading-tight ${sysWarnings.length > 0 ? 'mt-0.5 border-t border-gray-200 pt-0.5' : ''}">${escapeHTML(userNote)}</span>`);
+                }
+
+                const cellContent = displayParts.join('') || '';
+
+                noteHTML += `<td class="day-col-${i} ${pointerClass} ${holidayClass} text-[10px] break-words break-all whitespace-pre-line leading-tight" onclick="openNoteDialog(${i})">${cellContent}</td>`;
             }
             noteHTML += `<td class="bg-white border-l-2 border-gray-300 right-name-col"></td><td class="bg-white border-l border-gray-200"></td><td class="bg-white border-l border-gray-200"></td><td class="bg-white border-l border-gray-200"></td></tr>`;
             document.getElementById('noteBody').innerHTML = noteHTML;
@@ -1294,7 +1474,7 @@
                             codeHTML = `<span class="font-extrabold text-xs leading-tight block drop-shadow-sm">${escapeHTML(parsed.shiftCode)}</span>`;
                         }
 
-                        let multiTagHTML = parsed.isMulti ? `<span class="inline-block text-[9px] bg-blue-600 text-white font-bold px-1 rounded-sm mt-0.5 shadow-sm">預排${parsed.shiftCodes.length}項</span>` : '';
+                        let multiTagHTML = (parsed.isReq && parsed.isMulti) ? `<span class="inline-block text-[9px] bg-blue-600 text-white font-bold px-1 rounded-sm mt-0.5 shadow-sm">預排${parsed.shiftCodes.length}項</span>` : '';
                         let noteHTML = parsed.noteStr ? `<div class="text-[9px] font-normal leading-tight opacity-90 break-words break-all whitespace-pre-line text-gray-700 mt-0.5">${escapeHTML(parsed.noteStr)}</div>` : '';
                         displayText = `${codeHTML}${multiTagHTML}${noteHTML}`;
 
@@ -1488,23 +1668,42 @@
             const parsed = parseCellData(rawVal);
             
             document.getElementById('empCellNote').value = parsed.noteStr;
+            activeDialogRawReq = parsed.rawReq || '';
 
             const knownOffs = ['✖', '❌', '年假', '行政', '公出', '補修', '會議'];
-            if (parsed.shiftCodes && parsed.shiftCodes.length > 0 && !knownOffs.includes(parsed.shiftCodes[0])) {
+            if (parsed.reqCodes && parsed.reqCodes.length > 0 && !knownOffs.includes(parsed.reqCodes[0])) {
+                tempSelectedShifts = [...parsed.reqCodes];
+            } else if (parsed.shiftCodes && parsed.shiftCodes.length > 0 && !knownOffs.includes(parsed.shiftCodes[0])) {
                 tempSelectedShifts = [...parsed.shiftCodes];
             } else {
                 tempSelectedShifts = [];
             }
 
             const adminNoticeBox = document.getElementById('adminReqNotice');
-            const adminNoticeText = document.getElementById('adminReqShiftsText');
-            if (currentUserRole === 'admin' && parsed.isReq && parsed.shiftCodes.length > 0) {
-                if (adminNoticeBox && adminNoticeText) {
-                    adminNoticeText.innerText = parsed.shiftCodes.join(' / ');
-                    adminNoticeBox.classList.remove('hidden');
-                }
-            } else if (adminNoticeBox) {
-                adminNoticeBox.classList.add('hidden');
+            if (adminNoticeBox) {
+                let approvedBadge = parsed.shiftCode 
+                    ? `<span class="font-extrabold text-green-700 bg-green-100 px-2 py-0.5 rounded border border-green-300 text-xs">${escapeHTML(parsed.shiftCode)}</span>` 
+                    : '<span class="text-gray-400 font-bold">尚無核定班別 (全天排休/自訂/待定)</span>';
+                
+                let reqBadge = parsed.rawReq 
+                    ? `<span class="font-extrabold text-blue-700 bg-blue-100 px-2 py-0.5 rounded border border-blue-300 text-xs">${escapeHTML(parsed.rawReq)}</span>` 
+                    : '<span class="text-gray-400 font-normal">無預排班別紀錄</span>';
+
+                adminNoticeBox.innerHTML = `
+                    <div class="flex flex-col gap-2">
+                        <div class="flex items-center justify-between border-b border-blue-200 pb-1.5">
+                            <span class="font-bold text-gray-800 flex items-center gap-1">👑 管理者已核定班別：</span>
+                            <div>${approvedBadge}</div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-gray-800 flex items-center gap-1">👤 員工原始預排意願：</span>
+                            <div>${reqBadge}</div>
+                        </div>
+                    </div>
+                    <div class="text-[11px] text-blue-800 opacity-90 mt-2 pt-1 border-t border-blue-100 leading-tight">
+                        💡 <b>雙向對照提示</b>：主班表僅乾淨呈現「管理者核定班別」；原始預排班別完整保留於此處對照調度。
+                    </div>
+                `;
             }
 
             renderShiftButtons();
@@ -1531,19 +1730,26 @@
             }
 
             const noteInput = document.getElementById('empCellNote').value.trim();
+            const existingRaw = scheduleData[currentYearMonth]?.[selectedCell.empId]?.[selectedCell.day] || '';
+            const existingParsed = parseCellData(existingRaw);
+
             let finalValue = '';
 
             if (val === '') {
                 finalValue = ''; 
             } else {
-                if (noteInput) {
-                    finalValue = `${val}\n${noteInput}`;
+                if (isEffectiveStaff) {
+                    finalValue = 'REQ:' + val;
+                    if (noteInput) finalValue += `\n${noteInput}`;
                 } else {
                     finalValue = val;
-                }
-
-                if (isEffectiveStaff) {
-                    finalValue = 'REQ:' + finalValue;
+                    let reqToKeep = existingParsed.rawReq;
+                    if (reqToKeep) {
+                        finalValue += `\nREQ:${reqToKeep}`;
+                    }
+                    if (noteInput) {
+                        finalValue += `\n${noteInput}`;
+                    }
                 }
             }
 
@@ -1578,18 +1784,24 @@
                 let shiftPart = parsed.shiftCode;
                 if (parsed.timeStr) shiftPart += `\n${parsed.timeStr}`;
                 
+                finalValue = shiftPart;
+
+                if (parsed.rawReq) {
+                    finalValue += `\nREQ:${parsed.rawReq}`;
+                }
+
                 if (noteInput) {
-                    finalValue = `${shiftPart}\n${noteInput}`;
-                } else {
-                    finalValue = shiftPart;
+                    finalValue += `\n${noteInput}`;
                 }
 
                 if (parsed.isReq || isEffectiveStaff) {
-                    finalValue = 'REQ:' + finalValue;
+                    if (!finalValue.startsWith('REQ:')) {
+                        finalValue = 'REQ:' + finalValue;
+                    }
                 }
             } else {
                 finalValue = noteInput;
-                if (isEffectiveStaff && noteInput) {
+                if ((isEffectiveStaff || parsed.isReq) && noteInput) {
                     finalValue = 'REQ:' + finalValue;
                 }
             }
@@ -1652,6 +1864,7 @@
         }
         function closeStationDialog() { stationDialog.close(); }
 
+        // 修正需求 A 核心：開啟備註彈窗，顯示系統警示並提供管理員自主解除/恢復按鈕
         function openNoteDialog(day) {
             if (isScheduleLocked(currentYearMonth)) {
                 alertCustom('提醒：本月班表已被鎖定，無法修改每日備註！');
@@ -1659,8 +1872,37 @@
             }
             if (currentUserRole !== 'admin') return;
             selectedCell = { day };
-            document.getElementById('noteDialogTitle').innerText = `${day}日 備註`;
-            document.getElementById('customNote').value = noteData[currentYearMonth]?.[day] || '';
+            document.getElementById('noteDialogTitle').innerText = `${day}日 備註與人力警示設定`;
+            
+            const rawNote = noteData[currentYearMonth]?.[day] || '';
+            const userNote = getCleanUserNote(rawNote);
+            document.getElementById('customNote').value = userNote;
+
+            const isDismissed = !!dismissedWarningsData[currentYearMonth]?.[day];
+            const sysWarnings = getDailySystemWarnings(day);
+            const status = checkDailyOpeningClosing(day);
+
+            const sysNoticeEl = document.getElementById('noteSysWarningNotice');
+            const toggleBtn = document.getElementById('toggleWarningBtn');
+
+            if (isDismissed) {
+                sysNoticeEl.innerHTML = `<span class="text-gray-500 font-bold">🔒 本日人力警示已被管理員手動解除。</span>`;
+                toggleBtn.innerText = "🔄 恢復本日期系統警示";
+                toggleBtn.className = "admin-only w-full mt-1 border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 py-1.5 rounded font-bold text-xs shadow-sm";
+                toggleBtn.style.display = '';
+            } else if (!status.isEmpty && (sysWarnings.length > 0 || !status.hasOpenFT || !status.hasCloseFT)) {
+                let alertText = sysWarnings.length > 0 ? sysWarnings.join('<br>') : '系統即時監控中';
+                sysNoticeEl.innerHTML = `⚠️ <b>系統即時人力警示</b>：<br>${alertText}<br><span class="text-[10px] text-gray-500 mt-0.5 block">(說明：開/收班預設由正職擔任，PT支援自動標註例外)</span>`;
+                toggleBtn.innerText = "🚫 解除本日期人力警示";
+                toggleBtn.className = "admin-only w-full mt-1 border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 py-1.5 rounded font-bold text-xs shadow-sm";
+                toggleBtn.style.display = '';
+            } else {
+                sysNoticeEl.innerHTML = status.isEmpty 
+                    ? `<span class="text-gray-400 font-normal">本日未排班 (空白班表不顯示警示)</span>`
+                    : `<span class="text-green-700 font-bold">✅ 本日開班與收班人力配比健全</span>`;
+                toggleBtn.style.display = 'none';
+            }
+
             noteDialog.showModal();
         }
 
@@ -1670,12 +1912,14 @@
                 return;
             }
             if (currentUserRole !== 'admin') return;
-            noteData[currentYearMonth][selectedCell.day] = val;
+            
+            const cleanVal = getCleanUserNote(val);
+            noteData[currentYearMonth][selectedCell.day] = cleanVal;
             noteDialog.close();
             localStorage.setItem('ecoleNote', JSON.stringify(noteData));
             
             const fieldPath = `noteData.${currentYearMonth}.${selectedCell.day}`;
-            updateFirestoreField(fieldPath, val);
+            updateFirestoreField(fieldPath, cleanVal);
             renderTable();
         }
         function closeNoteDialog() { noteDialog.close(); }
@@ -1960,7 +2204,6 @@
             return parsed.shiftCode && !['✖', '❌', '年假', '行政', '公出', '補修', '會議'].includes(parsed.shiftCode);
         };
 
-        // 自動排班演算法修訂版（保障正職 D01/D02開班與 D03收班、站位配比、雙重警示標記）
         function executeAutoFill() {
             if (isScheduleLocked(currentYearMonth)) {
                 alertCustom('提醒：本月班表已被鎖定！');
@@ -1983,16 +2226,14 @@
             const ftEmployees = currentEmployees.filter(e => e.type === 'FT');
             const ptEmployees = currentEmployees.filter(e => e.type === 'PT');
 
-            if (ftEmployees.length === 0) {
-                alertCustom('目前尚無正職員工資料，無法執行自動排班。');
+            if (ftEmployees.length === 0 && ptEmployees.length === 0) {
+                alertCustom('目前尚無員工資料，無法執行自動排班。');
                 return;
             }
 
-            // 1. 初始化當月排班過渡 Mapping
             let tempSchedule = {};
             currentEmployees.forEach(emp => { tempSchedule[emp.id] = {}; });
 
-            // 2. 彙整固定休與預排意願
             let ftFixedOff = {};
             let ftReqWork = {}; 
             ftEmployees.forEach(emp => {
@@ -2004,10 +2245,10 @@
 
                     if (raw === '❌' || (parsed.isReq && (parsed.shiftCodes.includes('❌') || raw.includes('❌')))) {
                         ftFixedOff[emp.id].add(d);
-                        tempSchedule[emp.id][d] = '❌';
+                        tempSchedule[emp.id][d] = parsed.rawReq ? `❌\nREQ:${parsed.rawReq}` : '❌';
                     } else if (parsed.isReq && parsed.shiftCodes.includes('✖')) {
                         ftFixedOff[emp.id].add(d);
-                        tempSchedule[emp.id][d] = '✖';
+                        tempSchedule[emp.id][d] = parsed.rawReq ? `✖\nREQ:${parsed.rawReq}` : '✖';
                     } else if (parsed.isReq && parsed.shiftCodes.length > 0) {
                         const validWorkCodes = parsed.shiftCodes.filter(c => !['✖', '❌'].includes(c));
                         if (validWorkCodes.length > 0) {
@@ -2022,7 +2263,6 @@
                 initialConsecutive[emp.id] = parseInt(carryOverData[currentYearMonth]?.[emp.id] || 0, 10);
             });
 
-            // 3. Phase 1: 優先確定正職休息天數 (Strict Rest Days Limit)
             let ftPreCheckWarnings = [];
             ftEmployees.forEach(emp => {
                 let fixedCount = ftFixedOff[emp.id].size;
@@ -2061,7 +2301,6 @@
                             chosenRestDays.add(bestDay);
                             selectedCount++;
                         } else {
-                            // 均勻分配休息日
                             for (let k = 1; k <= requiredRest; k++) {
                                 let targetDay = Math.min(daysInMonth, Math.max(1, Math.round(k * (daysInMonth / (requiredRest + 1)))));
                                 let offset = 0;
@@ -2092,24 +2331,29 @@
 
                 for (let d = 1; d <= daysInMonth; d++) {
                     if (chosenRestDays.has(d)) {
-                        if (!tempSchedule[emp.id][d]) tempSchedule[emp.id][d] = '✖';
+                        let origRaw = scheduleData[currentYearMonth]?.[emp.id]?.[d] || '';
+                        let origParsed = parseCellData(origRaw);
+                        let reqSuffix = origParsed.rawReq ? `\nREQ:${origParsed.rawReq}` : '';
+                        if (!tempSchedule[emp.id][d]) tempSchedule[emp.id][d] = `✖${reqSuffix}`;
                     }
                 }
             });
 
-            // 4. Phase 2: 正職工作日分派班別 (強制保證 D01/D02 開班與 D03 收班皆由正職擔任)
             for (let d = 1; d <= daysInMonth; d++) {
                 let workingFTs = ftEmployees.filter(emp => !isOffCode(tempSchedule[emp.id][d]));
 
                 let hasOpenFT = false;
                 let hasCloseFT = false;
 
-                // 優先套用意願班別
                 workingFTs.forEach(emp => {
+                    let origRaw = scheduleData[currentYearMonth]?.[emp.id]?.[d] || '';
+                    let origParsed = parseCellData(origRaw);
+                    let reqSuffix = origParsed.rawReq ? `\nREQ:${origParsed.rawReq}` : '';
+
                     if (ftReqWork[emp.id] && ftReqWork[emp.id][d]) {
                         let code = ftReqWork[emp.id][d];
                         let info = getShiftInfo(code, currentYearMonth);
-                        tempSchedule[emp.id][d] = `${code}\n${info.time || ''}`;
+                        tempSchedule[emp.id][d] = `${code}\n${info.time || ''}${reqSuffix}`;
                         if (code.startsWith('D01') || code.startsWith('D02')) hasOpenFT = true;
                         if (code.startsWith('D03')) hasCloseFT = true;
                     }
@@ -2117,33 +2361,41 @@
 
                 let unassignedFTs = shuffle(workingFTs.filter(emp => !tempSchedule[emp.id][d] || tempSchedule[emp.id][d] === ''));
 
-                // 強制優先指派正職開班 (D01 / D02)
                 if (!hasOpenFT && unassignedFTs.length > 0) {
                     let openEmp = unassignedFTs.shift();
+                    let origRaw = scheduleData[currentYearMonth]?.[openEmp.id]?.[d] || '';
+                    let origParsed = parseCellData(origRaw);
+                    let reqSuffix = origParsed.rawReq ? `\nREQ:${origParsed.rawReq}` : '';
+
                     let code = currentShiftSettings['D01'] ? 'D01' : 'D02';
                     let info = getShiftInfo(code, currentYearMonth);
-                    tempSchedule[openEmp.id][d] = `${code}\n${info.time || ''}`;
+                    tempSchedule[openEmp.id][d] = `${code}\n${info.time || ''}${reqSuffix}`;
                     hasOpenFT = true;
                 }
 
-                // 強制優先指派正職收班 (D03)
                 if (!hasCloseFT && unassignedFTs.length > 0) {
                     let closeEmp = unassignedFTs.shift();
+                    let origRaw = scheduleData[currentYearMonth]?.[closeEmp.id]?.[d] || '';
+                    let origParsed = parseCellData(origRaw);
+                    let reqSuffix = origParsed.rawReq ? `\nREQ:${origParsed.rawReq}` : '';
+
                     let code = 'D03';
                     let info = getShiftInfo(code, currentYearMonth);
-                    tempSchedule[closeEmp.id][d] = `D03\n${info.time || '0930-1830'}`;
+                    tempSchedule[openEmp.id][d] = `D03\n${info.time || '0930-1830'}${reqSuffix}`;
                     hasCloseFT = true;
                 }
 
-                // 剩餘正職人員分配一般日班 (D02)
                 unassignedFTs.forEach(emp => {
+                    let origRaw = scheduleData[currentYearMonth]?.[emp.id]?.[d] || '';
+                    let origParsed = parseCellData(origRaw);
+                    let reqSuffix = origParsed.rawReq ? `\nREQ:${origParsed.rawReq}` : '';
+
                     let code = 'D02';
                     let info = getShiftInfo(code, currentYearMonth);
-                    tempSchedule[emp.id][d] = `${code}\n${info.time || ''}`;
+                    tempSchedule[emp.id][d] = `${code}\n${info.time || ''}${reqSuffix}`;
                 });
             }
 
-            // 5. Phase 3: 兼職 PT 彈性補充人力 & 雙重警示標記 (無開/收班人員、人力不足)
             let shortageDays = [];
             let noOpenCloseDays = [];
 
@@ -2156,83 +2408,69 @@
                 let workingFTCount = ftEmployees.filter(e => isWorkCode(tempSchedule[e.id][d])).length;
                 let currentWorkingTotal = workingFTCount;
 
-                // 兼職 PT 意願處理
                 ptEmployees.forEach(emp => {
                     let raw = scheduleData[currentYearMonth]?.[emp.id]?.[d] || '';
                     let parsed = parseCellData(raw);
+                    let reqSuffix = parsed.rawReq ? `\nREQ:${parsed.rawReq}` : '';
 
                     if (raw === '❌' || (parsed.isReq && (parsed.shiftCodes.includes('❌') || raw.includes('❌')))) {
-                        tempSchedule[emp.id][d] = '❌';
+                        tempSchedule[emp.id][d] = `❌${reqSuffix}`;
                     } else if (parsed.isReq && parsed.shiftCodes.includes('✖')) {
-                        tempSchedule[emp.id][d] = '✖';
+                        tempSchedule[emp.id][d] = `✖${reqSuffix}`;
                     } else if (parsed.isReq && parsed.shiftCodes.length > 0) {
                         let validCodes = parsed.shiftCodes.filter(c => !['✖', '❌'].includes(c));
                         if (validCodes.length > 0 && currentWorkingTotal < targetMax) {
                             let code = validCodes[0];
                             let info = getShiftInfo(code, currentYearMonth);
-                            tempSchedule[emp.id][d] = `${code}\n${info.time || ''}`;
+                            tempSchedule[emp.id][d] = `${code}\n${info.time || ''}${reqSuffix}`;
                             currentWorkingTotal++;
                         } else {
-                            tempSchedule[emp.id][d] = '✖';
+                            tempSchedule[emp.id][d] = `✖${reqSuffix}`;
                         }
                     }
                 });
 
-                // 兼職 PT 補充人力至每日目標 lower-bound
                 let availablePTs = shuffle(ptEmployees.filter(emp => !tempSchedule[emp.id][d] || tempSchedule[emp.id][d] === ''));
 
                 while (currentWorkingTotal < targetMin && availablePTs.length > 0) {
                     let pt = availablePTs.pop();
+                    let origRaw = scheduleData[currentYearMonth]?.[pt.id]?.[d] || '';
+                    let origParsed = parseCellData(origRaw);
+                    let reqSuffix = origParsed.rawReq ? `\nREQ:${origParsed.rawReq}` : '';
+
                     let code = currentShiftSettings['H01'] ? 'H01' : (currentShiftSettings['M01'] ? 'M01' : 'D02');
                     let info = getShiftInfo(code, currentYearMonth);
-                    tempSchedule[pt.id][d] = `${code}\n${info.time || ''}`;
+                    tempSchedule[pt.id][d] = `${code}\n${info.time || ''}${reqSuffix}`;
                     currentWorkingTotal++;
                 }
 
                 ptEmployees.forEach(emp => {
                     if (!tempSchedule[emp.id][d]) {
-                        tempSchedule[emp.id][d] = '✖';
+                        let origRaw = scheduleData[currentYearMonth]?.[emp.id]?.[d] || '';
+                        let origParsed = parseCellData(origRaw);
+                        let reqSuffix = origParsed.rawReq ? `\nREQ:${origParsed.rawReq}` : '';
+                        tempSchedule[emp.id][d] = `✖${reqSuffix}`;
                     }
                 });
 
-                // 正職開/收班覆蓋率核對
-                let hasOpenFT = ftEmployees.some(e => isWorkCode(tempSchedule[e.id][d]) && ((tempSchedule[e.id][d] || '').includes('D01') || (tempSchedule[e.id][d] || '').includes('D02')));
-                let hasCloseFT = ftEmployees.some(e => isWorkCode(tempSchedule[e.id][d]) && (tempSchedule[e.id][d] || '').includes('D03'));
+                let hasOpen = currentEmployees.some(e => isWorkCode(tempSchedule[e.id][d]) && ((tempSchedule[e.id][d] || '').includes('D01') || (tempSchedule[e.id][d] || '').includes('D02')));
+                let hasClose = currentEmployees.some(e => isWorkCode(tempSchedule[e.id][d]) && (tempSchedule[e.id][d] || '').includes('D03'));
 
-                let currentNote = noteData[currentYearMonth]?.[d] || '';
-                // 剔除舊有自動警示字串
-                let cleanNote = currentNote.replace(/⚠️無開\/收班人員\n?/g, '').replace(/⚠️人力不足\n?/g, '').trim();
-
-                let warningList = [];
-
-                if (!hasOpenFT || !hasCloseFT) {
-                    warningList.push('⚠️無開/收班人員');
+                if (!hasOpen || !hasClose) {
                     noOpenCloseDays.push(d);
                 }
 
-                if (currentWorkingTotal < targetMin || workingFTCount < 2) {
-                    warningList.push('⚠️人力不足');
+                if (currentWorkingTotal < targetMin) {
                     shortageDays.push(d);
                 }
 
-                if (warningList.length > 0) {
-                    let prefixStr = warningList.join('\n');
-                    noteData[currentYearMonth][d] = cleanNote ? `${prefixStr}\n${cleanNote}` : prefixStr;
-                } else {
-                    noteData[currentYearMonth][d] = cleanNote;
-                }
-
-                // 6. Phase 4: 站位自動配比 (D03對應收班，開班對應吧台)
                 let dailyWorkingStaff = currentEmployees.filter(e => isWorkCode(tempSchedule[e.id][d]));
                 if (dailyWorkingStaff.length > 0) {
                     let d3Staff = dailyWorkingStaff.find(e => (tempSchedule[e.id][d] || '').includes('D03'));
                     let openStaff = dailyWorkingStaff.find(e => (tempSchedule[e.id][d] || '').includes('D01') || (tempSchedule[e.id][d] || '').includes('D02'));
 
                     let assignedStationMap = {};
-
-                    // D03 為收班人力
                     assignedStationMap['收班'] = d3Staff ? d3Staff.name : dailyWorkingStaff[0].name;
-                    // 開班為吧台人力
                     assignedStationMap['吧台'] = openStaff ? openStaff.name : dailyWorkingStaff[0].name;
 
                     let remainingStaffNames = dailyWorkingStaff
@@ -2254,7 +2492,6 @@
                 }
             }
 
-            // 更新至全域變數
             currentEmployees.forEach(emp => {
                 if (!scheduleData[currentYearMonth][emp.id]) scheduleData[currentYearMonth][emp.id] = {};
                 for (let d = 1; d <= daysInMonth; d++) {
@@ -2265,22 +2502,21 @@
             saveData();
             renderTable();
 
-            // 結果統計與摘要提示
             let subMessages = [];
             if (ftPreCheckWarnings.length > 0) {
                 subMessages.push(`❗【正職指定休預檢】\n` + ftPreCheckWarnings.join('\n'));
             }
             if (noOpenCloseDays.length > 0) {
-                subMessages.push(`⚠️【無開/收班人員日期】\n第 ${noOpenCloseDays.join(', ')} 日欠缺正職開班(D01/D02)或收班(D03)，已自動標註「⚠️無開/收班人員」。`);
+                subMessages.push(`⚠️【開/收班警示日期】\n第 ${noOpenCloseDays.join(', ')} 日完全欠缺開班(D01/D02)或收班(D03)人力，主班表已自動呈顯警示。`);
             }
             if (shortageDays.length > 0) {
-                subMessages.push(`⚠️【人力不足日期】\n第 ${shortageDays.join(', ')} 日總人數未達標或正職少於2人，已自動標註「⚠️人力不足」。`);
+                subMessages.push(`⚠️【人力不足日期】\n第 ${shortageDays.join(', ')} 日總人數未達設定目標。`);
             }
 
             if (subMessages.length > 0) {
                 alertCustom(`✨ 自動排班完成！摘要如下：\n\n` + subMessages.join('\n\n'));
             } else {
-                alertCustom(`✨ 自動排班成功！\n正職人員均已排定精確休息天數 (${targetRestDays} 天)，且每日皆確保有正職負責開班(D01/D02)與收班(D03)，站點與人力配置完全達標！`);
+                alertCustom(`✨ 自動排班成功！\n正職人員均已排定精確休息天數 (${targetRestDays} 天)，每日皆已確保由合格人員負責開班(D01/D02)與收班(D03)，且 D03 已成功配比至「收班」站位！`);
             }
         }
 
@@ -2548,6 +2784,7 @@
                 scheduleData[currentYearMonth] = {};
                 stationData[currentYearMonth] = {};
                 noteData[currentYearMonth] = {};
+                dismissedWarningsData[currentYearMonth] = {};
                 const currentEmployees = getCurrentEmployees(currentYearMonth);
                 currentEmployees.forEach(emp => scheduleData[currentYearMonth][emp.id] = {});
                 stations.forEach(st => stationData[currentYearMonth][st] = {});
@@ -2561,7 +2798,7 @@
             const currentShiftSettings = getCurrentShiftSettings(currentYearMonth);
 
             const data = { 
-                version: "3.0",
+                version: "3.4",
                 exportMonth: currentYearMonth,
                 scheduleData, 
                 stationData, 
@@ -2570,6 +2807,7 @@
                 lockData, 
                 employeesData, 
                 shiftSettingsData,
+                dismissedWarningsData,
                 employees: currentEmployees,
                 shiftSettings: currentShiftSettings
             };
@@ -2578,12 +2816,12 @@
             const file = new File([blob], fileName, { type: 'application/json' });
 
             const fallbackDownload = () => {
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = fileName;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                const linkEl = document.createElement('a');
+                linkEl.href = URL.createObjectURL(blob);
+                linkEl.download = fileName;
+                document.body.appendChild(linkEl);
+                linkEl.click();
+                document.body.removeChild(linkEl);
             };
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -2610,7 +2848,21 @@
                     
                     if(data.scheduleData) scheduleData = Object.assign({}, scheduleData, data.scheduleData);
                     if(data.stationData) stationData = Object.assign({}, stationData, data.stationData);
-                    if(data.noteData) noteData = Object.assign({}, noteData, data.noteData);
+                    if(data.dismissedWarningsData) dismissedWarningsData = Object.assign({}, dismissedWarningsData, data.dismissedWarningsData);
+                    
+                    if(data.noteData) {
+                        const cleanNotes = {};
+                        Object.keys(data.noteData).forEach(ym => {
+                            cleanNotes[ym] = {};
+                            if(data.noteData[ym] && typeof data.noteData[ym] === 'object') {
+                                Object.keys(data.noteData[ym]).forEach(d => {
+                                    cleanNotes[ym][d] = getCleanUserNote(data.noteData[ym][d]);
+                                });
+                            }
+                        });
+                        noteData = Object.assign({}, noteData, cleanNotes);
+                    }
+
                     if(data.carryOverData) carryOverData = Object.assign({}, carryOverData, data.carryOverData);
                     if(data.lockData) lockData = Object.assign({}, lockData, data.lockData);
                     
