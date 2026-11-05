@@ -155,7 +155,7 @@
 
         <div id="mainToolbar" class="toolbar w-full md:w-auto">
             <button onclick="toggleScheduleLock()" title="鎖定/解鎖當月班表" id="lockBtn" class="icon-btn icon-btn-lock admin-only">
-                <svg id="lockIcon" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 2 2zm10-10V7a4 4 0 0 0-8 0v4h8z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <svg id="lockIcon" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2zm10-10V7a4 4 0 0 0-8 0v4h8z" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 <span id="lockText">鎖定</span>
             </button>
 
@@ -283,12 +283,12 @@
     <!-- 自動排班彈窗 -->
     <dialog id="autoFillDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-sm border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-            <h3 class="font-bold text-gray-800 tracking-wide">✨ 自動排班設定</h3>
+            <h3 class="font-bold text-gray-800 tracking-wide">✨ 自動排班進階設定</h3>
             <button onclick="document.getElementById('autoFillDialog').close()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
         </div>
         <div class="p-5 bg-white flex flex-col gap-4 text-sm">
             <div>
-                <label class="block text-gray-700 mb-2 font-bold">正職預設休息天數：</label>
+                <label class="block text-gray-700 mb-2 font-bold">正職預設休息天數 (優先保障恪守)：</label>
                 <input type="number" id="ftRestDaysInput" value="8" min="0" max="15" class="border border-gray-300 rounded px-3 py-2 w-full outline-none focus:border-black font-bold">
             </div>
             <div class="grid grid-cols-2 gap-3">
@@ -310,11 +310,10 @@
                 </div>
             </div>
             <div class="text-xs text-gray-600 bg-gray-50 p-3 rounded border border-gray-200 leading-relaxed font-normal">
-                📌 <span class="font-bold text-gray-800">排班邏輯規範：</span><br>
-                1. 每日必須確保有 <b class="text-green-800">D01或D02 (開班)</b> 與 <b class="text-green-800">D03 (收班)</b> 人力，兩班別皆由正職擔任。<br>
-                2. 每日至少安排 <b>2 位正職</b> 值班。<br>
-                3. 正職與兼職人員皆<b>嚴禁連續上班超過 5 天</b>。<br>
-                4. 平日預設 3-4 人、假日預設 4-5 人，自動依站點配比指派內外場人力。
+                📌 <span class="font-bold text-gray-800">全新開/收班與站位自動化規範：</span><br>
+                1. <b>正職開/收班保障</b>：每日強制由正職擔任 D01/D02(開班) 與 D03(收班)。<br>
+                2. <b>站位自動配比</b>：D03 自動指派至『收班』站位，開班人員自動指派至『吧台』，其餘人員均勻分配至內外場。<br>
+                3. <b>雙重異常標記</b>：缺失開/收班標記 <code>⚠️無開/收班人員</code>，人力未達標標記 <code>⚠️人力不足</code>。
             </div>
             <div class="flex justify-end gap-2 mt-2">
                 <button onclick="document.getElementById('autoFillDialog').close()" class="border border-gray-300 text-gray-600 px-4 py-2 rounded hover:bg-gray-50">取消</button>
@@ -353,15 +352,24 @@
         </div>
     </dialog>
 
-    <!-- Requirement A: 編輯班別與個人需求彈窗 (支援員工複選與管理者單鍵指派定案) -->
+    <!-- 編輯班別與個人需求彈窗 -->
     <dialog id="shiftDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-md border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
             <h3 class="font-bold text-gray-800 tracking-wide" id="dialogTitle">編輯班別與個人需求</h3>
             <button onclick="closeDialog()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
         </div>
-        <div class="p-4 flex flex-col gap-4 bg-white overflow-y-auto max-h-[75vh]">
+        <div class="p-4 flex flex-col gap-3 bg-white overflow-y-auto max-h-[75vh]">
             <p class="text-sm text-gray-500 font-medium" id="dialogSubtitle"></p>
             
+            <!-- 管理員模式切換區域 -->
+            <div id="adminModeToggleContainer" class="admin-only bg-gray-50 border border-gray-200 rounded p-2 flex items-center justify-between text-xs font-bold">
+                <span class="text-gray-700">模式選擇：</span>
+                <div class="flex items-center gap-1 bg-white border border-gray-300 rounded p-0.5">
+                    <button type="button" id="btnAdminModeApproved" onclick="setAdminDialogMode('approve')" class="px-2.5 py-1 rounded text-xs transition-colors font-bold bg-black text-white shadow-sm">👑 管理員核定模式</button>
+                    <button type="button" id="btnAdminModePreSchedule" onclick="setAdminDialogMode('preschedule')" class="px-2.5 py-1 rounded text-xs transition-colors font-bold text-gray-600 hover:text-black">👤 員工預排模式</button>
+                </div>
+            </div>
+
             <!-- 管理者檢視員工複選意願提示欄 -->
             <div id="adminReqNotice" class="hidden bg-blue-50 border border-blue-200 rounded p-2.5 text-xs text-blue-900 leading-relaxed font-normal">
                 💡 <span class="font-bold">員工意願複選：</span><span id="adminReqShiftsText" class="font-bold text-blue-700"></span><br>
@@ -405,7 +413,7 @@
                     <div id="dynamicOtherShifts" class="grid grid-cols-2 gap-2 text-sm"></div>
                 </div>
 
-                <!-- Requirement A: 複選統計列與確認按鈕 -->
+                <!-- 複選統計列與確認按鈕 -->
                 <div class="bg-gray-50 border border-gray-200 rounded p-2.5 mt-3 flex items-center justify-between">
                     <div class="text-xs text-gray-700 font-bold flex items-center gap-1">
                         <span>已選可排班別 (<span id="selectedShiftCount" class="text-black font-black">0</span>):</span>
@@ -432,7 +440,7 @@
             </div>
             
             <!-- 管理者快速操作區 -->
-            <div class="admin-only w-full flex flex-col gap-3 border-t pt-3">
+            <div id="adminQuickActions" class="admin-only w-full flex flex-col gap-3 border-t pt-3">
                 <div class="text-xs font-bold text-gray-700">管理者快速操作：</div>
                 <div class="grid grid-cols-3 gap-1">
                     <button onclick="setShift('✖')" class="border border-gray-200 text-gray-700 bg-gray-50 py-2 rounded text-xs hover:bg-gray-100 font-bold">✖ 排休</button>
@@ -523,6 +531,20 @@
                 .replace(/'/g, '&#039;');
         }
 
+        function formatNameWithLineBreak(str) {
+            if (!str) return '';
+            let formatted = String(str).trim();
+            const chineseEngPattern = /^([\u4e00-\u9fa5]+)\s*([A-Za-z0-9\s\.\-]+)$/;
+            const engChinesePattern = /^([A-Za-z0-9\s\.\-]+)\s*([\u4e00-\u9fa5]+)$/;
+            
+            if (chineseEngPattern.test(formatted)) {
+                return formatted.replace(chineseEngPattern, '$1\n$2');
+            } else if (engChinesePattern.test(formatted)) {
+                return formatted.replace(engChinesePattern, '$1\n$2');
+            }
+            return formatted;
+        }
+
         const firebaseConfig = {
             apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
             authDomain: "ecole-1f392.firebaseapp.com",
@@ -539,8 +561,8 @@
         let unsubscribeSnapshot = null;
         let isCloudLoaded = false; 
 
-        // 班別複選暫存狀態
         let tempSelectedShifts = [];
+        let adminDialogMode = localStorage.getItem('ecoleAdminDialogMode') || 'approve'; 
 
         const defaultEmployees = [
             { id: 'FT1', name: '張織俽 Rita', type: 'FT', totalAnnualLeave: 7 },
@@ -558,9 +580,9 @@
         const defaultShiftTypes = {
             D01: { time: "0730-1600", breakHours: 0.5 },
             D02: { time: "0830-1700", breakHours: 0.5 },
-            D03: { time: "0930-1830", breakHours: 0.5 },
+            D03: { time: "0930-1830", breakHours: 1.0 },
             H01: { time: "0930-1330", breakHours: 0 },
-            H02: { time: "1200-1600", breakHours: 0 },
+            H02: { time: "1100-1500", breakHours: 0 },
             H03: { time: "1330-1730", breakHours: 0 },
             M01: { time: "1100-1700", breakHours: 0.5 },
             N01: { time: "1430-2130", breakHours: 0.5 },
@@ -613,6 +635,7 @@
         function getDefaultBreakHours(code) {
             if (!code) return 0.5;
             const k = code.toUpperCase();
+            if (k === 'D03') return 1.0;
             if (k.startsWith('H')) return 0;
             if (k.startsWith('D')) return 0.5;
             if (k.startsWith('M')) return 0.5;
@@ -642,7 +665,6 @@
             };
         }
 
-        // Requirement A: 解析單選或複選班別字串 (相容舊有與斜線組合格式)
         function parseCellData(rawVal) {
             if (!rawVal) return { isReq: false, shiftCode: '', shiftCodes: [], isMulti: false, timeStr: '', noteStr: '' };
             let isReq = rawVal.startsWith('REQ:');
@@ -655,12 +677,11 @@
             const currentShifts = getCurrentShiftSettings(currentYearMonth);
             const knownOffs = ['✖', '❌', '年假', '行政', '公出', '補修', '會議'];
             
-            // 拆解斜線或逗號分隔之複選班別代碼
             const rawCodes = code.split(/[\/,]/).map(c => c.trim()).filter(Boolean);
             const isKnownCode = rawCodes.some(c => currentShifts.hasOwnProperty(c) || knownOffs.includes(c) || c.startsWith('D') || c.startsWith('M') || c.startsWith('N') || c.startsWith('H') || c.startsWith('SP'));
 
             if (isKnownCode) {
-                let shiftCode = code; // e.g. "D01/D02"
+                let shiftCode = code; 
                 let shiftCodes = rawCodes;
                 let isMulti = rawCodes.length > 1;
                 let timeStr = '';
@@ -698,20 +719,29 @@
             });
         }
 
+        function getPreviousYearMonth(ym) {
+            if (!ym || !/^\d{4}-\d{2}$/.test(ym)) return null;
+            const [year, month] = ym.split('-').map(Number);
+            if (month === 1) {
+                return `${year - 1}-12`;
+            } else {
+                return `${year}-${String(month - 1).padStart(2, '0')}`;
+            }
+        }
+
         function getCurrentEmployees(ym = currentYearMonth) {
-            if (employeesData && employeesData[ym] && Array.isArray(employeesData[ym]) && employeesData[ym].length > 0) {
+            if (!employeesData) employeesData = {};
+
+            if (employeesData[ym] && Array.isArray(employeesData[ym]) && employeesData[ym].length > 0) {
                 return employeesData[ym];
             }
-            if (employeesData && typeof employeesData === 'object') {
-                const allYms = Object.keys(employeesData).sort().reverse();
-                for (let prevYm of allYms) {
-                    if (prevYm < ym && employeesData[prevYm] && Array.isArray(employeesData[prevYm]) && employeesData[prevYm].length > 0) {
-                        employeesData[ym] = JSON.parse(JSON.stringify(employeesData[prevYm]));
-                        return employeesData[ym];
-                    }
-                }
+
+            const prevYm = getPreviousYearMonth(ym);
+            if (prevYm && employeesData[prevYm] && Array.isArray(employeesData[prevYm]) && employeesData[prevYm].length > 0) {
+                employeesData[ym] = JSON.parse(JSON.stringify(employeesData[prevYm]));
+                return employeesData[ym];
             }
-            if (!employeesData) employeesData = {};
+
             employeesData[ym] = JSON.parse(JSON.stringify(defaultEmployees));
             return employeesData[ym];
         }
@@ -720,17 +750,20 @@
             if (shiftSettingsData && shiftSettingsData[ym] !== undefined) {
                 return shiftSettingsData[ym];
             }
-            if (shiftSettingsData && typeof shiftSettingsData === 'object') {
-                const allYms = Object.keys(shiftSettingsData).sort().reverse();
-                for (let prevYm of allYms) {
-                    if (prevYm < ym && shiftSettingsData[prevYm] !== undefined) {
-                        shiftSettingsData[ym] = JSON.parse(JSON.stringify(shiftSettingsData[prevYm]));
-                        return shiftSettingsData[ym];
-                    }
+            if (!shiftSettingsData) shiftSettingsData = {};
+
+            let inherited = null;
+            if (typeof shiftSettingsData === 'object') {
+                const pastYms = Object.keys(shiftSettingsData).filter(k => k < ym).sort().reverse();
+                if (pastYms.length > 0) {
+                    inherited = JSON.parse(JSON.stringify(shiftSettingsData[pastYms[0]]));
                 }
             }
-            if (!shiftSettingsData) shiftSettingsData = {};
-            shiftSettingsData[ym] = JSON.parse(JSON.stringify(defaultShiftTypes));
+            if (!inherited) {
+                inherited = JSON.parse(JSON.stringify(defaultShiftTypes));
+            }
+
+            shiftSettingsData[ym] = inherited;
             return shiftSettingsData[ym];
         }
 
@@ -818,7 +851,10 @@
         }
 
         function loginGoogle() { if(auth) auth.signInWithPopup(provider); }
-        function logoutGoogle() { if(auth) auth.signOut(); }
+        function logoutGoogle() { 
+            if(unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+            if(auth) auth.signOut(); 
+        }
 
         function updateUIPermissions() {
             const adminElements = document.querySelectorAll('.admin-only');
@@ -834,6 +870,7 @@
         function setupCloudSync() {
             if (!currentUser || !db) return;
             
+            // 安全防護：釋放現有監聽器，防止重複建立造成 Listeners 累積
             if (unsubscribeSnapshot) {
                 unsubscribeSnapshot();
                 unsubscribeSnapshot = null;
@@ -954,7 +991,6 @@
             return 'other';
         }
 
-        // Requirement A: 渲染彈窗班別按鈕 (高亮選取狀態與支援點擊複選)
         function renderShiftButtons() {
             const mContainer = document.getElementById('dynamicMorningShifts');
             const midContainer = document.getElementById('dynamicMidShifts');
@@ -1005,25 +1041,20 @@
             if (oContainer) oContainer.innerHTML = buildButtons(groups.SP.concat(groups.other));
         }
 
-        // Requirement A: 切換班別選擇 (管理者點擊單一按鈕可直接核定；員工點擊切換複選 toggle)
         function toggleShiftCode(code) {
             if (isScheduleLocked(currentYearMonth)) {
                 alertCustom('提醒：本月班表已被鎖定，無法修訂！');
                 return;
             }
-            if (currentUserRole === 'staff' && currentUserEmpId !== selectedCell.empId) {
-                alertCustom('權限不足：您只能修改自己的班別需求！');
-                return;
-            }
 
-            // 若目前使用者為管理者，且正在審核員工提報之複選意願，管理者點擊任何一個班別即代表直接「單選核定」
-            if (currentUserRole === 'admin') {
+            const isEffectiveStaff = (currentUserRole === 'staff') || (currentUserRole === 'admin' && adminDialogMode === 'preschedule');
+
+            if (!isEffectiveStaff && currentUserRole === 'admin') {
                 const info = getShiftInfo(code, currentYearMonth);
                 setShift(`${code}\n${info.time || ''}`);
                 return;
             }
 
-            // 員工端：複選 toggle
             const index = tempSelectedShifts.indexOf(code);
             if (index > -1) {
                 tempSelectedShifts.splice(index, 1);
@@ -1133,7 +1164,6 @@
             legendContainer.innerHTML = html;
         }
 
-        // Requirement A: 班表介面上小字標示複選班別數量
         function renderTable() {
             const [year, month] = currentYearMonth.split('-').map(Number);
             const daysInMonth = new Date(year, month, 0).getDate();
@@ -1175,8 +1205,10 @@
                 const isWeekend = dayIndex === 0 || dayIndex === 6;
                 const n = noteData[currentYearMonth]?.[i] || '';
                 const isNationalHoliday = n.includes('國定假日');
-                const isRedDay = isWeekend || isNationalHoliday;
-                const dateClass = isRedDay ? 'text-red-600 font-bold' : 'text-gray-500 font-normal';
+
+                let dateClass = 'text-gray-500 font-normal';
+                if (isWeekend || isNationalHoliday) dateClass = 'text-red-600 font-bold';
+
                 theadHTML += `<th class="day-col-${i} px-1 pt-2 pb-1 text-sm border-b-0 ${dateClass}">${i}</th>`;
             }
             
@@ -1190,8 +1222,10 @@
                 const isWeekend = dayIndex === 0 || dayIndex === 6;
                 const n = noteData[currentYearMonth]?.[i] || '';
                 const isNationalHoliday = n.includes('國定假日');
-                const isRedDay = isWeekend || isNationalHoliday;
-                const weekdayClass = isRedDay ? 'text-red-600 font-bold' : 'text-gray-400 font-normal';
+
+                let weekdayClass = 'text-gray-400 font-normal';
+                if (isWeekend || isNationalHoliday) weekdayClass = 'text-red-600 font-bold';
+
                 theadHTML += `<th class="day-col-${i} px-1 pt-1 pb-2 text-xs border-t-0 ${weekdayClass}">${weekDays[dayIndex]}</th>`;
             }
             theadHTML += `</tr>`;
@@ -1201,8 +1235,13 @@
             for (let i = 1; i <= daysInMonth; i++) {
                 const n = noteData[currentYearMonth]?.[i] || '';
                 const isNatHoliday = n.includes('國定假日');
+                const isShortage = n.includes('⚠️人力不足') || n.includes('⚠️無開/收班人員');
                 const pointerClass = (currentUserRole === 'admin' && !locked) ? 'shift-cell' : 'cursor-default';
-                const holidayClass = isNatHoliday ? 'text-red-600 font-bold bg-red-50' : 'text-gray-500 bg-white';
+                
+                let holidayClass = 'text-gray-500 bg-white';
+                if (isShortage) holidayClass = 'text-red-700 font-bold bg-red-100 border border-red-300';
+                else if (isNatHoliday) holidayClass = 'text-red-600 font-bold bg-red-50';
+
                 noteHTML += `<td class="day-col-${i} ${pointerClass} ${holidayClass} text-[10px] break-words break-all whitespace-pre-line" onclick="openNoteDialog(${i})">${escapeHTML(n)}</td>`;
             }
             noteHTML += `<td class="bg-white border-l-2 border-gray-300 right-name-col"></td><td class="bg-white border-l border-gray-200"></td><td class="bg-white border-l border-gray-200"></td><td class="bg-white border-l border-gray-200"></td></tr>`;
@@ -1242,9 +1281,20 @@
                     let displayText = '';
 
                     if (parsed.shiftCode) {
-                        let codeHTML = `<span class="font-extrabold text-xs leading-tight block drop-shadow-sm">${escapeHTML(parsed.shiftCode)}</span>`;
-                        // Requirement A: 小字標示複選數量
-                        let multiTagHTML = parsed.isMulti ? `<span class="inline-block text-[9px] bg-blue-600 text-white font-bold px-1 rounded-sm mt-0.5 shadow-sm">複選${parsed.shiftCodes.length}個</span>` : '';
+                        let codeHTML = '';
+
+                        if (parsed.isMulti && parsed.shiftCodes.length > 1) {
+                            let rows = [];
+                            for (let k = 0; k < parsed.shiftCodes.length; k += 2) {
+                                let pair = parsed.shiftCodes.slice(k, k + 2).map(c => escapeHTML(c));
+                                rows.push(pair.join(' / '));
+                            }
+                            codeHTML = `<span class="font-extrabold text-[11px] leading-tight block drop-shadow-sm">${rows.join('<br>')}</span>`;
+                        } else {
+                            codeHTML = `<span class="font-extrabold text-xs leading-tight block drop-shadow-sm">${escapeHTML(parsed.shiftCode)}</span>`;
+                        }
+
+                        let multiTagHTML = parsed.isMulti ? `<span class="inline-block text-[9px] bg-blue-600 text-white font-bold px-1 rounded-sm mt-0.5 shadow-sm">預排${parsed.shiftCodes.length}項</span>` : '';
                         let noteHTML = parsed.noteStr ? `<div class="text-[9px] font-normal leading-tight opacity-90 break-words break-all whitespace-pre-line text-gray-700 mt-0.5">${escapeHTML(parsed.noteStr)}</div>` : '';
                         displayText = `${codeHTML}${multiTagHTML}${noteHTML}`;
 
@@ -1313,7 +1363,9 @@
                     
                     const cellClass = isError ? "shift-cell text-xs text-red-600 font-bold bg-red-50" : "shift-cell text-xs font-bold";
                     const pointerClass = (currentUserRole === 'admin' && !locked) ? '' : 'cursor-default';
-                    const displayHTML = isError ? `⚠️<br>${escapeHTML(sName)}` : escapeHTML(sName);
+                    
+                    const formattedName = formatNameWithLineBreak(sName);
+                    const displayHTML = isError ? `⚠️<br>${escapeHTML(formattedName)}` : escapeHTML(formattedName);
 
                     stationHTML += `<td class="day-col-${i} ${cellClass} ${pointerClass}" onclick="openStationDialog('${st}', ${i})">${displayHTML}</td>`;
                 }
@@ -1332,7 +1384,6 @@
             const knownOffs = ['✖', '❌', '年假', '行政', '公出', '補修', '會議'];
             if (knownOffs.includes(parsed.shiftCode)) return 0;
 
-            // 若為複選階段且未核定，採首個班別計算時數
             const primaryCode = parsed.shiftCodes[0] || parsed.shiftCode;
             const ranges = parseTimeRanges(primaryCode);
             let rawHours = 0;
@@ -1388,7 +1439,31 @@
             return ranges;
         }
 
-        // Requirement A: 開啟編輯彈窗並預載員工已複選之班別；若為管理者則顯示核定指派提示
+        function setAdminDialogMode(mode) {
+            adminDialogMode = mode;
+            localStorage.setItem('ecoleAdminDialogMode', mode);
+            updateAdminDialogUI();
+        }
+
+        function updateAdminDialogUI() {
+            const btnApprove = document.getElementById('btnAdminModeApproved');
+            const btnPreSchedule = document.getElementById('btnAdminModePreSchedule');
+            const noticeEl = document.getElementById('roleNotice');
+            const adminQuickActions = document.getElementById('adminQuickActions');
+
+            if (adminDialogMode === 'approve') {
+                if (btnApprove) btnApprove.className = "px-2.5 py-1 rounded text-xs font-bold bg-black text-white shadow-sm";
+                if (btnPreSchedule) btnPreSchedule.className = "px-2.5 py-1 rounded text-xs font-bold text-gray-600 hover:text-black";
+                if (noticeEl) noticeEl.innerText = '(管理者審核核定模式)';
+                if (adminQuickActions) adminQuickActions.style.display = '';
+            } else {
+                if (btnApprove) btnApprove.className = "px-2.5 py-1 rounded text-xs font-bold text-gray-600 hover:text-black";
+                if (btnPreSchedule) btnPreSchedule.className = "px-2.5 py-1 rounded text-xs font-bold bg-blue-600 text-white shadow-sm";
+                if (noticeEl) noticeEl.innerText = '(管理者員工預排模式 - 可複選多個班別)';
+                if (adminQuickActions) adminQuickActions.style.display = 'none';
+            }
+        }
+
         function openDialog(empId, day, empName) {
             if (isScheduleLocked(currentYearMonth)) {
                 alertCustom('提醒：本月班表已被管理員鎖定，無法進行任何修訂！');
@@ -1401,9 +1476,12 @@
             selectedCell = { empId, day };
             document.getElementById('dialogSubtitle').innerText = `${empName} - ${currentYearMonth}-${day.toString().padStart(2, '0')}`;
             
-            const noticeEl = document.getElementById('roleNotice');
-            if (noticeEl) {
-                noticeEl.innerText = (currentUserRole === 'admin') ? '(管理者審核核定模式)' : '(員工預排模式 - 可複選可排班別)';
+            if (currentUserRole === 'admin') {
+                adminDialogMode = localStorage.getItem('ecoleAdminDialogMode') || 'approve';
+                updateAdminDialogUI();
+            } else {
+                const noticeEl = document.getElementById('roleNotice');
+                if (noticeEl) noticeEl.innerText = '(員工預排模式 - 可複選可排班別)';
             }
 
             const rawVal = scheduleData[currentYearMonth]?.[empId]?.[day] || '';
@@ -1411,7 +1489,6 @@
             
             document.getElementById('empCellNote').value = parsed.noteStr;
 
-            // 預載先前選取之班別（若有）
             const knownOffs = ['✖', '❌', '年假', '行政', '公出', '補修', '會議'];
             if (parsed.shiftCodes && parsed.shiftCodes.length > 0 && !knownOffs.includes(parsed.shiftCodes[0])) {
                 tempSelectedShifts = [...parsed.shiftCodes];
@@ -1419,7 +1496,6 @@
                 tempSelectedShifts = [];
             }
 
-            // 若為管理者且該儲存格有員工預排提報之複選意願，顯示核定提示框
             const adminNoticeBox = document.getElementById('adminReqNotice');
             const adminNoticeText = document.getElementById('adminReqShiftsText');
             if (currentUserRole === 'admin' && parsed.isReq && parsed.shiftCodes.length > 0) {
@@ -1446,6 +1522,9 @@
                 alertCustom('提醒：本月班表已被鎖定，無法進行修改！');
                 return;
             }
+
+            const isEffectiveStaff = (currentUserRole === 'staff') || (currentUserRole === 'admin' && adminDialogMode === 'preschedule');
+
             if (currentUserRole === 'staff' && currentUserEmpId !== selectedCell.empId) {
                 alertCustom('權限不足：您只能修改自己的班別！');
                 return;
@@ -1463,8 +1542,7 @@
                     finalValue = val;
                 }
 
-                // 若為員工操作，自動加上 REQ: 標記；若為管理者操作，則為核定定案 (不加 REQ:)
-                if (currentUserRole === 'staff') {
+                if (isEffectiveStaff) {
                     finalValue = 'REQ:' + finalValue;
                 }
             }
@@ -1488,6 +1566,8 @@
                 return;
             }
 
+            const isEffectiveStaff = (currentUserRole === 'staff') || (currentUserRole === 'admin' && adminDialogMode === 'preschedule');
+
             const noteInput = document.getElementById('empCellNote').value.trim();
             const rawVal = scheduleData[currentYearMonth]?.[selectedCell.empId]?.[selectedCell.day] || '';
             const parsed = parseCellData(rawVal);
@@ -1504,12 +1584,12 @@
                     finalValue = shiftPart;
                 }
 
-                if (parsed.isReq || currentUserRole === 'staff') {
+                if (parsed.isReq || isEffectiveStaff) {
                     finalValue = 'REQ:' + finalValue;
                 }
             } else {
                 finalValue = noteInput;
-                if (currentUserRole === 'staff' && noteInput) {
+                if (isEffectiveStaff && noteInput) {
                     finalValue = 'REQ:' + finalValue;
                 }
             }
@@ -1804,15 +1884,25 @@
 
         function saveShiftSettings() {
             if (isScheduleLocked(currentYearMonth)) {
-                alertCustom('提醒：本月班表已被鎖定，無法變更！');
+                alertCustom('提醒：本月班表已被鎖定，無法變定！');
                 return;
             }
-            shiftSettingsData[currentYearMonth] = JSON.parse(JSON.stringify(tempShiftSettings));
+            const newSettings = JSON.parse(JSON.stringify(tempShiftSettings));
+            shiftSettingsData[currentYearMonth] = newSettings;
+
+            if (shiftSettingsData && typeof shiftSettingsData === 'object') {
+                Object.keys(shiftSettingsData).forEach(ym => {
+                    if (ym > currentYearMonth) {
+                        shiftSettingsData[ym] = JSON.parse(JSON.stringify(newSettings));
+                    }
+                });
+            }
+
             saveData();
             renderShiftButtons(); 
             document.getElementById('shiftSettingsDialog').close();
             renderTable();
-            alertCustom(`${currentYearMonth} 月份班別設定已儲存！`);
+            alertCustom(`${currentYearMonth} 月份班別設定已儲存！(變定已自動延續套用至後續月份)`);
         }
 
         function alertCustom(msg) {
@@ -1848,13 +1938,14 @@
         }
 
         function shuffle(array) {
-            let currentIndex = array.length, randomIndex;
-            while (currentIndex != 0) {
+            let arr = [...array];
+            let currentIndex = arr.length, randomIndex;
+            while (currentIndex !== 0) {
                 randomIndex = Math.floor(Math.random() * currentIndex);
                 currentIndex--;
-                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+                [arr[currentIndex], arr[randomIndex]] = [arr[randomIndex], arr[currentIndex]];
             }
-            return array;
+            return arr;
         }
 
         const isOffCode = (s) => {
@@ -1869,13 +1960,15 @@
             return parsed.shiftCode && !['✖', '❌', '年假', '行政', '公出', '補修', '會議'].includes(parsed.shiftCode);
         };
 
+        // 自動排班演算法修訂版（保障正職 D01/D02開班與 D03收班、站位配比、雙重警示標記）
         function executeAutoFill() {
             if (isScheduleLocked(currentYearMonth)) {
                 alertCustom('提醒：本月班表已被鎖定！');
                 return;
             }
             document.getElementById('autoFillDialog').close();
-            const targetRestDays = parseInt(document.getElementById('ftRestDaysInput').value, 10) || 8;
+
+            const targetRestDays = Math.max(0, parseInt(document.getElementById('ftRestDaysInput').value, 10) || 8);
             const weekdayMin = Math.max(1, parseInt(document.getElementById('weekdayMinInput').value, 10) || 3);
             const weekdayMax = Math.max(weekdayMin, parseInt(document.getElementById('weekdayMaxInput').value, 10) || 4);
             const weekendMin = Math.max(1, parseInt(document.getElementById('weekendMinInput').value, 10) || 4);
@@ -1886,169 +1979,309 @@
 
             const [year, month] = currentYearMonth.split('-').map(Number);
             const daysInMonth = new Date(year, month, 0).getDate();
-            const MAX_GUARD = currentEmployees.length * daysInMonth + 5000;
 
-            let consecutiveDays = {};
-            currentEmployees.forEach(emp => { 
-                consecutiveDays[emp.id] = parseInt(carryOverData[currentYearMonth]?.[emp.id] || 0, 10); 
+            const ftEmployees = currentEmployees.filter(e => e.type === 'FT');
+            const ptEmployees = currentEmployees.filter(e => e.type === 'PT');
+
+            if (ftEmployees.length === 0) {
+                alertCustom('目前尚無正職員工資料，無法執行自動排班。');
+                return;
+            }
+
+            // 1. 初始化當月排班過渡 Mapping
+            let tempSchedule = {};
+            currentEmployees.forEach(emp => { tempSchedule[emp.id] = {}; });
+
+            // 2. 彙整固定休與預排意願
+            let ftFixedOff = {};
+            let ftReqWork = {}; 
+            ftEmployees.forEach(emp => {
+                ftFixedOff[emp.id] = new Set();
+                ftReqWork[emp.id] = {};
+                for (let d = 1; d <= daysInMonth; d++) {
+                    let raw = scheduleData[currentYearMonth]?.[emp.id]?.[d] || '';
+                    let parsed = parseCellData(raw);
+
+                    if (raw === '❌' || (parsed.isReq && (parsed.shiftCodes.includes('❌') || raw.includes('❌')))) {
+                        ftFixedOff[emp.id].add(d);
+                        tempSchedule[emp.id][d] = '❌';
+                    } else if (parsed.isReq && parsed.shiftCodes.includes('✖')) {
+                        ftFixedOff[emp.id].add(d);
+                        tempSchedule[emp.id][d] = '✖';
+                    } else if (parsed.isReq && parsed.shiftCodes.length > 0) {
+                        const validWorkCodes = parsed.shiftCodes.filter(c => !['✖', '❌'].includes(c));
+                        if (validWorkCodes.length > 0) {
+                            ftReqWork[emp.id][d] = validWorkCodes[0];
+                        }
+                    }
+                }
             });
 
-            currentEmployees.filter(e => e.type === 'FT').forEach(emp => {
-                let tempConsecutive = consecutiveDays[emp.id];
-                let manualOffs = 0;
-                for (let i = 1; i <= daysInMonth; i++) {
-                    let s = scheduleData[currentYearMonth][emp.id][i] || '';
-                    if (isOffCode(s)) manualOffs++;
+            let initialConsecutive = {};
+            currentEmployees.forEach(emp => {
+                initialConsecutive[emp.id] = parseInt(carryOverData[currentYearMonth]?.[emp.id] || 0, 10);
+            });
+
+            // 3. Phase 1: 優先確定正職休息天數 (Strict Rest Days Limit)
+            let ftPreCheckWarnings = [];
+            ftEmployees.forEach(emp => {
+                let fixedCount = ftFixedOff[emp.id].size;
+                let requiredRest = Math.min(daysInMonth, targetRestDays);
+
+                if (fixedCount > requiredRest) {
+                    ftPreCheckWarnings.push(`⚠️ ${emp.name} 指定休/預排休 (${fixedCount} 天) 已超越預設休息天數 (${requiredRest} 天)`);
+                    requiredRest = fixedCount; 
                 }
 
-                let neededOff = targetRestDays - manualOffs;
+                let restNeeded = requiredRest - fixedCount;
+                let chosenRestDays = new Set(ftFixedOff[emp.id]);
 
-                for (let i = 1; i <= daysInMonth; i++) {
-                    let s = scheduleData[currentYearMonth][emp.id][i] || '';
-                    if (isOffCode(s)) { 
-                        tempConsecutive = 0; 
-                    } else if (isWorkCode(s)) { 
-                        tempConsecutive++; 
-                    } else {
-                        if (tempConsecutive >= 5) {
-                            scheduleData[currentYearMonth][emp.id][i] = '✖';
-                            tempConsecutive = 0; 
-                            neededOff--;
-                        } else { 
-                            tempConsecutive++; 
+                if (restNeeded > 0) {
+                    let selectedCount = 0;
+                    let guard = 0;
+
+                    while (selectedCount < restNeeded && guard++ < 200) {
+                        let bestDay = -1;
+                        let maxStreak = -1;
+
+                        let currentStreak = initialConsecutive[emp.id] || 0;
+                        for (let d = 1; d <= daysInMonth; d++) {
+                            if (chosenRestDays.has(d)) {
+                                currentStreak = 0;
+                            } else {
+                                currentStreak++;
+                                if (currentStreak > maxStreak) {
+                                    maxStreak = currentStreak;
+                                    bestDay = d;
+                                }
+                            }
+                        }
+
+                        if (maxStreak >= 5 && bestDay !== -1 && !chosenRestDays.has(bestDay)) {
+                            chosenRestDays.add(bestDay);
+                            selectedCount++;
+                        } else {
+                            // 均勻分配休息日
+                            for (let k = 1; k <= requiredRest; k++) {
+                                let targetDay = Math.min(daysInMonth, Math.max(1, Math.round(k * (daysInMonth / (requiredRest + 1)))));
+                                let offset = 0;
+                                while (offset < daysInMonth) {
+                                    let d1 = targetDay + offset;
+                                    let d2 = targetDay - offset;
+                                    if (d1 <= daysInMonth && !chosenRestDays.has(d1)) { bestDay = d1; break; }
+                                    if (d2 >= 1 && !chosenRestDays.has(d2)) { bestDay = d2; break; }
+                                    offset++;
+                                }
+                                if (bestDay !== -1 && !chosenRestDays.has(bestDay)) {
+                                    chosenRestDays.add(bestDay);
+                                    selectedCount++;
+                                    if (selectedCount >= restNeeded) break;
+                                }
+                            }
+                            if (selectedCount < restNeeded) {
+                                for (let d = 1; d <= daysInMonth && selectedCount < restNeeded; d++) {
+                                    if (!chosenRestDays.has(d)) {
+                                        chosenRestDays.add(d);
+                                        selectedCount++;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
 
-                let guard = 0;
-                while (neededOff > 0 && guard < MAX_GUARD) {
-                    guard++;
-                    let possibleDays = [];
-                    for (let i = 1; i <= daysInMonth; i++) {
-                        if (!scheduleData[currentYearMonth][emp.id][i]) {
-                            let othersOff = currentEmployees.filter(e => e.type === 'FT' && isOffCode(scheduleData[currentYearMonth][e.id][i])).length;
-                            possibleDays.push({ day: i, weight: othersOff + Math.random() });
-                        }
+                for (let d = 1; d <= daysInMonth; d++) {
+                    if (chosenRestDays.has(d)) {
+                        if (!tempSchedule[emp.id][d]) tempSchedule[emp.id][d] = '✖';
                     }
-                    if (possibleDays.length === 0) break;
-                    possibleDays.sort((a, b) => a.weight - b.weight);
-                    scheduleData[currentYearMonth][emp.id][possibleDays[0].day] = '✖';
-                    neededOff--;
                 }
             });
 
-            currentEmployees.forEach(emp => { 
-                consecutiveDays[emp.id] = parseInt(carryOverData[currentYearMonth]?.[emp.id] || 0, 10); 
-            });
+            // 4. Phase 2: 正職工作日分派班別 (強制保證 D01/D02 開班與 D03 收班皆由正職擔任)
+            for (let d = 1; d <= daysInMonth; d++) {
+                let workingFTs = ftEmployees.filter(emp => !isOffCode(tempSchedule[emp.id][d]));
 
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dayIndex = new Date(year, month - 1, day).getDay();
-                const isWeekend = dayIndex === 0 || dayIndex === 6;
-                const staffMax = isWeekend ? weekendMax : weekdayMax;
+                let hasOpenFT = false;
+                let hasCloseFT = false;
 
-                let availableFTs = [];
-                let availablePTs = [];
-                let workingFTCount = 0;
-
-                currentEmployees.forEach(emp => {
-                    let s = scheduleData[currentYearMonth][emp.id][day] || '';
-                    const parsed = parseCellData(s);
-
-                    if (!s && consecutiveDays[emp.id] >= 5) {
-                        scheduleData[currentYearMonth][emp.id][day] = '✖';
-                        s = '✖';
-                    }
-
-                    if (!isOffCode(s) && !['公出', '行政', '補修', '會議'].includes(parsed.shiftCode)) {
-                        if (!s) {
-                            if (emp.type === 'FT') availableFTs.push(emp);
-                            else availablePTs.push(emp);
-                        } else if (emp.type === 'FT') {
-                            workingFTCount++;
-                        }
+                // 優先套用意願班別
+                workingFTs.forEach(emp => {
+                    if (ftReqWork[emp.id] && ftReqWork[emp.id][d]) {
+                        let code = ftReqWork[emp.id][d];
+                        let info = getShiftInfo(code, currentYearMonth);
+                        tempSchedule[emp.id][d] = `${code}\n${info.time || ''}`;
+                        if (code.startsWith('D01') || code.startsWith('D02')) hasOpenFT = true;
+                        if (code.startsWith('D03')) hasCloseFT = true;
                     }
                 });
 
-                availableFTs = shuffle(availableFTs);
-                availablePTs = shuffle(availablePTs);
+                let unassignedFTs = shuffle(workingFTs.filter(emp => !tempSchedule[emp.id][d] || tempSchedule[emp.id][d] === ''));
 
-                const hasOpenShift = currentEmployees.some(e => {
-                    let shift = scheduleData[currentYearMonth][e.id][day] || '';
-                    return shift.includes('D01') || shift.includes('D02');
-                });
-
-                if (!hasOpenShift && availableFTs.length > 0) {
-                    const emp = availableFTs.pop();
-                    const openCode = currentShiftSettings['D01'] ? 'D01' : 'D02';
-                    const infoOpen = getShiftInfo(openCode, currentYearMonth);
-                    scheduleData[currentYearMonth][emp.id][day] = `${openCode}\n${infoOpen.time || '0730-1600'}`;
-                    workingFTCount++;
-                }
-                
-                const hasCloseShift = currentEmployees.some(e => (scheduleData[currentYearMonth][e.id][day] || '').includes('D03'));
-                if (!hasCloseShift && availableFTs.length > 0) {
-                    const emp = availableFTs.pop();
-                    const infoD3 = getShiftInfo('D03', currentYearMonth);
-                    scheduleData[currentYearMonth][emp.id][day] = `D03\n${infoD3.time || '0930-1830'}`;
-                    workingFTCount++;
+                // 強制優先指派正職開班 (D01 / D02)
+                if (!hasOpenFT && unassignedFTs.length > 0) {
+                    let openEmp = unassignedFTs.shift();
+                    let code = currentShiftSettings['D01'] ? 'D01' : 'D02';
+                    let info = getShiftInfo(code, currentYearMonth);
+                    tempSchedule[openEmp.id][d] = `${code}\n${info.time || ''}`;
+                    hasOpenFT = true;
                 }
 
-                while (workingFTCount < 2 && availableFTs.length > 0) {
-                    const emp = availableFTs.pop();
-                    const code = currentShiftSettings['D02'] ? 'D02' : 'D01';
-                    const info = getShiftInfo(code, currentYearMonth);
-                    scheduleData[currentYearMonth][emp.id][day] = `${code}\n${info.time || '0830-1700'}`;
-                    workingFTCount++;
+                // 強制優先指派正職收班 (D03)
+                if (!hasCloseFT && unassignedFTs.length > 0) {
+                    let closeEmp = unassignedFTs.shift();
+                    let code = 'D03';
+                    let info = getShiftInfo(code, currentYearMonth);
+                    tempSchedule[closeEmp.id][d] = `D03\n${info.time || '0930-1830'}`;
+                    hasCloseFT = true;
                 }
 
-                let currentWorkingTotal = currentEmployees.filter(e => isWorkCode(scheduleData[currentYearMonth][e.id][day])).length;
-                let pool = shuffle([...availableFTs, ...availablePTs]);
-                
-                while (currentWorkingTotal < staffMax && pool.length > 0) {
-                    const emp = pool.pop();
-                    const code = emp.type === 'FT' ? 'D02' : (currentShiftSettings['H01'] ? 'H01' : 'M01');
-                    const info = getShiftInfo(code, currentYearMonth);
-                    scheduleData[currentYearMonth][emp.id][day] = `${code}\n${info.time || ''}`;
-                    currentWorkingTotal++;
-                }
-
-                availableFTs.forEach(emp => { if (!scheduleData[currentYearMonth][emp.id][day]) scheduleData[currentYearMonth][emp.id][day] = '✖'; });
-                availablePTs.forEach(emp => { if (!scheduleData[currentYearMonth][emp.id][day]) scheduleData[currentYearMonth][emp.id][day] = '✖'; });
-
-                currentEmployees.forEach(emp => {
-                    let s = scheduleData[currentYearMonth][emp.id][day];
-                    if (isWorkCode(s) || ['公出', '行政', '補修', '會議'].includes(parseCellData(s).shiftCode)) { 
-                        consecutiveDays[emp.id]++; 
-                    } else { 
-                        consecutiveDays[emp.id] = 0; 
-                    }
-                });
-
-                let workingToday = currentEmployees.filter(emp => isWorkCode(scheduleData[currentYearMonth][emp.id][day])).sort(() => Math.random() - 0.5);
-                if (workingToday.length === 0) continue;
-
-                if (!stationData[currentYearMonth]['外場'][day]) {
-                    stationData[currentYearMonth]['外場'][day] = workingToday[Math.floor(Math.random() * workingToday.length)].name;
-                }
-
-                let assignPool = [...workingToday];
-                ['外場+廚助', '收班'].forEach(st => {
-                    if (!stationData[currentYearMonth][st][day]) {
-                        let ftIdx = assignPool.findIndex(e => e.type === 'FT');
-                        if (ftIdx !== -1) stationData[currentYearMonth][st][day] = assignPool.splice(ftIdx, 1)[0].name;
-                        else if (assignPool.length > 0) stationData[currentYearMonth][st][day] = assignPool.pop().name;
-                    }
-                });
-
-                ['吧台', '廚房'].forEach(st => {
-                    if (!stationData[currentYearMonth][st][day] && assignPool.length > 0) {
-                        stationData[currentYearMonth][st][day] = assignPool.pop().name;
-                    }
+                // 剩餘正職人員分配一般日班 (D02)
+                unassignedFTs.forEach(emp => {
+                    let code = 'D02';
+                    let info = getShiftInfo(code, currentYearMonth);
+                    tempSchedule[emp.id][d] = `${code}\n${info.time || ''}`;
                 });
             }
 
+            // 5. Phase 3: 兼職 PT 彈性補充人力 & 雙重警示標記 (無開/收班人員、人力不足)
+            let shortageDays = [];
+            let noOpenCloseDays = [];
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dayIndex = new Date(year, month - 1, d).getDay();
+                const isWeekend = dayIndex === 0 || dayIndex === 6;
+                const targetMin = isWeekend ? weekendMin : weekdayMin;
+                const targetMax = isWeekend ? weekendMax : weekdayMax;
+
+                let workingFTCount = ftEmployees.filter(e => isWorkCode(tempSchedule[e.id][d])).length;
+                let currentWorkingTotal = workingFTCount;
+
+                // 兼職 PT 意願處理
+                ptEmployees.forEach(emp => {
+                    let raw = scheduleData[currentYearMonth]?.[emp.id]?.[d] || '';
+                    let parsed = parseCellData(raw);
+
+                    if (raw === '❌' || (parsed.isReq && (parsed.shiftCodes.includes('❌') || raw.includes('❌')))) {
+                        tempSchedule[emp.id][d] = '❌';
+                    } else if (parsed.isReq && parsed.shiftCodes.includes('✖')) {
+                        tempSchedule[emp.id][d] = '✖';
+                    } else if (parsed.isReq && parsed.shiftCodes.length > 0) {
+                        let validCodes = parsed.shiftCodes.filter(c => !['✖', '❌'].includes(c));
+                        if (validCodes.length > 0 && currentWorkingTotal < targetMax) {
+                            let code = validCodes[0];
+                            let info = getShiftInfo(code, currentYearMonth);
+                            tempSchedule[emp.id][d] = `${code}\n${info.time || ''}`;
+                            currentWorkingTotal++;
+                        } else {
+                            tempSchedule[emp.id][d] = '✖';
+                        }
+                    }
+                });
+
+                // 兼職 PT 補充人力至每日目標 lower-bound
+                let availablePTs = shuffle(ptEmployees.filter(emp => !tempSchedule[emp.id][d] || tempSchedule[emp.id][d] === ''));
+
+                while (currentWorkingTotal < targetMin && availablePTs.length > 0) {
+                    let pt = availablePTs.pop();
+                    let code = currentShiftSettings['H01'] ? 'H01' : (currentShiftSettings['M01'] ? 'M01' : 'D02');
+                    let info = getShiftInfo(code, currentYearMonth);
+                    tempSchedule[pt.id][d] = `${code}\n${info.time || ''}`;
+                    currentWorkingTotal++;
+                }
+
+                ptEmployees.forEach(emp => {
+                    if (!tempSchedule[emp.id][d]) {
+                        tempSchedule[emp.id][d] = '✖';
+                    }
+                });
+
+                // 正職開/收班覆蓋率核對
+                let hasOpenFT = ftEmployees.some(e => isWorkCode(tempSchedule[e.id][d]) && ((tempSchedule[e.id][d] || '').includes('D01') || (tempSchedule[e.id][d] || '').includes('D02')));
+                let hasCloseFT = ftEmployees.some(e => isWorkCode(tempSchedule[e.id][d]) && (tempSchedule[e.id][d] || '').includes('D03'));
+
+                let currentNote = noteData[currentYearMonth]?.[d] || '';
+                // 剔除舊有自動警示字串
+                let cleanNote = currentNote.replace(/⚠️無開\/收班人員\n?/g, '').replace(/⚠️人力不足\n?/g, '').trim();
+
+                let warningList = [];
+
+                if (!hasOpenFT || !hasCloseFT) {
+                    warningList.push('⚠️無開/收班人員');
+                    noOpenCloseDays.push(d);
+                }
+
+                if (currentWorkingTotal < targetMin || workingFTCount < 2) {
+                    warningList.push('⚠️人力不足');
+                    shortageDays.push(d);
+                }
+
+                if (warningList.length > 0) {
+                    let prefixStr = warningList.join('\n');
+                    noteData[currentYearMonth][d] = cleanNote ? `${prefixStr}\n${cleanNote}` : prefixStr;
+                } else {
+                    noteData[currentYearMonth][d] = cleanNote;
+                }
+
+                // 6. Phase 4: 站位自動配比 (D03對應收班，開班對應吧台)
+                let dailyWorkingStaff = currentEmployees.filter(e => isWorkCode(tempSchedule[e.id][d]));
+                if (dailyWorkingStaff.length > 0) {
+                    let d3Staff = dailyWorkingStaff.find(e => (tempSchedule[e.id][d] || '').includes('D03'));
+                    let openStaff = dailyWorkingStaff.find(e => (tempSchedule[e.id][d] || '').includes('D01') || (tempSchedule[e.id][d] || '').includes('D02'));
+
+                    let assignedStationMap = {};
+
+                    // D03 為收班人力
+                    assignedStationMap['收班'] = d3Staff ? d3Staff.name : dailyWorkingStaff[0].name;
+                    // 開班為吧台人力
+                    assignedStationMap['吧台'] = openStaff ? openStaff.name : dailyWorkingStaff[0].name;
+
+                    let remainingStaffNames = dailyWorkingStaff
+                        .filter(e => e.name !== assignedStationMap['收班'] && e.name !== assignedStationMap['吧台'])
+                        .map(e => e.name);
+
+                    if (remainingStaffNames.length === 0) remainingStaffNames = dailyWorkingStaff.map(e => e.name);
+
+                    let stIdx = 0;
+                    stations.forEach(st => {
+                        if (!assignedStationMap[st]) {
+                            assignedStationMap[st] = remainingStaffNames[stIdx % remainingStaffNames.length];
+                            stIdx++;
+                        }
+                        stationData[currentYearMonth][st][d] = assignedStationMap[st];
+                    });
+                } else {
+                    stations.forEach(st => { stationData[currentYearMonth][st][d] = ''; });
+                }
+            }
+
+            // 更新至全域變數
+            currentEmployees.forEach(emp => {
+                if (!scheduleData[currentYearMonth][emp.id]) scheduleData[currentYearMonth][emp.id] = {};
+                for (let d = 1; d <= daysInMonth; d++) {
+                    scheduleData[currentYearMonth][emp.id][d] = tempSchedule[emp.id][d] || '✖';
+                }
+            });
+
             saveData();
             renderTable();
+
+            // 結果統計與摘要提示
+            let subMessages = [];
+            if (ftPreCheckWarnings.length > 0) {
+                subMessages.push(`❗【正職指定休預檢】\n` + ftPreCheckWarnings.join('\n'));
+            }
+            if (noOpenCloseDays.length > 0) {
+                subMessages.push(`⚠️【無開/收班人員日期】\n第 ${noOpenCloseDays.join(', ')} 日欠缺正職開班(D01/D02)或收班(D03)，已自動標註「⚠️無開/收班人員」。`);
+            }
+            if (shortageDays.length > 0) {
+                subMessages.push(`⚠️【人力不足日期】\n第 ${shortageDays.join(', ')} 日總人數未達標或正職少於2人，已自動標註「⚠️人力不足」。`);
+            }
+
+            if (subMessages.length > 0) {
+                alertCustom(`✨ 自動排班完成！摘要如下：\n\n` + subMessages.join('\n\n'));
+            } else {
+                alertCustom(`✨ 自動排班成功！\n正職人員均已排定精確休息天數 (${targetRestDays} 天)，且每日皆確保有正職負責開班(D01/D02)與收班(D03)，站點與人力配置完全達標！`);
+            }
         }
 
         function openGanttDialog() {
@@ -2328,7 +2561,7 @@
             const currentShiftSettings = getCurrentShiftSettings(currentYearMonth);
 
             const data = { 
-                version: "2.6",
+                version: "3.0",
                 exportMonth: currentYearMonth,
                 scheduleData, 
                 stationData, 
@@ -2348,7 +2581,9 @@
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
                 link.download = fileName;
+                document.body.appendChild(link);
                 link.click();
+                document.body.removeChild(link);
             };
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
