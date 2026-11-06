@@ -300,8 +300,9 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
 
-  .week-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 12px; margin-bottom: 38px; }
-  .week-cell { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 14px 14px 16px; box-shadow: var(--shadow-soft); display: flex; flex-direction: column; gap: 8px; min-height: 96px; }
+  /* 本週記事卡片樣式優化 */
+  .week-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 12px; margin-bottom: 38px; }
+  .week-cell { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 14px 14px 16px; box-shadow: var(--shadow-soft); display: flex; flex-direction: column; gap: 8px; min-height: 110px; }
   .week-cell.is-today { border-color: var(--ink); box-shadow: var(--shadow-card); }
   .week-cell-top { display: flex; align-items: baseline; justify-content: space-between; white-space: nowrap; gap: 8px; }
   .week-cell-day { font-size: 11.5px; letter-spacing: 1.5px; color: var(--ink-faint); }
@@ -309,7 +310,11 @@
   .week-cell-bar { height: 3px; border-radius: 3px; width: 28px; }
   .week-cell-note { font-size: 12px; color: var(--ink-soft); line-height: 1.5; flex: 1; word-break: break-word; }
   .week-cell-note.empty { color: var(--ink-faint); }
-  .week-cell-more { font-size: 10.5px; color: var(--ink-faint); }
+  
+  /* 【需求 A 樣式】顯示所有備註項目的完整容器 */
+  .week-cell-note-list { display: flex; flex-direction: column; gap: 6px; flex: 1; overflow-y: auto; max-height: 170px; scrollbar-width: thin; }
+  .week-cell-note-item { font-size: 12px; color: var(--ink-soft); line-height: 1.45; word-break: break-word; padding-bottom: 4px; border-bottom: 1px dashed rgba(226, 221, 212, 0.6); }
+  .week-cell-note-item:last-child { border-bottom: none; padding-bottom: 0; }
 
   .tab-switch { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
   .tab-btn { border: 1px solid var(--line); background: var(--surface); padding: 8px 16px; border-radius: 999px; font-size: 13px; cursor: pointer; color: var(--ink-soft); }
@@ -765,13 +770,14 @@
 
     const settingsItem = document.createElement('div');
     settingsItem.className = 'bottom-item settings';
-    settingsItem.innerHTML = `<span class="b-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59-0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12,0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg></span><span class="b-name">編輯</span>`;
+    settingsItem.innerHTML = `<span class="b-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59-0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg></span><span class="b-name">編輯</span>`;
     settingsItem.onclick = openEditor;
     bottomNav.appendChild(settingsItem);
 
     renderWeekGrid();
   }
 
+  // 【需求 A 修改】本週記事渲染邏輯：完整顯示備註與記事的所有項目
   function renderWeekGrid(){
     const wrap = document.getElementById('weekGrid');
     if(!wrap) return;
@@ -780,18 +786,23 @@
     const todayKey = dateKey(today);
     const week = getWeekDates(today);
     const colorRotation = ['rose','sage','blue','taupe','oat','plum','rose'];
+    
     week.forEach((d, idx)=>{
       const key = dateKey(d);
       const notes = (config.notes && config.notes[key]) || [];
       const cell = document.createElement('div');
       cell.className = 'week-cell' + (key === todayKey ? ' is-today' : '');
       const hex = COLORS[colorRotation[idx]];
+      
       let noteHtml = '<div class="week-cell-note empty">尚無記事</div>';
       if(notes.length){
-        const first = escapeHtml(notes[0].text);
-        const more = notes.length > 1 ? `<div class="week-cell-more">+${notes.length-1} 則</div>` : '';
-        noteHtml = `<div class="week-cell-note">${first}</div>${more}`;
+        // 完整產出當天所有記事與備註項目的 HTML
+        const itemsHtml = notes.map(n => 
+          `<div class="week-cell-note-item">${escapeHtml(n.text)}</div>`
+        ).join('');
+        noteHtml = `<div class="week-cell-note-list">${itemsHtml}</div>`;
       }
+      
       cell.innerHTML = `
         <div class="week-cell-top">
           <span class="week-cell-day">週${WEEKDAY_LABELS[idx]}</span>
@@ -1050,7 +1061,6 @@
   document.getElementById('cancelEdit').onclick = closeEditor;
   overlay.addEventListener('click', e=>{ if(e.target === overlay) closeEditor(); });
 
-  // 【需求 A 輔助函式】將本地 notes 轉換為 Firestore noteData (YYYY-MM/DD) 結構
   function formatNotesToCloudNoteData(notesObj) {
     const cloudNoteData = {};
     if (!notesObj || typeof notesObj !== 'object') return cloudNoteData;
@@ -1061,12 +1071,10 @@
       const parts = dateStr.split('-');
       if (parts.length !== 3) return;
 
-      const ym = `${parts[0]}-${parts[1]}`; // YYYY-MM
-      const dayKey = String(parseInt(parts[2], 10)); // 去除前導0，如 "5"
+      const ym = `${parts[0]}-${parts[1]}`;
+      const dayKey = String(parseInt(parts[2], 10));
 
       if (!cloudNoteData[ym]) cloudNoteData[ym] = {};
-      
-      // 轉換成清晰可讀的格式或純文字/物件陣列
       cloudNoteData[ym][dayKey] = arr.map(n => typeof n === 'string' ? n : { id: n.id || uid(), text: n.text });
     });
     return cloudNoteData;
@@ -1092,7 +1100,6 @@
     config = JSON.parse(JSON.stringify(draft));
     await saveConfig(config);
 
-    // 【需求 A 同步機制】更新本地設定的同時，回寫 noteData 欄位至 ecoleCafe/main_schedule
     try {
       const cloudNoteData = formatNotesToCloudNoteData(config.notes);
       await db.collection('ecoleCafe').doc('main_schedule').set({
@@ -1261,7 +1268,7 @@
       const whitelistCheck = await checkUserWhitelist(user.email);
       
       if (!whitelistCheck.allowed) {
-        toast('⛔ 您的帳號未在 Cloud Firestore 白名單內，系統自動登出');
+        toast('⛔ 您的帳號未在 Cloud Firestore 白堵單內，系統自動登出');
         await auth.signOut();
         currentUser = null;
         isWhitelistedAdmin = false;
@@ -1361,7 +1368,6 @@
     try {
       await db.collection('ecoleConfig').doc(SHARED_DOC_ID).set(config);
       
-      // 【需求 A 擴充存檔】點擊雲端儲存按鈕時，同步更新 noteData
       const cloudNoteData = formatNotesToCloudNoteData(config.notes);
       await db.collection('ecoleCafe').doc('main_schedule').set({
         noteData: cloudNoteData
@@ -1379,8 +1385,6 @@
   // ==========================================
   // 3. 營運儀表板 - 讀取優化與監聽器管理
   // ==========================================
-  
-  // 【需求 A 解析與連動】解析班表系統主檔的 noteData (YYYY-MM/DD) 並併入本週記事
   function processCloudNoteData(noteData) {
     if (!noteData || typeof noteData !== 'object') return false;
 
@@ -1417,7 +1421,6 @@
             config.notes[dateStr] = parsedItems;
             hasUpdate = true;
           } else {
-            // 合併非重複項目，保護已存在的記事
             const existingTextSet = new Set(config.notes[dateStr].map(n => n.text));
             parsedItems.forEach(pi => {
               if (!existingTextSet.has(pi.text)) {
@@ -1630,7 +1633,7 @@
 
           const mainData = docSnap.data() || {};
 
-          // 【需求 A 自動連動】在同一個 Snapshot 中併同解析 noteData 備註欄位，避免重複 Listener
+          // 在 Snapshot 收到主檔更新時，同步解析備註並渲染全量項目
           if (mainData.noteData) {
             const currentHash = JSON.stringify(mainData.noteData);
             if (currentHash !== lastSyncedCloudNotesHash) {
