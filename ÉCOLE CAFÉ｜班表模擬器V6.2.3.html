@@ -141,6 +141,15 @@
         table.att-table th, table.att-table td { text-align: left; vertical-align: middle; white-space: normal; min-width: 0; height: auto; font-size: 0.75rem; padding: 8px; }
         table.att-table thead tr:nth-child(1) th { position: static; top: auto; z-index: auto; height: auto; background-color: #f3f4f6; border-bottom: 1px solid #e5e7eb; }
         table.att-table tbody tr { height: auto; }
+    
+        /* v2：手機日期欄對齊 */
+        #requestCenterDialog { overflow-x: hidden; }
+        #requestForm, #requestForm > div, #requestForm .grid > div { min-width: 0; }
+        #requestForm input[type=date], #requestForm input[type=time] {
+            -webkit-appearance: none; appearance: none; display: block; width: 100%; max-width: 100%;
+            min-width: 0; box-sizing: border-box; text-align: left; min-height: 2.25rem; background: #fff;
+        }
+        #requestForm input[type=date]::-webkit-date-and-time-value, #requestForm input[type=time]::-webkit-date-and-time-value { text-align: left; margin: 0; }
     </style>
 </head>
 <body class="flex flex-col h-screen relative">
@@ -268,40 +277,35 @@
     </main>
 
     <!-- [修訂A, B, C, D, E] iCHEF打卡紀錄與表定工時比對彈窗 (灰黑白按鈕、莫蘭迪狀態列、工時不足異常、無損PDF與員工下拉篩選) -->
-    <dialog id="attendanceCompareDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-5xl border border-gray-200">
-        <div class="relative pr-12 p-4 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-gray-50">
-            <div class="flex items-center gap-2">
-                <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <h3 class="font-bold text-gray-800 tracking-wide">iCHEF 打卡紀錄與表定工時比對</h3>
-                <span class="text-xs text-gray-500 ml-2" id="attendanceCompareSubtitle"></span>
-            </div>
-
-            <!-- [需求E] 員工篩選下拉選單與灰黑白配色按鈕 -->
-            <div class="flex flex-wrap items-center gap-2">
-                <div class="flex items-center gap-1.5 bg-white border border-gray-300 rounded px-2 py-1 shadow-sm">
-                    <span class="text-xs font-bold text-gray-700">員工篩選：</span>
-                    <select id="attendanceEmpFilter" onchange="renderAttendanceCompareTable()" class="text-xs font-bold text-gray-800 outline-none bg-transparent">
-                    </select>
+    <dialog id="attendanceCompareDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-6xl border border-gray-200">
+        <div class="relative border-b border-gray-200 bg-gray-50">
+            <div class="flex flex-nowrap items-center gap-3 p-4 pr-12 overflow-x-auto">
+                <div class="flex items-center gap-2 flex-shrink-0 whitespace-nowrap">
+                    <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <h3 class="font-bold text-gray-800 tracking-wide whitespace-nowrap">iCHEF 打卡紀錄與表定工時比對</h3>
+                    <span class="text-xs text-gray-500 whitespace-nowrap" id="attendanceCompareSubtitle"></span>
                 </div>
-
-                <button onclick="exportAttendanceXLSX()" title="匯出 XLSX" class="bg-gray-800 text-white hover:bg-black px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 shadow-sm border border-gray-700">
-                    <svg class="w-4 h-4 stroke-current fill-none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    <span>匯出 XLSX</span>
-                </button>
-                
-                <button onclick="exportAttendancePDF()" title="匯出 PDF" class="bg-gray-700 text-white hover:bg-gray-800 px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 shadow-sm border border-gray-600">
-                    <svg class="w-4 h-4 stroke-current fill-none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                    <span>匯出 PDF</span>
-                </button>
-                
-                <button onclick="triggerICHEFImport()" title="匯入 iCHEF" class="bg-black text-white hover:bg-gray-800 px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 admin-only shadow-sm border border-gray-900">
-                    <svg class="w-4 h-4 stroke-current fill-none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                    <span>匯入 iCHEF</span>
-                </button>
-                <input type="file" id="ichefFileInput" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleICHEFFileSelect(event)">
-                
-                <button onclick="document.getElementById('attendanceCompareDialog').close()" class="absolute top-2 right-3 text-gray-400 hover:text-black text-2xl leading-none">&times;</button>
+                <div class="flex flex-nowrap items-center gap-2 flex-shrink-0 whitespace-nowrap ml-auto">
+                    <div class="flex items-center gap-1.5 bg-white border border-gray-300 rounded px-2 py-1 shadow-sm whitespace-nowrap">
+                        <span class="text-xs font-bold text-gray-700 whitespace-nowrap">員工篩選：</span>
+                        <select id="attendanceEmpFilter" onchange="renderAttendanceCompareTable()" class="text-xs font-bold text-gray-800 outline-none bg-transparent"></select>
+                    </div>
+                    <button onclick="exportAttendanceXLSX()" title="匯出 XLSX" class="bg-gray-800 text-white hover:bg-black px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 shadow-sm border border-gray-700 whitespace-nowrap">
+                        <svg class="w-4 h-4 stroke-current fill-none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <span>匯出 XLSX</span>
+                    </button>
+                    <button onclick="exportAttendancePDF()" title="匯出 PDF" class="bg-gray-700 text-white hover:bg-gray-800 px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 shadow-sm border border-gray-600 whitespace-nowrap">
+                        <svg class="w-4 h-4 stroke-current fill-none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                        <span>匯出 PDF</span>
+                    </button>
+                    <button onclick="triggerICHEFImport()" title="匯入 iCHEF" class="bg-black text-white hover:bg-gray-800 px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 admin-only shadow-sm border border-gray-900 whitespace-nowrap">
+                        <svg class="w-4 h-4 stroke-current fill-none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                        <span>匯入 iCHEF</span>
+                    </button>
+                    <input type="file" id="ichefFileInput" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleICHEFFileSelect(event)">
+                </div>
             </div>
+            <button onclick="document.getElementById('attendanceCompareDialog').close()" class="absolute top-2 right-3 text-gray-400 hover:text-black text-2xl leading-none">&times;</button>
         </div>
         <div class="p-4 bg-white max-h-[75vh] overflow-y-auto">
             <div class="overflow-x-auto">
@@ -420,6 +424,7 @@
                 </div>
 
                 <div class="flex justify-end gap-2 mt-2">
+                    <button type="button" onclick="copyLineMessage()" class="mr-auto border border-green-600 text-green-700 px-3 py-2 rounded font-bold hover:bg-green-50">複製LINE訊息</button>
                     <button type="button" onclick="document.getElementById('requestCenterDialog').close()" class="border border-gray-300 text-gray-600 px-4 py-2 rounded hover:bg-gray-50">取消</button>
                     <button type="submit" class="bg-black text-white px-5 py-2 rounded font-bold hover:bg-gray-800">送出申請</button>
                 </div>
@@ -1268,6 +1273,50 @@
             document.getElementById('requestCenterDialog').showModal();
         }
 
+        function buildLineMessage() {
+            const emps = getCurrentEmployees(currentYearMonth);
+            const me = emps.find(e => e.id === currentUserEmpId);
+            const who = me ? me.name : ((currentUser && currentUser.displayName) || '');
+            const ds = document.getElementById('reqDateInput').value;
+            const reason = document.getElementById('reqReason').value.trim() || '（未填）';
+            let dateTxt = ds;
+            if (ds) { const d = new Date(ds + 'T00:00:00'); dateTxt = `${d.getMonth() + 1}/${d.getDate()}(${'日一二三四五六'[d.getDay()]})`; }
+            const L = [];
+            if (activeRequestTab === 'swap') {
+                const tid = document.getElementById('reqTargetEmpSelect').value;
+                const t = emps.find(e => e.id === tid);
+                L.push('【調班申請】', `申請人：${who}`, `日期：${dateTxt}`, `對象：${t ? t.name : '-'}`);
+            } else if (activeRequestTab === 'overtime') {
+                const h = document.getElementById('reqOtHours').value;
+                const ty = document.getElementById('reqOtType').value === 'pay' ? '加班費' : '補休';
+                L.push('【加班申請】', `申請人：${who}`, `日期：${dateTxt}`, `時數：${h}h（${ty}）`);
+            } else if (activeRequestTab === 'leave') {
+                const c = document.getElementById('reqLeaveCategory').value;
+                const h = document.getElementById('reqLeaveHours').value;
+                L.push('【請假/遲早】', `申請人：${who}`, `日期：${dateTxt}`, `類別：${c} ${h}h`);
+            } else {
+                const i = document.getElementById('reqFixClockIn').value || '--:--';
+                const o = document.getElementById('reqFixClockOut').value || '--:--';
+                L.push('【補卡申請】', `申請人：${who}`, `日期：${dateTxt}`, `時間：${i}-${o}`);
+            }
+            L.push(`事由：${reason}`);
+            return L.join('\n');
+        }
+
+        async function copyLineMessage() {
+            const text = buildLineMessage();
+            try {
+                await navigator.clipboard.writeText(text);
+            } catch (e) {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+                document.body.appendChild(ta); ta.focus(); ta.select();
+                try { document.execCommand('copy'); } catch (_) {}
+                document.body.removeChild(ta);
+            }
+            alertCustom('已複製 LINE 訊息，請貼到 LINE 傳送：\n\n' + text);
+        }
+
         function submitAttendanceRequest(e) {
             e.preventDefault();
             const dateStr = document.getElementById('reqDateInput').value;
@@ -1485,90 +1534,111 @@
             e.target.value = '';
         }
 
+        function normName(s) { return String(s || '').replace(/\s+/g, '').toLowerCase(); }
+        function splitName(s) {
+            const str = String(s || '').trim();
+            return { zh: (str.match(/[\u4e00-\u9fff]+/g) || []).join(''), en: (str.match(/[A-Za-z][A-Za-z.\-]*/g) || []).join(' ').toLowerCase() };
+        }
+        // 姓名比對：完全相同 > 中文相同 > 英文名相同 > 3字以上中文僅差1字（容錯異體字）
+        function matchEmployee(name, emps) {
+            const a = splitName(name);
+            let best = null, score = 0;
+            (emps || []).forEach(e => {
+                const b = splitName(e.name);
+                let s = 0;
+                if (normName(e.name) === normName(name)) s = 100;
+                else {
+                    if (a.zh && b.zh && a.zh === b.zh) s = 90;
+                    if (a.en && b.en && a.en === b.en) s = Math.max(s, 80);
+                    if (!s && a.zh.length >= 3 && a.zh.length === b.zh.length) {
+                        let m = 0;
+                        for (let i = 0; i < a.zh.length; i++) if (a.zh[i] === b.zh[i]) m++;
+                        if (m >= a.zh.length - 1) s = 60;
+                    }
+                }
+                if (s > score) { score = s; best = e; }
+            });
+            return score >= 60 ? best : null;
+        }
+        function calcSegHours(seg) {
+            if (!seg || !seg.clockIn || !seg.clockOut) return 0;
+            const p = t => { const a = String(t).split(':'); return parseInt(a[0], 10) + (parseInt(a[1], 10) || 0) / 60; };
+            const i = p(seg.clockIn), o = p(seg.clockOut);
+            return o >= i ? o - i : o + 24 - i;
+        }
+
         function parseICHEFRows(rows) {
-            let empDateEventsMap = {};
-            let currentEmpName = null;
             const emps = getCurrentEmployees(currentYearMonth);
+            const SKIP = /^(ipad|admin)/i;
+            const toStr = v => (v === null || v === undefined) ? '' : String(v).trim();
+            const people = [];
+            let cur = null;
 
             rows.forEach(row => {
                 if (!row || row.length === 0) return;
-                const col0 = row[0] ? String(row[0]).trim() : '';
-                const col1 = row[1] ? String(row[1]).trim() : '';
-                const col2 = row[2] ? String(row[2]).trim() : '';
-
-                if (!col0) return;
-
-                if (col0 !== '上班' && col0 !== '下班' && !col0.startsWith('總時數') && !col0.startsWith('iPAD')) {
-                    currentEmpName = col0;
+                const c0 = toStr(row[0]);
+                const c1 = toStr(row[1]).replace(/\//g, '-');
+                const c2 = toStr(row[2]);
+                if (!c0) return;
+                // 摘要列與「無上班/無下班記錄」提示列不是人名，必須略過（舊版會誤當人名導致後續資料錯置）
+                if (c0.startsWith('總時數') || c0 === '無上班記錄' || c0 === '無下班記錄') return;
+                if (c0 === '上班' || c0 === '下班') {
+                    if (cur && /^\d{4}-\d{2}-\d{2}/.test(c1)) cur.events.push({ type: c0, dt: c1.substring(0, 19), dur: c2 });
                     return;
                 }
-
-                if ((col0 === '上班' || col0 === '下班') && col1 && currentEmpName) {
-                    const dateStr = col1.substring(0, 10);
-                    const timeStr = col1.length >= 19 ? col1.substring(11, 19) : col1;
-                    const key = currentEmpName + '_' + dateStr;
-
-                    if (!empDateEventsMap[key]) {
-                        empDateEventsMap[key] = {
-                            empName: currentEmpName,
-                            dateStr: dateStr,
-                            ym: dateStr.substring(0, 7),
-                            events: []
-                        };
-                    }
-
-                    empDateEventsMap[key].events.push({
-                        type: col0,
-                        time: timeStr,
-                        durationStr: col2
-                    });
-                }
+                cur = { name: c0, events: [] };
+                people.push(cur);
             });
 
-            let parsedClockList = [];
-            Object.values(empDateEventsMap).forEach(item => {
-                const matchedEmp = emps.find(e => e.name.includes(item.empName) || item.empName.includes(e.name.substring(0, 2)));
-                
-                let segments = [];
-                let events = item.events;
-                let i = 0;
-
-                while (i < events.length) {
-                    if (events[i].type === '上班') {
-                        let clockIn = events[i].time;
-                        let clockOut = '';
-                        let durationStr = '';
-                        
-                        if (i + 1 < events.length && events[i + 1].type === '下班') {
-                            clockOut = events[i + 1].time;
-                            durationStr = events[i + 1].durationStr;
-                            i += 2;
-                        } else {
-                            i += 1;
-                        }
-                        segments.push({ clockIn, clockOut, durationStr });
-                    } else {
-                        i += 1;
+            const list = [];
+            people.forEach(p => {
+                if (SKIP.test(p.name)) return;
+                const matched = matchEmployee(p.name, emps);
+                const byDate = {};
+                const add = (ds, seg) => { (byDate[ds] = byDate[ds] || []).push(seg); };
+                let open = null;
+                const closeOpen = (flag) => {
+                    if (open) {
+                        add(open.dt.substring(0, 10), { clockIn: open.dt.substring(11, 19), clockOut: '', durationStr: '', flag: flag });
+                        open = null;
                     }
-                }
+                };
+                // 依時間順序逐筆配對，不再依日期拆開（可正確處理跨日、漏打）
+                p.events.forEach(ev => {
+                    if (ev.type === '上班') {
+                        closeOpen('no_out');
+                        open = ev;
+                    } else if (open) {
+                        if (/day/i.test(ev.dur)) closeOpen('forgot_out');   // 超過24小時 = 忘記打下班
+                        else {
+                            add(open.dt.substring(0, 10), { clockIn: open.dt.substring(11, 19), clockOut: ev.dt.substring(11, 19), outDate: ev.dt.substring(0, 10), durationStr: ev.dur });
+                            open = null;
+                        }
+                    } else {
+                        add(ev.dt.substring(0, 10), { clockIn: '', clockOut: ev.dt.substring(11, 19), durationStr: ev.dur, flag: 'no_in' });
+                    }
+                });
+                closeOpen('no_out');
 
-                parsedClockList.push({
-                    empName: item.empName,
-                    empId: matchedEmp ? matchedEmp.id : null,
-                    dateStr: item.dateStr,
-                    ym: item.ym,
-                    segments: segments,
-                    clockIn: segments.length > 0 ? segments[0].clockIn : '',
-                    clockOut: segments.length > 0 ? segments[segments.length - 1].clockOut : ''
+                Object.keys(byDate).sort().forEach(ds => {
+                    const segs = byDate[ds];
+                    list.push({
+                        empName: p.name, empId: matched ? matched.id : null,
+                        dateStr: ds, ym: ds.substring(0, 7), segments: segs,
+                        clockIn: segs[0].clockIn, clockOut: segs[segs.length - 1].clockOut
+                    });
                 });
             });
 
+            const yms = Array.from(new Set(list.map(r => r.ym)));
+            yms.forEach(ym => { ichefClockData[ym] = list.filter(r => r.ym === ym); });
             if (!ichefClockData[currentYearMonth]) ichefClockData[currentYearMonth] = [];
-            ichefClockData[currentYearMonth] = parsedClockList;
 
+            const unmatched = Array.from(new Set(list.filter(r => !r.empId).map(r => r.empName)));
             saveData();
             openAttendanceCompareDialog();
-            alertCustom(`成功匯入 ${parsedClockList.length} 筆 iCHEF 多段打卡紀錄！已完成異常與工時比對。`);
+            alertCustom(`成功匯入 ${list.length} 筆打卡紀錄（${people.filter(p => !SKIP.test(p.name) && p.events.length).length} 位人員）。` +
+                (unmatched.length ? `\n\n未排入班表人員：${unmatched.join('、')}\n（已顯示於比對頁面）` : ''));
         }
 
         function openAttendanceCompareDialog() {
@@ -1580,7 +1650,7 @@
 
             if (currentUserRole === 'admin') {
                 filterSelect.disabled = false;
-                let options = `<option value="ALL">全部員工 (管理員視角)</option>`;
+                let options = `<option value="ALL">全部員工 (管理員視角)</option><option value="UNMATCHED">未排入班表人員</option>`;
                 emps.forEach(e => {
                     options += `<option value="${escapeHTML(e.id)}">${escapeHTML(e.name)} (${e.type})</option>`;
                 });
@@ -1603,7 +1673,8 @@
 
         function renderAttendanceCompareTable() {
             const body = document.getElementById('attendanceCompareBody');
-            const clocks = ichefClockData[currentYearMonth] || [];
+            const emps0 = getCurrentEmployees(currentYearMonth);
+            const clocks = (ichefClockData[currentYearMonth] || []).map(c => { const m = emps0.find(e => e.id === c.empId) || matchEmployee(c.empName, emps0); return Object.assign({}, c, { empId: m ? m.id : null }); });
             const emps = getCurrentEmployees(currentYearMonth);
             const [year, month] = currentYearMonth.split('-').map(Number);
             const daysInMonth = new Date(year, month, 0).getDate();
@@ -1622,7 +1693,7 @@
                     const parsed = parseCellData(shiftRaw);
                     
                     const isWorkShift = parsed.shiftCode && !['✖', '❌', '年假', '行政', '公出', '補修', '會議'].includes(parsed.shiftCode);
-                    const empClockRecord = clocks.find(c => c.dateStr === dateStr && (c.empId === emp.id || c.empName.includes(emp.name.substring(0, 2))));
+                    const empClockRecord = clocks.find(c => c.dateStr === dateStr && c.empId === emp.id);
                     const hasClock = empClockRecord && empClockRecord.segments && empClockRecord.segments.length > 0;
 
                     if (isWorkShift || hasClock) {
@@ -1647,9 +1718,7 @@
                                 if (seg.clockIn && seg.clockOut) {
                                     const inH = parseInt(seg.clockIn.split(':')[0]) + parseInt(seg.clockIn.split(':')[1]) / 60;
                                     const outH = parseInt(seg.clockOut.split(':')[0]) + parseInt(seg.clockOut.split(':')[1]) / 60;
-                                    if (outH > inH) {
-                                        totalSegHours += (outH - inH);
-                                    }
+                                    totalSegHours += (outH >= inH ? outH - inH : outH + 24 - inH);
                                 }
                             });
 
@@ -1664,6 +1733,10 @@
                         }
 
                         let badgeList = [];
+                        if (hasClock && empClockRecord.segments.some(s => !s.clockIn || !s.clockOut)) {
+                            badgeList.push(`<span class="inline-block px-2 py-0.5 rounded text-xs font-bold badge-morandi-red">漏打卡 (缺上/下班)</span>`);
+                            remarkParts.push(empClockRecord.segments.some(s => s.flag === 'forgot_out') ? '疑似忘打下班(跨日)' : '打卡不完整，缺漏段未計工時');
+                        }
 
                         // [雙向打卡異常與工時不足判定 (需求B & C - 莫蘭迪色標籤)]
                         if (isWorkShift && !hasClock) {
@@ -1723,6 +1796,31 @@
                 }
             });
 
+            if (currentUserRole === 'admin' && (filterEmpId === 'ALL' || filterEmpId === 'UNMATCHED')) {
+                clocks.filter(c => !c.empId && !/^(ipad|admin)/i.test(c.empName || '') && c.segments && c.segments.length)
+                    .sort((a, b) => String(a.empName).localeCompare(String(b.empName), 'zh-Hant') || String(a.dateStr).localeCompare(String(b.dateStr)))
+                    .forEach(c => {
+                        let hrs = 0, incomplete = false;
+                        const segTxt = c.segments.map(s => {
+                            hrs += calcSegHours(s);
+                            if (!s.clockIn || !s.clockOut) incomplete = true;
+                            return `<span class="font-mono">${s.clockIn ? s.clockIn.substring(0, 5) : '?'}-${s.clockOut ? s.clockOut.substring(0, 5) : '?'}</span>`;
+                        }).join('<br>');
+                        const dd = parseInt(String(c.dateStr).substring(8, 10), 10);
+                        html += `
+                        <tr class="hover:bg-gray-50 border-b">
+                            <td class="p-2 border font-bold">${dd}日</td>
+                            <td class="p-2 border font-bold">${escapeHTML(c.empName)}</td>
+                            <td class="p-2 border">無</td>
+                            <td class="p-2 border text-gray-600">0.0 h</td>
+                            <td class="p-2 border text-[11px] leading-tight">${segTxt}</td>
+                            <td class="p-2 border font-bold">${hrs > 0 ? hrs.toFixed(1) + ' h' : '-'}</td>
+                            <td class="p-2 border"><div class="flex flex-wrap gap-1"><span class="inline-block px-2 py-0.5 rounded text-xs font-bold badge-morandi-purple">未排入班表人員</span>${incomplete ? '<span class="inline-block px-2 py-0.5 rounded text-xs font-bold badge-morandi-red">漏打卡 (缺上/下班)</span>' : ''}</div></td>
+                            <td class="p-2 border text-gray-400">0 h</td>
+                            <td class="p-2 border text-[11px] text-gray-500">iCHEF 有打卡，人員清單無此人</td>
+                        </tr>`;
+                    });
+            }
             body.innerHTML = html || '<tr><td colspan="9" class="text-center py-8 text-gray-400">當月尚無可顯示之勤怠比對資料</td></tr>';
         }
 
