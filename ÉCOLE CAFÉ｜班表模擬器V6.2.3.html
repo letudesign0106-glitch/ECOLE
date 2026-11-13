@@ -4164,6 +4164,42 @@
                 }
             });
         }
+
+        // Restore the V6.2.7 lock control. Only an authenticated administrator can
+        // persist this value because main_schedule writes are admin-only in Rules.
+        async function toggleScheduleLock() {
+            if (currentUserRole !== 'admin') {
+                alertCustom('權限不足：只有管理員可以鎖定或解鎖班表。');
+                return;
+            }
+            const ym = currentYearMonth;
+            const nextLocked = !isScheduleLocked(ym);
+            const action = nextLocked ? '鎖定' : '解鎖';
+            if (!await customConfirm('確定要' + action + ' ' + ym + ' 的班表嗎？')) return;
+
+            const button = document.getElementById('lockBtn');
+            if (button) button.disabled = true;
+            try {
+                if (currentUser && db) {
+                    if (!isCloudLoaded) throw new Error('雲端資料尚未載入完畢，請稍候再試');
+                    await withTimeout(
+                        db.collection('ecoleCafe').doc('main_schedule')
+                            .set({ lockData: { [ym]: nextLocked } }, { merge: true }),
+                        15000
+                    );
+                }
+                lockData = lockData || {};
+                lockData[ym] = nextLocked;
+                localStorage.setItem('ecoleLock', JSON.stringify(lockData));
+                renderTable();
+                alertCustom(nextLocked ? '已鎖定本月班表。' : '已解鎖本月班表。');
+            } catch (error) {
+                console.error('班表鎖定狀態更新失敗:', error);
+                alertCustom('無法' + action + '班表：' + ((error && error.message) || error));
+            } finally {
+                if (button) button.disabled = false;
+            }
+        }
         /* V6.2.7 ATTENDANCE SECURITY PATCH END */
 
 </script>
