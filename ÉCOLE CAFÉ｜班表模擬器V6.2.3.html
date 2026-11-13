@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -1252,13 +1251,13 @@
                     console.warn("雲端資料尚未同步完畢，暫緩全域儲存！");
                     return;
                 }
-                const dataToSave = (currentUserRole === 'admin')
-                    ? { scheduleData, stationData, noteData, carryOverData, lockData,
-                        employeesData, shiftSettingsData, dismissedWarningsData,
-                        ichefClockData, requestsData, tardinessFlexData }
-                    : { requestsData };
+                if (currentUserRole === 'admin') {
+                const dataToSave = { scheduleData, stationData, noteData, carryOverData, lockData,
+                    employeesData, shiftSettingsData, dismissedWarningsData,
+                    ichefClockData, requestsData, tardinessFlexData };
                 db.collection("ecoleCafe").doc("main_schedule").set(dataToSave, { merge: true })
                     .catch((error) => { console.error("雲端存檔失敗:", error); });
+            }
             }
         }
 
@@ -1498,6 +1497,7 @@
                 else if (r.status === 'pending_admin') statusBadge = '<span class="text-xs text-blue-600 font-bold">待管理員審核</span>';
                 else if (r.status === 'approved') statusBadge = '<span class="text-xs text-green-600 font-bold">已核准生效</span>';
                 else if (r.status === 'rejected') statusBadge = '<span class="text-xs text-red-600 font-bold">已駁回</span>';
+                else if (r.status === 'cancelled') statusBadge = '<span class="text-xs text-gray-500 font-bold">已由申請人取消</span>';
 
                 let detailText = '';
                 if (r.type === 'swap') detailText = `與 <b>${targetName}</b> 調班 (${escapeHTML(r.dateStr)})`;
@@ -1533,7 +1533,8 @@
         const REQ_TYPE_LABEL = { swap: '調班', overtime: '加班', leave: '請假/遲早', clock_fix: '補卡' };
         const REQ_STATUS_LABEL = {
             pending_target: ['待同事確認', 'text-orange-600'], pending_admin: ['待主管審核', 'text-blue-600'],
-            approved: ['已核准', 'text-green-700'], rejected: ['已駁回', 'text-red-600']
+            approved: ['已核准', 'text-green-700'], rejected: ['已駁回', 'text-red-600'],
+            cancelled: ['已取消', 'text-gray-500']
         };
 
         function isSelfRequest(r) {
@@ -1607,8 +1608,20 @@
             mine.forEach(r => {
                 const st = REQ_STATUS_LABEL[r.status] || [escapeHTML(r.status), 'text-gray-600'];
                 const by = (r.status === 'rejected' && r.handledBy === 'target') ? '（同事婉拒）' : '';
+                
+                let cancelBtnHTML = '';
+                if (r.status === 'pending_admin' || r.status === 'pending_target') {
+                    cancelBtnHTML = `<button type="button" onclick="cancelMyRequest('${escapeHTML(r.id)}', this)" class="ml-3 border border-red-300 text-red-600 px-2 py-0.5 rounded text-[10px] font-bold hover:bg-red-50 shadow-sm transition-colors">取消申請</button>`;
+                }
+
                 html += `<div class="border border-gray-200 bg-gray-50 rounded p-2 flex flex-col gap-0.5">
-                    <div class="flex justify-between items-center"><span class="font-bold">${escapeHTML(REQ_TYPE_LABEL[r.type] || r.type)}　${escapeHTML(String(r.dateStr).substring(5))}</span><span class="font-bold ${st[1]}">${st[0]}${by}</span></div>
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold">${escapeHTML(REQ_TYPE_LABEL[r.type] || r.type)}　${escapeHTML(String(r.dateStr).substring(5))}</span>
+                        <div class="flex items-center">
+                            <span class="font-bold ${st[1]}">${st[0]}${by}</span>
+                            ${cancelBtnHTML}
+                        </div>
+                    </div>
                     <div class="text-gray-600">${escapeHTML(reqSummaryText(r, nameOf))}</div></div>`;
             });
             box.innerHTML = html || '<p class="text-gray-400 text-center py-3">本月尚無已送出的申請</p>';
@@ -1628,6 +1641,29 @@
                 list[idx] = res.req;
                 tx.update(ref, Object.assign({ ['requestsData.' + ym]: list }, res.extra || {}));
             });
+        }
+
+        async function cancelMyRequest(reqId, btn) {
+            if (!await customConfirm('確定要取消這筆申請嗎？')) return;
+            const ym = currentYearMonth;
+            if (btn) btn.disabled = true;
+            try {
+                await withTimeout(updateRequestsAtomic(ym, reqId, (req, data) => {
+                    if (req.applicantEmpId !== currentUserEmpId && currentUserRole !== 'admin') {
+                        throw new Error('您只能取消自己的申請');
+                    }
+                    if (req.status !== 'pending_admin' && req.status !== 'pending_target') {
+                        throw new Error('該申請已處置或已取消');
+                    }
+                    return { req: Object.assign({}, req, { status: 'cancelled', canceledAt: new Date().toISOString() }) };
+                }), 15000);
+                alertCustom('已成功取消申請。');
+                renderMyRequests();
+                updatePendingBadge();
+            } catch (err) {
+                alertCustom('取消失敗：' + ((err && err.message) || err));
+                if (btn) btn.disabled = false;
+            }
         }
 
         async function respondSwap(reqId, accept) {
@@ -1701,6 +1737,10 @@
         // --- iCHEF 打卡解析、莫蘭迪色標籤、工時不足警示與權限篩選 ---
 
         function triggerICHEFImport() {
+            if (currentUserRole !== 'admin') {
+                alertCustom("權限不足：僅管理者可匯入打卡紀錄。");
+                return;
+            }
             document.getElementById('ichefFileInput').click();
         }
 
