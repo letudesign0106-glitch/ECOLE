@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -150,6 +151,20 @@
             min-width: 0; box-sizing: border-box; text-align: left; min-height: 2.25rem; background: #fff;
         }
         #requestForm input[type=date]::-webkit-date-and-time-value, #requestForm input[type=time]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+    
+        /* v3-A：手機版打卡比對改為卡片式，完整顯示每個欄位 */
+        @media (max-width: 768px) {
+            #attendanceCompareDialog { width: 96vw; max-width: 96vw; }
+            table.att-table:not(.pdf-table), table.att-table:not(.pdf-table) tbody, table.att-table:not(.pdf-table) tr, table.att-table:not(.pdf-table) td { display: block; width: 100%; }
+            table.att-table:not(.pdf-table) thead { display: none; }
+            table.att-table:not(.pdf-table) tbody tr { border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; padding: 4px 10px; background: #fff; }
+            table.att-table:not(.pdf-table) tbody td { border: 0; border-bottom: 1px dashed #e5e7eb; padding: 6px 0; display: flex; gap: 10px; justify-content: space-between; align-items: flex-start; text-align: right; font-size: 0.8rem; }
+            table.att-table:not(.pdf-table) tbody td:last-child { border-bottom: 0; }
+            table.att-table:not(.pdf-table) tbody td::before { content: attr(data-label); flex: 0 0 5.5em; font-weight: 700; color: #6b7280; text-align: left; }
+            table.att-table:not(.pdf-table) tbody td[colspan] { display: block; text-align: center; }
+            table.att-table:not(.pdf-table) tbody td[colspan]::before { content: none; }
+            table.att-table:not(.pdf-table) td > div { justify-content: flex-end; }
+        }
     </style>
 </head>
 <body class="flex flex-col h-screen relative">
@@ -353,6 +368,10 @@
             </div>
 
             <form id="requestForm" onsubmit="submitAttendanceRequest(event)" class="flex flex-col gap-3 text-xs">
+                <div id="adminApplicantBox" style="display:none" class="bg-amber-50 border border-amber-200 rounded p-2">
+                    <label class="block text-amber-900 font-bold mb-1">申請人（管理者請先選擇您自己的姓名）：</label>
+                    <select id="reqAdminSelfSelect" onchange="refreshSwapTargets()" class="border border-amber-300 rounded px-3 py-1.5 w-full outline-none font-bold bg-white"></select>
+                </div>
                 <div>
                     <label class="block text-gray-700 font-bold mb-1">申請日期：</label>
                     <input type="date" id="reqDateInput" required class="border border-gray-300 rounded px-3 py-1.5 w-full outline-none focus:border-black font-bold">
@@ -429,6 +448,25 @@
                     <button type="submit" class="bg-black text-white px-5 py-2 rounded font-bold hover:bg-gray-800">送出申請</button>
                 </div>
             </form>
+            <div class="border-t pt-3 flex flex-col gap-2">
+                <div class="text-xs font-bold text-gray-700">我的申請處理狀態（目前選取月份）</div>
+                <div id="myRequestsList" class="flex flex-col gap-2 text-xs"></div>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="lineMessageDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-sm border border-gray-200">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h3 class="font-bold text-gray-800">✅ 已送出，請複製訊息傳給主管</h3>
+            <button onclick="document.getElementById('lineMessageDialog').close()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 bg-white flex flex-col gap-3 text-sm">
+            <textarea id="lineMessageText" readonly rows="7" onclick="this.select()" class="border border-gray-300 rounded p-2 w-full text-sm leading-relaxed outline-none"></textarea>
+            <p id="lineCopyHint" class="text-[11px] text-green-700 font-bold hidden"></p>
+            <div class="flex justify-end gap-2">
+                <button onclick="document.getElementById('lineMessageDialog').close()" class="border border-gray-300 text-gray-600 px-4 py-2 rounded hover:bg-gray-50">關閉</button>
+                <button onclick="copyLineText()" class="bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700">複製訊息</button>
+            </div>
         </div>
     </dialog>
 
@@ -763,7 +801,7 @@
         }
 
         const firebaseConfig = {
-            apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
+             apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
             authDomain: "ecole-1f392.firebaseapp.com",
             projectId: "ecole-1f392",
             storageBucket: "ecole-1f392.firebasestorage.app",
@@ -1156,6 +1194,7 @@
                     renderShiftButtons(); 
                     renderTable();
                     updatePendingBadge();
+                    refreshOpenDialogs();
                 } else {
                     isCloudLoaded = true;
                     if (currentUserRole === 'admin') saveData();
@@ -1253,29 +1292,44 @@
             });
         }
 
+        function getApplicantEmpId() {
+            if (currentUserRole === 'admin') { const s = document.getElementById('reqAdminSelfSelect'); return s ? s.value : ''; }
+            return currentUserEmpId || '';
+        }
+
+        function refreshSwapTargets() {
+            const self = getApplicantEmpId();
+            document.getElementById('reqTargetEmpSelect').innerHTML = getCurrentEmployees(currentYearMonth)
+                .filter(e => e.id !== self)
+                .map(e => `<option value="${escapeHTML(e.id)}">${escapeHTML(e.name)} (${escapeHTML(e.type)})</option>`).join('');
+        }
+
         function openRequestCenterDialog() {
             if (!currentUser) {
                 alertCustom("請先進行 Google 登入以提交出勤申請。");
                 return;
             }
-            const dateInput = document.getElementById('reqDateInput');
-            const todayStr = new Date().toISOString().split('T')[0];
-            dateInput.value = todayStr;
+            const n = new Date();   // 使用本地日期（舊版用 UTC，台灣早上會變成前一天）
+            document.getElementById('reqDateInput').value = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
 
-            const currentEmps = getCurrentEmployees(currentYearMonth);
-            const select = document.getElementById('reqTargetEmpSelect');
-            select.innerHTML = currentEmps
-                .filter(e => e.id !== currentUserEmpId)
-                .map(e => `<option value="${escapeHTML(e.id)}">${escapeHTML(e.name)} (${e.type})</option>`)
-                .join('');
-
+            const box = document.getElementById('adminApplicantBox');
+            if (box) {
+                if (currentUserRole === 'admin') {
+                    const sel = document.getElementById('reqAdminSelfSelect');
+                    sel.innerHTML = '<option value="">— 請選擇您自己的姓名 —</option>' +
+                        getCurrentEmployees(currentYearMonth).map(e => `<option value="${escapeHTML(e.id)}">${escapeHTML(e.name)}</option>`).join('');
+                    box.style.display = '';
+                } else box.style.display = 'none';
+            }
+            refreshSwapTargets();
             switchRequestTab('swap');
+            renderMyRequests();
             document.getElementById('requestCenterDialog').showModal();
         }
 
         function buildLineMessage() {
             const emps = getCurrentEmployees(currentYearMonth);
-            const me = emps.find(e => e.id === currentUserEmpId);
+            const me = emps.find(e => e.id === getApplicantEmpId());
             const who = me ? me.name : ((currentUser && currentUser.displayName) || '');
             const ds = document.getElementById('reqDateInput').value;
             const reason = document.getElementById('reqReason').value.trim() || '（未填）';
@@ -1317,95 +1371,93 @@
             alertCustom('已複製 LINE 訊息，請貼到 LINE 傳送：\n\n' + text);
         }
 
-        function submitAttendanceRequest(e) {
+        function withTimeout(p, ms) {
+            return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('連線逾時，請檢查網路後再試')), ms))]);
+        }
+
+        // 以 arrayUnion 原子新增，避免多人同時送出時互相覆蓋；失敗會明確回報，不再靜默失敗
+        async function persistNewRequest(req, ym) {
+            if (!db || !currentUser) throw new Error('尚未登入雲端');
+            if (!isCloudLoaded) throw new Error('雲端資料尚未載入完畢，請稍候再試');
+            const ref = db.collection('ecoleCafe').doc('main_schedule');
+            const union = firebase.firestore.FieldValue.arrayUnion(req);
+            try {
+                await withTimeout(ref.update({ ['requestsData.' + ym]: union }), 15000);
+            } catch (err) {
+                if (err && err.code === 'not-found') await withTimeout(ref.set({ requestsData: { [ym]: union } }, { merge: true }), 15000);
+                else throw err;
+            }
+        }
+
+        async function submitAttendanceRequest(e) {
             e.preventDefault();
+            if (!currentUser) { alertCustom('請先登入 Google 帳號。'); return; }
             const dateStr = document.getElementById('reqDateInput').value;
             const reason = document.getElementById('reqReason').value.trim();
-            const dayNum = parseInt(dateStr.split('-')[2], 10);
             const ymStr = dateStr.substring(0, 7);
+            const dayNum = parseInt(dateStr.split('-')[2], 10);
+            if (ymStr !== currentYearMonth) { alertCustom("申請日期必須在目前選取的月份內！"); return; }
 
-            if (ymStr !== currentYearMonth) {
-                alertCustom("申請日期必須在目前選取的月份內！");
+            const applicantId = getApplicantEmpId();
+            if (!applicantId) {
+                alertCustom(currentUserRole === 'admin' ? '請先在「申請人」欄選擇您自己的姓名，才能提出申請。' : '找不到您對應的員工資料，請聯絡管理員。');
                 return;
             }
-
-            const applicantId = currentUserEmpId || 'FT1';
-            const reqId = 'REQ_' + Date.now();
-            let newReq = {
-                id: reqId,
-                type: activeRequestTab,
-                applicantEmpId: applicantId,
-                dateStr: dateStr,
-                day: dayNum,
-                reason: reason,
-                status: 'pending_admin',
-                createdAt: new Date().toISOString()
+            const newReq = {
+                id: 'REQ_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                type: activeRequestTab, applicantEmpId: applicantId, applicantEmail: currentUser.email || '',
+                dateStr: dateStr, day: dayNum, reason: reason, status: 'pending_admin', createdAt: new Date().toISOString()
             };
 
             if (activeRequestTab === 'swap') {
                 const targetEmpId = document.getElementById('reqTargetEmpSelect').value;
-                const shiftRaw = scheduleData[currentYearMonth]?.[applicantId]?.[dayNum] || '';
-                const parsed = parseCellData(shiftRaw);
-
-                if (!parsed.shiftCode || ['✖', '❌'].includes(parsed.shiftCode)) {
-                    alertCustom("您在該日期未排定班別，無法發起調班！");
-                    return;
-                }
-
+                if (!targetEmpId || targetEmpId === applicantId) { alertCustom('請選擇調班對象。'); return; }
+                const parsed = parseCellData(scheduleData[currentYearMonth]?.[applicantId]?.[dayNum] || '');
+                if (!parsed.shiftCode || ['✖', '❌'].includes(parsed.shiftCode)) { alertCustom("您在該日期未排定班別，無法發起調班！"); return; }
                 const info = getShiftInfo(parsed.shiftCode, currentYearMonth);
-                const startTimeStr = info.time ? info.time.split('-')[0] : '08:00';
-                const shiftStartTime = new Date(`${dateStr}T${startTimeStr.substring(0,2)}:${startTimeStr.substring(2,4) || '00'}:00`).getTime();
-                
-                if (shiftStartTime - Date.now() < 24 * 3600 * 1000) {
-                    alertCustom("依規定：調班申請必須於班別開始 24 小時前提出！");
-                    return;
-                }
-
+                const st = info.time ? info.time.split('-')[0] : '0800';
+                const shiftStart = new Date(`${dateStr}T${st.substring(0, 2)}:${st.substring(2, 4) || '00'}:00`).getTime();
+                if (shiftStart - Date.now() < 24 * 3600 * 1000) { alertCustom("依規定：調班申請必須於班別開始 24 小時前提出！"); return; }
                 newReq.targetEmpId = targetEmpId;
                 newReq.status = 'pending_target';
                 newReq.details = { originalShift: parsed.shiftCode };
-            }
-            else if (activeRequestTab === 'overtime') {
+            } else if (activeRequestTab === 'overtime') {
                 const hours = parseFloat(document.getElementById('reqOtHours').value) || 1.0;
                 const otType = document.getElementById('reqOtType').value;
-                const empObj = getCurrentEmployees(currentYearMonth).find(e => e.id === applicantId);
+                const empObj = getCurrentEmployees(currentYearMonth).find(x => x.id === applicantId);
                 const isFT = empObj ? empObj.type === 'FT' : true;
-
                 if (isFT) {
                     if (hours > 1.0) { alertCustom("正職每日加班申請最高以 1.0 小時為限！"); return; }
-                    const monthReqs = requestsData[currentYearMonth] || [];
-                    const existingOtMonth = monthReqs
+                    const used = (requestsData[currentYearMonth] || [])
                         .filter(r => r.applicantEmpId === applicantId && r.type === 'overtime' && r.status === 'approved')
-                        .reduce((acc, cur) => acc + (cur.details.hours || 0), 0);
-                    if (existingOtMonth + hours > 20.0) {
-                        alertCustom(`正職每月加班不可超過 20 小時！目前已核准: ${existingOtMonth} 小時。`);
-                        return;
-                    }
-                } else {
-                    if (hours < 1.0 || hours > 4.0) { alertCustom("兼職每日加班申請需在 1 至 4 小時以內！"); return; }
-                }
-
+                        .reduce((acc, cur) => acc + ((cur.details && cur.details.hours) || 0), 0);
+                    if (used + hours > 20.0) { alertCustom(`正職每月加班不可超過 20 小時！目前已核准: ${used} 小時。`); return; }
+                } else if (hours < 1.0 || hours > 4.0) { alertCustom("兼職每日加班申請需在 1 至 4 小時以內！"); return; }
                 newReq.details = { hours, otType, isFT };
-            }
-            else if (activeRequestTab === 'leave') {
-                const category = document.getElementById('reqLeaveCategory').value;
-                const hours = parseFloat(document.getElementById('reqLeaveHours').value) || 1.0;
-                newReq.details = { category, hours };
-            }
-            else if (activeRequestTab === 'clock_fix') {
+            } else if (activeRequestTab === 'leave') {
+                newReq.details = { category: document.getElementById('reqLeaveCategory').value, hours: parseFloat(document.getElementById('reqLeaveHours').value) || 1.0 };
+            } else if (activeRequestTab === 'clock_fix') {
                 const inTime = document.getElementById('reqFixClockIn').value;
                 const outTime = document.getElementById('reqFixClockOut').value;
                 if (!inTime || !outTime) { alertCustom("請完整填寫實際上下班時間！"); return; }
                 newReq.details = { clockIn: inTime, clockOut: outTime };
             }
 
-            if (!requestsData[currentYearMonth]) requestsData[currentYearMonth] = [];
-            requestsData[currentYearMonth].push(newReq);
-            
-            saveData();
-            document.getElementById('requestCenterDialog').close();
-            alertCustom("申請單已成功送出！" + (newReq.status === 'pending_target' ? "待調班同事點擊確認後送交管理員審核。" : "已送交管理員審核。"));
+            const btn = document.querySelector('#requestForm button[type=submit]');
+            if (btn) btn.disabled = true;
+            try {
+                await persistNewRequest(newReq, ymStr);
+            } catch (err) {
+                console.error('申請送出失敗:', err);
+                alertCustom('❌ 送出失敗，雲端沒有收到這筆申請（管理者看不到）。\n原因：' + ((err && err.message) || err));
+                return;
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+            document.getElementById('reqReason').value = '';
             updatePendingBadge();
+            renderMyRequests();
+            showLineDialog(newReq);
         }
 
         function openAdminApprovalDialog() {
@@ -1448,10 +1500,10 @@
                 else if (r.status === 'rejected') statusBadge = '<span class="text-xs text-red-600 font-bold">已駁回</span>';
 
                 let detailText = '';
-                if (r.type === 'swap') detailText = `與 <b>${targetName}</b> 調班 (${r.dateStr})`;
-                else if (r.type === 'overtime') detailText = `加班 <b>${r.details.hours}h</b> (${r.details.otType === 'pay' ? '加班費' : '補休'})`;
-                else if (r.type === 'leave') detailText = `假別: <b>${r.details.category}</b> (${r.details.hours}h)`;
-                else if (r.type === 'clock_fix') detailText = `補卡時間: <b>${r.details.clockIn} - ${r.details.clockOut}</b>`;
+                if (r.type === 'swap') detailText = `與 <b>${targetName}</b> 調班 (${escapeHTML(r.dateStr)})`;
+                else if (r.type === 'overtime') detailText = `加班 <b>${escapeHTML(r.details.hours)}h</b> (${r.details.otType === 'pay' ? '加班費' : '補休'})`;
+                else if (r.type === 'leave') detailText = `假別: <b>${escapeHTML(r.details.category)}</b> (${escapeHTML(r.details.hours)}h)`;
+                else if (r.type === 'clock_fix') detailText = `補卡時間: <b>${escapeHTML(r.details.clockIn)} - ${escapeHTML(r.details.clockOut)}</b>`;
 
                 html += `
                 <div class="border border-gray-200 rounded p-3 bg-gray-50 flex flex-col gap-2 text-xs">
@@ -1459,7 +1511,7 @@
                         <div class="flex items-center gap-2">
                             ${typeBadge}
                             <span class="font-bold text-gray-800">${applicantName}</span>
-                            <span class="text-gray-400">(${r.dateStr})</span>
+                            <span class="text-gray-400">(${escapeHTML(r.dateStr)})</span>
                         </div>
                         <div>${statusBadge}</div>
                     </div>
@@ -1467,42 +1519,183 @@
                         <div>說明：${detailText}</div>
                         <div>理由：${escapeHTML(r.reason)}</div>
                     </div>
-                    ${r.status === 'pending_admin' ? `
-                    <div class="flex justify-end gap-2 mt-1 border-t pt-2">
-                        <button onclick="processRequest('${r.id}', false)" class="border border-red-300 text-red-600 px-3 py-1 rounded hover:bg-red-50 font-bold">駁回</button>
-                        <button onclick="processRequest('${r.id}', true)" class="bg-black text-white px-4 py-1 rounded hover:bg-gray-800 font-bold">核准生效</button>
-                    </div>` : ''}
+                    ${r.status === 'pending_admin' ? (isSelfRequest(r) ? `<div class="mt-1 border-t pt-2 text-right text-[11px] text-gray-500 font-bold">⚠️ 這是您自己的申請，需由其他管理者核可</div>` : `
+                    <div class="flex justify-end gap-2 mt-1 border-t pt-2" data-id="${escapeHTML(r.id)}">
+                        <button onclick="processRequest(this.parentNode.dataset.id, false)" class="border border-red-300 text-red-600 px-3 py-1 rounded hover:bg-red-50 font-bold">駁回</button>
+                        <button onclick="processRequest(this.parentNode.dataset.id, true)" class="bg-black text-white px-4 py-1 rounded hover:bg-gray-800 font-bold">核准生效</button>
+                    </div>`) : ''}
                 </div>`;
             });
 
             container.innerHTML = html;
         }
 
-        function processRequest(reqId, isApproved) {
-            if (currentUserRole !== 'admin') { alertCustom('權限不足：僅管理員可審核申請。'); return; }
-            const monthReqs = requestsData[currentYearMonth] || [];
-            const req = monthReqs.find(r => r.id === reqId);
-            if (!req) return;
+        const REQ_TYPE_LABEL = { swap: '調班', overtime: '加班', leave: '請假/遲早', clock_fix: '補卡' };
+        const REQ_STATUS_LABEL = {
+            pending_target: ['待同事確認', 'text-orange-600'], pending_admin: ['待主管審核', 'text-blue-600'],
+            approved: ['已核准', 'text-green-700'], rejected: ['已駁回', 'text-red-600']
+        };
 
-            req.status = isApproved ? 'approved' : 'rejected';
+        function isSelfRequest(r) {
+            if (!r) return false;
+            if (currentUser && r.applicantEmail && r.applicantEmail === currentUser.email) return true;
+            return !!(currentUserEmpId && r.applicantEmpId === currentUserEmpId);
+        }
+        function isMyRequest(r) { return isSelfRequest(r); }
 
-            if (isApproved && req.type === 'swap') {
-                const day = req.day;
-                const appShift = scheduleData[currentYearMonth]?.[req.applicantEmpId]?.[day] || '';
-                const tarShift = scheduleData[currentYearMonth]?.[req.targetEmpId]?.[day] || '';
+        function reqSummaryText(r, nameOf) {
+            const d = r.details || {};
+            if (r.type === 'swap') return `與 ${nameOf(r.targetEmpId)} 調班`;
+            if (r.type === 'overtime') return `加班 ${d.hours}h（${d.otType === 'pay' ? '加班費' : '補休'}）`;
+            if (r.type === 'leave') return `${d.category} ${d.hours}h`;
+            if (r.type === 'clock_fix') return `補卡 ${d.clockIn}-${d.clockOut}`;
+            return '';
+        }
 
-                if (!scheduleData[currentYearMonth][req.applicantEmpId]) scheduleData[currentYearMonth][req.applicantEmpId] = {};
-                if (!scheduleData[currentYearMonth][req.targetEmpId]) scheduleData[currentYearMonth][req.targetEmpId] = {};
+        function lineTextForReq(r) {
+            const emps = getCurrentEmployees(currentYearMonth);
+            const nameOf = id => (emps.find(e => e.id === id) || {}).name || id || '';
+            const d = new Date(r.dateStr + 'T00:00:00');
+            const dt = `${d.getMonth() + 1}/${d.getDate()}(${'日一二三四五六'[d.getDay()]})`;
+            const x = r.details || {};
+            const L = [`【${REQ_TYPE_LABEL[r.type] || '出勤'}申請】`, `申請人：${nameOf(r.applicantEmpId)}`, `日期：${dt}`];
+            if (r.type === 'swap') L.push(`對象：${nameOf(r.targetEmpId)}`);
+            else if (r.type === 'overtime') L.push(`時數：${x.hours}h（${x.otType === 'pay' ? '加班費' : '補休'}）`);
+            else if (r.type === 'leave') L.push(`類別：${x.category} ${x.hours}h`);
+            else if (r.type === 'clock_fix') L.push(`時間：${x.clockIn}-${x.clockOut}`);
+            L.push(`事由：${r.reason}`);
+            return L.join('\n');
+        }
 
-                scheduleData[currentYearMonth][req.applicantEmpId][day] = tarShift;
-                scheduleData[currentYearMonth][req.targetEmpId][day] = appShift;
+        function showLineDialog(req) {
+            document.getElementById('lineMessageText').value = lineTextForReq(req);
+            const hint = document.getElementById('lineCopyHint');
+            hint.classList.add('hidden');
+            document.getElementById('lineMessageDialog').showModal();
+        }
+
+        async function copyLineText() {
+            const ta = document.getElementById('lineMessageText');
+            const text = ta.value;
+            let ok = false;
+            try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
+                try { ta.focus(); ta.select(); ta.setSelectionRange(0, text.length); ok = document.execCommand('copy'); } catch (_) {}
             }
+            const hint = document.getElementById('lineCopyHint');
+            hint.textContent = ok ? '✓ 已複製，請貼到 LINE 傳給主管' : '請長按文字框全選後手動複製';
+            hint.classList.remove('hidden');
+        }
 
-            saveData();
+        function renderMyRequests() {
+            const box = document.getElementById('myRequestsList');
+            if (!box) return;
+            const emps = getCurrentEmployees(currentYearMonth);
+            const nameOf = id => (emps.find(e => e.id === id) || {}).name || id || '';
+            const all = (requestsData[currentYearMonth] || []).slice().sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+            const mine = all.filter(isMyRequest);
+            const toConfirm = all.filter(r => r.status === 'pending_target' && currentUserEmpId && r.targetEmpId === currentUserEmpId);
+            let html = '';
+            toConfirm.forEach(r => {
+                html += `<div class="border border-orange-300 bg-orange-50 rounded p-2 flex flex-col gap-1.5" data-id="${escapeHTML(r.id)}">
+                    <div class="font-bold text-orange-800">🔔 待您確認：${escapeHTML(nameOf(r.applicantEmpId))} 想與您調班（${escapeHTML(r.dateStr)}）</div>
+                    <div class="text-gray-600">事由：${escapeHTML(r.reason)}</div>
+                    <div class="flex justify-end gap-2">
+                        <button onclick="respondSwap(this.parentNode.parentNode.dataset.id, false)" class="border border-red-300 text-red-600 px-3 py-1 rounded font-bold">婉拒</button>
+                        <button onclick="respondSwap(this.parentNode.parentNode.dataset.id, true)" class="bg-black text-white px-3 py-1 rounded font-bold">確認調班</button>
+                    </div></div>`;
+            });
+            mine.forEach(r => {
+                const st = REQ_STATUS_LABEL[r.status] || [escapeHTML(r.status), 'text-gray-600'];
+                const by = (r.status === 'rejected' && r.handledBy === 'target') ? '（同事婉拒）' : '';
+                html += `<div class="border border-gray-200 bg-gray-50 rounded p-2 flex flex-col gap-0.5">
+                    <div class="flex justify-between items-center"><span class="font-bold">${escapeHTML(REQ_TYPE_LABEL[r.type] || r.type)}　${escapeHTML(String(r.dateStr).substring(5))}</span><span class="font-bold ${st[1]}">${st[0]}${by}</span></div>
+                    <div class="text-gray-600">${escapeHTML(reqSummaryText(r, nameOf))}</div></div>`;
+            });
+            box.innerHTML = html || '<p class="text-gray-400 text-center py-3">本月尚無已送出的申請</p>';
+        }
+
+        // 交易式更新單筆申請（同時讀取最新資料再寫入，避免覆蓋他人剛送出的申請）
+        async function updateRequestsAtomic(ym, reqId, applyFn) {
+            if (!db || !currentUser) throw new Error('尚未登入雲端');
+            const ref = db.collection('ecoleCafe').doc('main_schedule');
+            return db.runTransaction(async tx => {
+                const snap = await tx.get(ref);
+                const data = snap.exists ? snap.data() : {};
+                const list = ((data.requestsData && data.requestsData[ym]) || []).slice();
+                const idx = list.findIndex(r => r.id === reqId);
+                if (idx < 0) throw new Error('找不到申請單');
+                const res = applyFn(list[idx], data);
+                list[idx] = res.req;
+                tx.update(ref, Object.assign({ ['requestsData.' + ym]: list }, res.extra || {}));
+            });
+        }
+
+        async function respondSwap(reqId, accept) {
+            if (!currentUserEmpId) return;
+            try {
+                await withTimeout(updateRequestsAtomic(currentYearMonth, reqId, req => {
+                    if (req.status !== 'pending_target' || req.targetEmpId !== currentUserEmpId) throw new Error('此申請不需要您確認或已處理');
+                    return { req: Object.assign({}, req, { status: accept ? 'pending_admin' : 'rejected', handledBy: accept ? '' : 'target', targetRespondedAt: new Date().toISOString() }) };
+                }), 15000);
+            } catch (err) { alertCustom('操作失敗：' + ((err && err.message) || err)); return; }
+            alertCustom(accept ? '已確認調班，將送交管理者審核。' : '已婉拒此調班申請。');
+        }
+
+        async function processRequest(reqId, isApproved) {
+            if (currentUserRole !== 'admin') { alertCustom('權限不足：僅管理員可審核申請。'); return; }
+            const ym = currentYearMonth;
+            const local = (requestsData[ym] || []).find(r => r.id === reqId);
+            if (!local) return;
+            if (isSelfRequest(local)) { alertCustom('不可核可自己提出的申請，請由其他管理者處理。'); return; }
+            const apply = (req, data) => {
+                if (req.status !== 'pending_admin') throw new Error('此申請已被處理，或仍待同事確認');
+                if (isSelfRequest(req)) throw new Error('不可核可自己提出的申請');
+                const next = Object.assign({}, req, { status: isApproved ? 'approved' : 'rejected', handledBy: 'admin', handledAt: new Date().toISOString(), handledByEmail: (currentUser && currentUser.email) || '' });
+                const extra = {};
+                if (isApproved && req.type === 'swap') {
+                    const sched = (data.scheduleData && data.scheduleData[ym]) || {};
+                    const a = (sched[req.applicantEmpId] || {})[req.day] || '';
+                    const t = (sched[req.targetEmpId] || {})[req.day] || '';
+                    extra[`scheduleData.${ym}.${req.applicantEmpId}.${req.day}`] = t;
+                    extra[`scheduleData.${ym}.${req.targetEmpId}.${req.day}`] = a;
+                }
+                return { req: next, extra: extra };
+            };
+            try {
+                if (currentUser && db) {
+                    await withTimeout(updateRequestsAtomic(ym, reqId, apply), 15000);
+                } else {   // 單機模式
+                    const r = apply(local, { scheduleData });
+                    Object.assign(local, r.req);
+                    if (isApproved && local.type === 'swap') {
+                        const s = scheduleData[ym] = scheduleData[ym] || {};
+                        s[local.applicantEmpId] = s[local.applicantEmpId] || {}; s[local.targetEmpId] = s[local.targetEmpId] || {};
+                        const a = s[local.applicantEmpId][local.day] || '', t = s[local.targetEmpId][local.day] || '';
+                        s[local.applicantEmpId][local.day] = t; s[local.targetEmpId][local.day] = a;
+                    }
+                    saveData();
+                }
+            } catch (err) { alertCustom('處置失敗：' + ((err && err.message) || err)); return; }
             renderAdminApprovalList();
             renderTable();
             updatePendingBadge();
             alertCustom(`申請單已處置完成：${isApproved ? '已核准並生效' : '已駁回'}`);
+        }
+
+        // 雲端資料更新時，同步刷新已開啟的視窗（只讀取、不寫入，不會產生迴圈）
+        function refreshOpenDialogs() {
+            try {
+                if (document.getElementById('adminApprovalDialog').open) renderAdminApprovalList();
+                if (document.getElementById('requestCenterDialog').open) renderMyRequests();
+                if (document.getElementById('attendanceCompareDialog').open) renderAttendanceCompareTable();
+            } catch (e) { console.error('refreshOpenDialogs:', e); }
+        }
+
+        function applyAttLabels() {
+            const heads = Array.from(document.querySelectorAll('#attendanceCompareTable thead th')).map(t => t.textContent.trim());
+            document.querySelectorAll('#attendanceCompareBody tr').forEach(tr => {
+                Array.from(tr.children).forEach((td, i) => { if (!td.hasAttribute('colspan') && heads[i]) td.setAttribute('data-label', heads[i]); });
+            });
         }
 
         // --- iCHEF 打卡解析、莫蘭迪色標籤、工時不足警示與權限篩選 ---
@@ -1822,6 +2015,7 @@
                     });
             }
             body.innerHTML = html || '<tr><td colspan="9" class="text-center py-8 text-gray-400">當月尚無可顯示之勤怠比對資料</td></tr>';
+            applyAttLabels();
         }
 
         // [匯出 XLSX]
@@ -1846,7 +2040,7 @@
             title.style.cssText = 'font-size:18px;font-weight:bold;margin:0 0 14px 0;color:#111827;';
             wrap.appendChild(title);
             const clone = src.cloneNode(true);
-            clone.removeAttribute('id');
+            clone.removeAttribute('id'); clone.classList.add('pdf-table');
             clone.style.width = '100%';
             wrap.appendChild(clone);
             document.body.appendChild(wrap);
