@@ -3978,6 +3978,194 @@
         }
 
         init();
-    </script>
+    
+        /* V6.2.7 ATTENDANCE SECURITY PATCH BEGIN
+           New requests are individual Firestore documents. The legacy requestsData
+           field remains read-compatible and is never written by staff. */
+        let legacyRequestsData = null;
+        let attendanceRequestSources = {};
+
+        function stopAttendanceRequestListeners() {
+            if (typeof unsubscribeAttendance === 'function') {
+                try { unsubscribeAttendance(); } catch (e) { console.warn('停止出勤申請監聽失敗:', e); }
+            }
+            unsubscribeAttendance = null;
+            attendanceRequestSources = {};
+        }
+
+        function cloneRequestMap(input) {
+            try { return JSON.parse(JSON.stringify(input || {})); } catch (_) { return {}; }
+        }
+
+        function rebuildRequestsFromSecureStore() {
+            const merged = cloneRequestMap(legacyRequestsData === null ? requestsData : legacyRequestsData);
+            const byId = {};
+            Object.keys(attendanceRequestSources).forEach(function(source) {
+                const items = attendanceRequestSources[source] || {};
+                Object.keys(items).forEach(function(id) { byId[id] = items[id]; });
+            });
+            Object.keys(byId).forEach(function(id) {
+                const req = byId[id];
+                if (!req || !req.id) return;
+                const ym = req.yearMonth || String(req.dateStr || '').slice(0, 7);
+                if (!/^\\d{4}-\\d{2}$/.test(ym)) return;
+                const list = merged[ym] = Array.isArray(merged[ym]) ? merged[ym] : [];
+                const index = list.findIndex(function(item) { return item && item.id === req.id; });
+                if (index >= 0) list[index] = req; else list.push(req);
+            });
+            requestsData = merged;
+            localStorage.setItem('ecoleRequests', JSON.stringify(requestsData));
+            updatePendingBadge();
+            refreshOpenDialogs();
+        }
+
+        function listenAttendanceRequests(label, queryRef) {
+            return queryRef.onSnapshot(function(snapshot) {
+                const next = {};
+                snapshot.forEach(function(doc) { next[doc.id] = doc.data(); });
+                attendanceRequestSources[label] = next;
+                rebuildRequestsFromSecureStore();
+            }, function(error) {
+                console.error('出勤申請監聽失敗:', error);
+                // Do not retry here: Firestore's listener already handles reconnects.
+                // Retrying from this callback would create duplicate listeners.
+            });
+        }
+
+        function startAttendanceRequestListeners() {
+            stopAttendanceRequestListeners();
+            if (!db || !currentUser) return;
+            const refs = [];
+            const collection = db.collection('attendanceRequests');
+            if (currentUserRole === 'admin') {
+                refs.push(listenAttendanceRequests('admin', collection));
+            } else if (currentUserEmpId) {
+                refs.push(listenAttendanceRequests('mine', collection.where('applicantUid', '==', currentUser.uid).where('applicantEmpId', '==', currentUserEmpId)));
+                refs.push(listenAttendanceRequests('target', collection.where('targetEmpId', '==', currentUserEmpId).where('status', '==', 'pending_target').where('type', '==', 'swap')));
+            }
+            unsubscribeAttendance = function() {
+                refs.forEach(function(unsubscribe) { try { unsubscribe(); } catch (_) {} });
+            };
+        }
+
+        function setupCloudSync() {
+            if (!currentUser || !db) return;
+            if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+            stopAttendanceRequestListeners();
+            isCloudLoaded = false;
+            document.getElementById('loadingText').innerText = '載入共用資料...';
+            const docRef = db.collection('ecoleCafe').doc('main_schedule');
+            unsubscribeSnapshot = docRef.onSnapshot(function(docSnap) {
+                if (docSnap.exists) {
+                    const data = docSnap.data();
+                    scheduleData = data.scheduleData || {};
+                    stationData = data.stationData || {};
+                    noteData = data.noteData || {};
+                    carryOverData = data.carryOverData || {};
+                    lockData = data.lockData || {};
+                    employeesData = data.employeesData || {};
+                    shiftSettingsData = data.shiftSettingsData || {};
+                    dismissedWarningsData = data.dismissedWarningsData || {};
+                    ichefClockData = data.ichefClockData || {};
+                    legacyRequestsData = data.requestsData || {};
+                    tardinessFlexData = data.tardinessFlexData || {};
+                    rebuildRequestsFromSecureStore();
+                    isCloudLoaded = true;
+                    renderShiftButtons(); renderTable(); updatePendingBadge(); refreshOpenDialogs();
+                } else {
+                    legacyRequestsData = {};
+                    isCloudLoaded = true;
+                    if (currentUserRole === 'admin') saveData();
+                }
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }, function(error) {
+                console.error('同步失敗:', error);
+                document.getElementById('loadingOverlay').style.display = 'none';
+            });
+            startAttendanceRequestListeners();
+        }
+
+        // Prevent cloud requests from being copied back into the legacy monolithic field.
+        function saveData() {
+            localStorage.setItem('ecoleSchedule', JSON.stringify(scheduleData));
+            localStorage.setItem('ecoleStation', JSON.stringify(stationData));
+            localStorage.setItem('ecoleNote', JSON.stringify(noteData));
+            localStorage.setItem('ecoleCarryOver', JSON.stringify(carryOverData));
+            localStorage.setItem('ecoleLock', JSON.stringify(lockData));
+            localStorage.setItem('ecoleEmployeesData', JSON.stringify(employeesData));
+            localStorage.setItem('ecoleShiftSettingsData', JSON.stringify(shiftSettingsData));
+            localStorage.setItem('ecoleDismissedWarnings', JSON.stringify(dismissedWarningsData));
+            localStorage.setItem('ecoleIchefClock', JSON.stringify(ichefClockData));
+            localStorage.setItem('ecoleRequests', JSON.stringify(requestsData));
+            localStorage.setItem('ecoleTardinessFlex', JSON.stringify(tardinessFlexData));
+            if (!currentUser || !db || !isCloudLoaded || currentUserRole !== 'admin') return;
+            const dataToSave = { scheduleData: scheduleData, stationData: stationData, noteData: noteData,
+                carryOverData: carryOverData, lockData: lockData, employeesData: employeesData,
+                shiftSettingsData: shiftSettingsData, dismissedWarningsData: dismissedWarningsData,
+                ichefClockData: ichefClockData, requestsData: legacyRequestsData || {}, tardinessFlexData: tardinessFlexData };
+            db.collection('ecoleCafe').doc('main_schedule').set(dataToSave, { merge: true })
+                .catch(function(error) { console.error('雲端存檔失敗:', error); });
+        }
+
+        async function persistNewRequest(req, ym) {
+            if (!db || !currentUser) throw new Error('尚未登入雲端');
+            if (!isCloudLoaded) throw new Error('雲端資料尚未載入完畢，請稍候再試');
+            const secureReq = Object.assign({}, req, {
+                id: req.id,
+                applicantUid: currentUser.uid,
+                applicantEmail: currentUser.email || '',
+                yearMonth: ym
+            });
+            // Rules permit create only. A collision is rejected instead of overwriting an audit record.
+            await withTimeout(db.collection('attendanceRequests').doc(secureReq.id).set(secureReq), 15000);
+        }
+
+        async function updateLegacyRequestAtomic(ym, reqId, applyFn) {
+            if (currentUserRole !== 'admin') throw new Error('舊版申請需由管理者處理；新申請已支援員工自行操作。');
+            const ref = db.collection('ecoleCafe').doc('main_schedule');
+            return db.runTransaction(async function(tx) {
+                const snap = await tx.get(ref);
+                const data = snap.exists ? snap.data() : {};
+                const list = ((data.requestsData && data.requestsData[ym]) || []).slice();
+                const index = list.findIndex(function(item) { return item && item.id === reqId; });
+                if (index < 0) throw new Error('找不到申請單');
+                const result = applyFn(list[index], data);
+                list[index] = result.req;
+                const payload = { requestsData: {} }; payload.requestsData[ym] = list;
+                if (result.extra) Object.keys(result.extra).forEach(function(path) {
+                    const parts = path.split('.'); let node = payload;
+                    parts.forEach(function(part, i) { if (i === parts.length - 1) node[part] = result.extra[path]; else node = node[part] = node[part] || {}; });
+                });
+                tx.set(ref, payload, { merge: true });
+            });
+        }
+
+        async function updateRequestsAtomic(ym, reqId, applyFn) {
+            const secureRef = db && db.collection('attendanceRequests').doc(reqId);
+            const secureKnown = Object.keys(attendanceRequestSources).some(function(source) {
+                return attendanceRequestSources[source] && attendanceRequestSources[source][reqId];
+            });
+            if (!secureRef || !secureKnown) return updateLegacyRequestAtomic(ym, reqId, applyFn);
+            const scheduleRef = db.collection('ecoleCafe').doc('main_schedule');
+            return db.runTransaction(async function(tx) {
+                const reqSnap = await tx.get(secureRef);
+                if (!reqSnap.exists) throw new Error('申請單已不存在或沒有讀取權限');
+                const scheduleSnap = await tx.get(scheduleRef);
+                const scheduleDoc = scheduleSnap.exists ? scheduleSnap.data() : {};
+                const result = applyFn(reqSnap.data(), scheduleDoc);
+                tx.update(secureRef, result.req);
+                if (result.extra && Object.keys(result.extra).length) {
+                    const payload = {};
+                    Object.keys(result.extra).forEach(function(path) {
+                        const parts = path.split('.'); let node = payload;
+                        parts.forEach(function(part, i) { if (i === parts.length - 1) node[part] = result.extra[path]; else node = node[part] = node[part] || {}; });
+                    });
+                    tx.set(scheduleRef, payload, { merge: true });
+                }
+            });
+        }
+        /* V6.2.7 ATTENDANCE SECURITY PATCH END */
+
+</script>
 </body>
 </html>
