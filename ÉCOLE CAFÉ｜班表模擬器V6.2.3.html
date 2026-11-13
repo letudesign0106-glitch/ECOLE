@@ -1381,10 +1381,10 @@
             const ref = db.collection('ecoleCafe').doc('main_schedule');
             const union = firebase.firestore.FieldValue.arrayUnion(req);
             try {
-                await withTimeout(ref.update({ ['requestsData.' + ym]: union }), 15000);
+                // [修訂E] 改用 set(..., {merge:true}) 繞過點記法寫入限制，符合多數 Firestore Rules
+                await withTimeout(ref.set({ requestsData: { [ym]: union } }, { merge: true }), 15000);
             } catch (err) {
-                if (err && err.code === 'not-found') await withTimeout(ref.set({ requestsData: { [ym]: union } }, { merge: true }), 15000);
-                else throw err;
+                throw err;
             }
         }
 
@@ -1639,7 +1639,20 @@
                 if (idx < 0) throw new Error('找不到申請單');
                 const res = applyFn(list[idx], data);
                 list[idx] = res.req;
-                tx.update(ref, Object.assign({ ['requestsData.' + ym]: list }, res.extra || {}));
+                
+                let payload = { requestsData: { [ym]: list } };
+                if (res.extra) {
+                    for (const key in res.extra) {
+                        const parts = key.split('.');
+                        let current = payload;
+                        for (let i = 0; i < parts.length - 1; i++) {
+                            if (!current[parts[i]]) current[parts[i]] = {};
+                            current = current[parts[i]];
+                        }
+                        current[parts[parts.length - 1]] = res.extra[key];
+                    }
+                }
+                tx.set(ref, payload, { merge: true });
             });
         }
 
