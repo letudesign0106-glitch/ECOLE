@@ -862,6 +862,8 @@
         let ichefClockData = JSON.parse(localStorage.getItem('ecoleIchefClock')) || {};
         let requestsData = JSON.parse(localStorage.getItem('ecoleRequests')) || {};
         let tardinessFlexData = JSON.parse(localStorage.getItem('ecoleTardinessFlex')) || {};
+        let legacyRequestsData = requestsData;   // 舊資料（主文件內）
+        let subRequests = {};                    // 新資料（requests 子集合）
 
         const todayDate = new Date();
         let currentYearMonth = todayDate.getFullYear() + '-' + String(todayDate.getMonth() + 1).padStart(2, '0');
@@ -1173,6 +1175,7 @@
             document.getElementById('loadingText').innerText = "載入共用資料...";
             
             const docRef = db.collection("ecoleCafe").doc("main_schedule");
+            setupRequestListeners();
             unsubscribeSnapshot = docRef.onSnapshot((docSnap) => {
                 if (docSnap.exists) {
                     const data = docSnap.data();
@@ -1186,7 +1189,8 @@
                     dismissedWarningsData = data.dismissedWarningsData || {};
 
                     ichefClockData = data.ichefClockData || {};
-                    requestsData = data.requestsData || {};
+                    legacyRequestsData = data.requestsData || {};
+                    rebuildRequestsData();
                     tardinessFlexData = data.tardinessFlexData || {};
 
                     isCloudLoaded = true; 
@@ -1251,13 +1255,10 @@
                     console.warn("雲端資料尚未同步完畢，暫緩全域儲存！");
                     return;
                 }
-                if (currentUserRole === 'admin') {
-                const dataToSave = { scheduleData, stationData, noteData, carryOverData, lockData,
-                    employeesData, shiftSettingsData, dismissedWarningsData,
-                    ichefClockData, requestsData, tardinessFlexData };
+                if (currentUserRole !== 'admin') return;   // 員工不得整份寫入主文件（申請改存子集合）
+                const dataToSave = { scheduleData, stationData, noteData, carryOverData, lockData, employeesData, shiftSettingsData, dismissedWarningsData, ichefClockData, tardinessFlexData };
                 db.collection("ecoleCafe").doc("main_schedule").set(dataToSave, { merge: true })
                     .catch((error) => { console.error("雲端存檔失敗:", error); });
-            }
             }
         }
 
@@ -1374,18 +1375,18 @@
             return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('連線逾時，請檢查網路後再試')), ms))]);
         }
 
-        // 以 arrayUnion 原子新增，避免多人同時送出時互相覆蓋；失敗會明確回報，不再靜默失敗
+        function fbErrText(err) {
+            if (err && err.code === 'permission-denied') return '權限被拒絕（permission-denied）。請確認：①已在 Firebase 發布最新的 firestore.rules　②您的 Google 帳號（' + ((currentUser && currentUser.email) || '') + '）已列在 systemConfig/whitelist 的 staffMapping 內';
+            return (err && err.message) || String(err);
+        }
+
+        // 每筆申請獨立一份文件（ecoleCafe/main_schedule/requests/{id}），含處理歷程，永久保存於後台
         async function persistNewRequest(req, ym) {
             if (!db || !currentUser) throw new Error('尚未登入雲端');
-            if (!isCloudLoaded) throw new Error('雲端資料尚未載入完畢，請稍候再試');
-            const ref = db.collection('ecoleCafe').doc('main_schedule');
-            const union = firebase.firestore.FieldValue.arrayUnion(req);
+            const data = Object.assign({}, req, { history: [{ at: req.createdAt, by: currentUser.email || '', action: 'submit' }] });
             try {
-                // [修訂E] 改用 set(..., {merge:true}) 繞過點記法寫入限制，符合多數 Firestore Rules
-                await withTimeout(ref.set({ requestsData: { [ym]: union } }, { merge: true }), 15000);
-            } catch (err) {
-                throw err;
-            }
+                await withTimeout(db.collection('ecoleCafe').doc('main_schedule').collection('requests').doc(req.id).set(data), 15000);
+            } catch (err) { throw new Error(fbErrText(err)); }
         }
 
         async function submitAttendanceRequest(e) {
@@ -1497,7 +1498,7 @@
                 else if (r.status === 'pending_admin') statusBadge = '<span class="text-xs text-blue-600 font-bold">待管理員審核</span>';
                 else if (r.status === 'approved') statusBadge = '<span class="text-xs text-green-600 font-bold">已核准生效</span>';
                 else if (r.status === 'rejected') statusBadge = '<span class="text-xs text-red-600 font-bold">已駁回</span>';
-                else if (r.status === 'cancelled') statusBadge = '<span class="text-xs text-gray-500 font-bold">已由申請人取消</span>';
+                else if (r.status === 'cancelled') statusBadge = '<span class="text-xs text-gray-500 font-bold">申請人已取消</span>';
 
                 let detailText = '';
                 if (r.type === 'swap') detailText = `與 <b>${targetName}</b> 調班 (${escapeHTML(r.dateStr)})`;
@@ -1533,8 +1534,7 @@
         const REQ_TYPE_LABEL = { swap: '調班', overtime: '加班', leave: '請假/遲早', clock_fix: '補卡' };
         const REQ_STATUS_LABEL = {
             pending_target: ['待同事確認', 'text-orange-600'], pending_admin: ['待主管審核', 'text-blue-600'],
-            approved: ['已核准', 'text-green-700'], rejected: ['已駁回', 'text-red-600'],
-            cancelled: ['已取消', 'text-gray-500']
+            approved: ['已核准', 'text-green-700'], rejected: ['已駁回', 'text-red-600'], cancelled: ['已取消', 'text-gray-500']
         };
 
         function isSelfRequest(r) {
@@ -1608,21 +1608,9 @@
             mine.forEach(r => {
                 const st = REQ_STATUS_LABEL[r.status] || [escapeHTML(r.status), 'text-gray-600'];
                 const by = (r.status === 'rejected' && r.handledBy === 'target') ? '（同事婉拒）' : '';
-                
-                let cancelBtnHTML = '';
-                if (r.status === 'pending_admin' || r.status === 'pending_target') {
-                    cancelBtnHTML = `<button type="button" onclick="cancelMyRequest('${escapeHTML(r.id)}', this)" class="ml-3 border border-red-300 text-red-600 px-2 py-0.5 rounded text-[10px] font-bold hover:bg-red-50 shadow-sm transition-colors">取消申請</button>`;
-                }
-
                 html += `<div class="border border-gray-200 bg-gray-50 rounded p-2 flex flex-col gap-0.5">
-                    <div class="flex justify-between items-center">
-                        <span class="font-bold">${escapeHTML(REQ_TYPE_LABEL[r.type] || r.type)}　${escapeHTML(String(r.dateStr).substring(5))}</span>
-                        <div class="flex items-center">
-                            <span class="font-bold ${st[1]}">${st[0]}${by}</span>
-                            ${cancelBtnHTML}
-                        </div>
-                    </div>
-                    <div class="text-gray-600">${escapeHTML(reqSummaryText(r, nameOf))}</div></div>`;
+                    <div class="flex justify-between items-center"><span class="font-bold">${escapeHTML(REQ_TYPE_LABEL[r.type] || r.type)}　${escapeHTML(String(r.dateStr).substring(5))}</span><span class="font-bold ${st[1]}">${st[0]}${by}</span></div>
+                    <div class="text-gray-600">${escapeHTML(reqSummaryText(r, nameOf))}</div>${(r.status === 'pending_target' || r.status === 'pending_admin') && subRequests[r.id] ? `<div class="flex justify-end" data-id="${escapeHTML(r.id)}"><button onclick="cancelMyRequest(this.parentNode.dataset.id)" class="border border-gray-300 text-gray-600 px-3 py-1 rounded font-bold hover:bg-gray-100">取消申請</button></div>` : ''}</div>`;
             });
             box.innerHTML = html || '<p class="text-gray-400 text-center py-3">本月尚無已送出的申請</p>';
         }
@@ -1639,55 +1627,96 @@
                 if (idx < 0) throw new Error('找不到申請單');
                 const res = applyFn(list[idx], data);
                 list[idx] = res.req;
-                
-                let payload = { requestsData: { [ym]: list } };
-                if (res.extra) {
-                    for (const key in res.extra) {
-                        const parts = key.split('.');
-                        let current = payload;
-                        for (let i = 0; i < parts.length - 1; i++) {
-                            if (!current[parts[i]]) current[parts[i]] = {};
-                            current = current[parts[i]];
-                        }
-                        current[parts[parts.length - 1]] = res.extra[key];
-                    }
-                }
-                tx.set(ref, payload, { merge: true });
+                tx.update(ref, Object.assign({ ['requestsData.' + ym]: list }, res.extra || {}));
             });
         }
 
-        async function cancelMyRequest(reqId, btn) {
-            if (!await customConfirm('確定要取消這筆申請嗎？')) return;
-            const ym = currentYearMonth;
-            if (btn) btn.disabled = true;
-            try {
-                await withTimeout(updateRequestsAtomic(ym, reqId, (req, data) => {
-                    if (req.applicantEmpId !== currentUserEmpId && currentUserRole !== 'admin') {
-                        throw new Error('您只能取消自己的申請');
-                    }
-                    if (req.status !== 'pending_admin' && req.status !== 'pending_target') {
-                        throw new Error('該申請已處置或已取消');
-                    }
-                    return { req: Object.assign({}, req, { status: 'cancelled', canceledAt: new Date().toISOString() }) };
-                }), 15000);
-                alertCustom('已成功取消申請。');
-                renderMyRequests();
+        function rebuildRequestsData() {
+            const out = {}, seen = {};
+            Object.keys(subRequests).forEach(id => {
+                const r = subRequests[id];
+                const ym = String(r.dateStr || '').substring(0, 7);
+                (out[ym] = out[ym] || []).push(r);
+                seen[id] = true;
+            });
+            Object.keys(legacyRequestsData || {}).forEach(ym => {
+                (legacyRequestsData[ym] || []).forEach(r => { if (!seen[r.id]) (out[ym] = out[ym] || []).push(r); });
+            });
+            requestsData = out;
+        }
+
+        // 申請子集合監聽：管理者看全部；員工只看「自己提出」與「待自己確認」。統一由 unsubscribeAttendance 管理，登出/重登時會先解除，不會重複
+        function setupRequestListeners() {
+            if (!db || !currentUser) return;
+            if (unsubscribeAttendance) { unsubscribeAttendance(); unsubscribeAttendance = null; }
+            subRequests = {};
+            rebuildRequestsData();
+            const col = db.collection('ecoleCafe').doc('main_schedule').collection('requests');
+            const unsubs = [];
+            const onSnap = (qs) => {
+                qs.docChanges().forEach(ch => {
+                    if (ch.type === 'removed') delete subRequests[ch.doc.id];
+                    else subRequests[ch.doc.id] = Object.assign({ id: ch.doc.id }, ch.doc.data());
+                });
+                rebuildRequestsData();
                 updatePendingBadge();
-            } catch (err) {
-                alertCustom('取消失敗：' + ((err && err.message) || err));
-                if (btn) btn.disabled = false;
+                refreshOpenDialogs();
+            };
+            const onErr = (e) => console.error('申請同步失敗:', e);
+            if (currentUserRole === 'admin') unsubs.push(col.onSnapshot(onSnap, onErr));
+            else {
+                unsubs.push(col.where('applicantEmail', '==', currentUser.email).onSnapshot(onSnap, onErr));
+                if (currentUserEmpId) unsubs.push(col.where('targetEmpId', '==', currentUserEmpId).onSnapshot(onSnap, onErr));
             }
+            unsubscribeAttendance = () => unsubs.forEach(f => f());
+        }
+
+        // 更新單筆申請：新資料走子集合（交易式）；舊資料（主文件內）沿用舊流程
+        async function updateRequest(reqId, ym, applyFn) {
+            if (!db || !currentUser) throw new Error('尚未登入雲端');
+            if (!subRequests[reqId]) return updateRequestsAtomic(ym, reqId, applyFn);
+            const mainRef = db.collection('ecoleCafe').doc('main_schedule');
+            const reqRef = mainRef.collection('requests').doc(reqId);
+            return db.runTransaction(async tx => {
+                const rs = await tx.get(reqRef);
+                if (!rs.exists) throw new Error('找不到申請單');
+                const req = Object.assign({ id: reqId }, rs.data());
+                const main = currentUserRole === 'admin' ? ((await tx.get(mainRef)).data() || {}) : {};
+                const res = applyFn(req, main);
+                const upd = {};
+                Object.keys(res.req).forEach(k => { if (k !== 'id' && JSON.stringify(res.req[k]) !== JSON.stringify(req[k])) upd[k] = res.req[k]; });
+                tx.update(reqRef, upd);
+                if (res.extra && Object.keys(res.extra).length) tx.update(mainRef, res.extra);
+            });
+        }
+
+        function histAdd(req, action) {
+            return (req.history || []).concat([{ at: new Date().toISOString(), by: (currentUser && currentUser.email) || '', action: action }]);
         }
 
         async function respondSwap(reqId, accept) {
             if (!currentUserEmpId) return;
             try {
-                await withTimeout(updateRequestsAtomic(currentYearMonth, reqId, req => {
+                await withTimeout(updateRequest(reqId, currentYearMonth, req => {
                     if (req.status !== 'pending_target' || req.targetEmpId !== currentUserEmpId) throw new Error('此申請不需要您確認或已處理');
-                    return { req: Object.assign({}, req, { status: accept ? 'pending_admin' : 'rejected', handledBy: accept ? '' : 'target', targetRespondedAt: new Date().toISOString() }) };
+                    return { req: Object.assign({}, req, { status: accept ? 'pending_admin' : 'rejected', handledBy: accept ? '' : 'target', targetRespondedAt: new Date().toISOString(), history: histAdd(req, accept ? 'target_accept' : 'target_reject') }) };
                 }), 15000);
-            } catch (err) { alertCustom('操作失敗：' + ((err && err.message) || err)); return; }
+            } catch (err) { alertCustom('操作失敗：' + fbErrText(err)); return; }
             alertCustom(accept ? '已確認調班，將送交管理者審核。' : '已婉拒此調班申請。');
+        }
+
+        async function cancelMyRequest(reqId) {
+            const r = (requestsData[currentYearMonth] || []).find(x => x.id === reqId);
+            if (!r || !isMyRequest(r)) return;
+            const ok = await customConfirm('確定要取消這筆申請嗎？取消後無法恢復。');
+            if (!ok) return;
+            try {
+                await withTimeout(updateRequest(reqId, currentYearMonth, req => {
+                    if (req.status !== 'pending_target' && req.status !== 'pending_admin') throw new Error('此申請已被處理，無法取消');
+                    return { req: Object.assign({}, req, { status: 'cancelled', cancelledAt: new Date().toISOString(), cancelledBy: (currentUser && currentUser.email) || '', history: histAdd(req, 'cancel') }) };
+                }), 15000);
+            } catch (err) { alertCustom('取消失敗：' + fbErrText(err)); return; }
+            alertCustom('已取消申請。');
         }
 
         async function processRequest(reqId, isApproved) {
@@ -1699,7 +1728,7 @@
             const apply = (req, data) => {
                 if (req.status !== 'pending_admin') throw new Error('此申請已被處理，或仍待同事確認');
                 if (isSelfRequest(req)) throw new Error('不可核可自己提出的申請');
-                const next = Object.assign({}, req, { status: isApproved ? 'approved' : 'rejected', handledBy: 'admin', handledAt: new Date().toISOString(), handledByEmail: (currentUser && currentUser.email) || '' });
+                const next = Object.assign({}, req, { status: isApproved ? 'approved' : 'rejected', handledBy: 'admin', handledAt: new Date().toISOString(), handledByEmail: (currentUser && currentUser.email) || '', history: histAdd(req, isApproved ? 'approve' : 'reject') });
                 const extra = {};
                 if (isApproved && req.type === 'swap') {
                     const sched = (data.scheduleData && data.scheduleData[ym]) || {};
@@ -1712,7 +1741,7 @@
             };
             try {
                 if (currentUser && db) {
-                    await withTimeout(updateRequestsAtomic(ym, reqId, apply), 15000);
+                    await withTimeout(updateRequest(reqId, ym, apply), 15000);
                 } else {   // 單機模式
                     const r = apply(local, { scheduleData });
                     Object.assign(local, r.req);
@@ -1724,7 +1753,7 @@
                     }
                     saveData();
                 }
-            } catch (err) { alertCustom('處置失敗：' + ((err && err.message) || err)); return; }
+            } catch (err) { alertCustom('處置失敗：' + fbErrText(err)); return; }
             renderAdminApprovalList();
             renderTable();
             updatePendingBadge();
@@ -1750,14 +1779,12 @@
         // --- iCHEF 打卡解析、莫蘭迪色標籤、工時不足警示與權限篩選 ---
 
         function triggerICHEFImport() {
-            if (currentUserRole !== 'admin') {
-                alertCustom("權限不足：僅管理者可匯入打卡紀錄。");
-                return;
-            }
+            if (currentUserRole !== 'admin') { alertCustom('權限不足：僅管理者可匯入打卡紀錄。'); return; }
             document.getElementById('ichefFileInput').click();
         }
 
         function handleICHEFFileSelect(e) {
+            if (currentUserRole !== 'admin') { alertCustom('權限不足：僅管理者可匯入打卡紀錄。'); e.target.value = ''; return; }
             const file = e.target.files[0];
             if (!file) return;
 
@@ -1814,6 +1841,7 @@
         }
 
         function parseICHEFRows(rows) {
+            if (currentUserRole !== 'admin') return;
             const emps = getCurrentEmployees(currentYearMonth);
             const SKIP = /^(ipad|admin)/i;
             const toStr = v => (v === null || v === undefined) ? '' : String(v).trim();
@@ -1877,7 +1905,13 @@
             });
 
             const yms = Array.from(new Set(list.map(r => r.ym)));
-            yms.forEach(ym => { ichefClockData[ym] = list.filter(r => r.ym === ym); });
+            let minD = '9999-99-99', maxD = '0000-00-00';
+            people.forEach(p => p.events.forEach(ev => { const dd = ev.dt.substring(0, 10); if (dd < minD) minD = dd; if (dd > maxD) maxD = dd; }));
+            // 新匯入檔涵蓋的日期區間 → 覆蓋舊紀錄；區間以外的舊紀錄保留
+            yms.forEach(ym => {
+                const kept = (ichefClockData[ym] || []).filter(r => r.dateStr < minD || r.dateStr > maxD);
+                ichefClockData[ym] = kept.concat(list.filter(r => r.ym === ym));
+            });
             if (!ichefClockData[currentYearMonth]) ichefClockData[currentYearMonth] = [];
 
             const unmatched = Array.from(new Set(list.filter(r => !r.empId).map(r => r.empName)));
@@ -1920,6 +1954,7 @@
         function renderAttendanceCompareTable() {
             const body = document.getElementById('attendanceCompareBody');
             const emps0 = getCurrentEmployees(currentYearMonth);
+            const cumLateMap = {};
             const clocks = (ichefClockData[currentYearMonth] || []).map(c => { const m = emps0.find(e => e.id === c.empId) || matchEmployee(c.empName, emps0); return Object.assign({}, c, { empId: m ? m.id : null }); });
             const emps = getCurrentEmployees(currentYearMonth);
             const [year, month] = currentYearMonth.split('-').map(Number);
@@ -2003,10 +2038,18 @@
                             }
 
                             if (lateDiffMin > 0) {
-                                if (lateDiffMin <= 30) {
-                                    badgeList.push(`<span class="inline-block px-2 py-0.5 rounded text-xs font-bold badge-morandi-blue">遲到 ${lateDiffMin}分 (彈性)</span>`);
+                                // 每月累計 30 分鐘彈性；超過的部分才扣除
+                                const cumBefore = cumLateMap[emp.id] || 0;
+                                const cumNow = cumBefore + lateDiffMin;
+                                cumLateMap[emp.id] = cumNow;
+                                const deductMin = Math.max(0, cumNow - Math.max(30, cumBefore));
+                                if (deductMin <= 0) {
+                                    badgeList.push(`<span class="inline-block px-2 py-0.5 rounded text-xs font-bold badge-morandi-blue">遲到 ${lateDiffMin}分 (月累計 ${cumNow}/30分，彈性內)</span>`);
+                                    remarkParts.push(`本月遲到累計 ${cumNow} 分`);
                                 } else {
-                                    badgeList.push(`<span class="inline-block px-2 py-0.5 rounded text-xs font-bold badge-morandi-pink">遲到 ${lateDiffMin}分 (無薪)</span>`);
+                                    const dh = (deductMin / 60).toFixed(2);
+                                    badgeList.push(`<span class="inline-block px-2 py-0.5 rounded text-xs font-bold badge-morandi-pink">遲到 ${lateDiffMin}分・月累計 ${cumNow}分・扣除 ${deductMin}分 (${dh}h)</span>`);
+                                    remarkParts.push(`本月遲到累計 ${cumNow} 分，超過30分彈性，扣除 ${dh} 小時`);
                                 }
                             } else {
                                 badgeList.push(`<span class="inline-block px-2 py-0.5 rounded text-xs font-bold badge-morandi-green">正常</span>`);
@@ -3978,230 +4021,6 @@
         }
 
         init();
-    
-        /* V6.2.7 ATTENDANCE SECURITY PATCH BEGIN
-           New requests are individual Firestore documents. The legacy requestsData
-           field remains read-compatible and is never written by staff. */
-        let legacyRequestsData = null;
-        let attendanceRequestSources = {};
-
-        function stopAttendanceRequestListeners() {
-            if (typeof unsubscribeAttendance === 'function') {
-                try { unsubscribeAttendance(); } catch (e) { console.warn('停止出勤申請監聽失敗:', e); }
-            }
-            unsubscribeAttendance = null;
-            attendanceRequestSources = {};
-        }
-
-        function cloneRequestMap(input) {
-            try { return JSON.parse(JSON.stringify(input || {})); } catch (_) { return {}; }
-        }
-
-        function rebuildRequestsFromSecureStore() {
-            const merged = cloneRequestMap(legacyRequestsData === null ? requestsData : legacyRequestsData);
-            const byId = {};
-            Object.keys(attendanceRequestSources).forEach(function(source) {
-                const items = attendanceRequestSources[source] || {};
-                Object.keys(items).forEach(function(id) { byId[id] = items[id]; });
-            });
-            Object.keys(byId).forEach(function(id) {
-                const req = byId[id];
-                if (!req || !req.id) return;
-                const ym = req.yearMonth || String(req.dateStr || '').slice(0, 7);
-                if (!/^\\d{4}-\\d{2}$/.test(ym)) return;
-                const list = merged[ym] = Array.isArray(merged[ym]) ? merged[ym] : [];
-                const index = list.findIndex(function(item) { return item && item.id === req.id; });
-                if (index >= 0) list[index] = req; else list.push(req);
-            });
-            requestsData = merged;
-            localStorage.setItem('ecoleRequests', JSON.stringify(requestsData));
-            updatePendingBadge();
-            refreshOpenDialogs();
-        }
-
-        function listenAttendanceRequests(label, queryRef) {
-            return queryRef.onSnapshot(function(snapshot) {
-                const next = {};
-                snapshot.forEach(function(doc) { next[doc.id] = doc.data(); });
-                attendanceRequestSources[label] = next;
-                rebuildRequestsFromSecureStore();
-            }, function(error) {
-                console.error('出勤申請監聽失敗:', error);
-                // Do not retry here: Firestore's listener already handles reconnects.
-                // Retrying from this callback would create duplicate listeners.
-            });
-        }
-
-        function startAttendanceRequestListeners() {
-            stopAttendanceRequestListeners();
-            if (!db || !currentUser) return;
-            const refs = [];
-            const collection = db.collection('attendanceRequests');
-            if (currentUserRole === 'admin') {
-                refs.push(listenAttendanceRequests('admin', collection));
-            } else if (currentUserEmpId) {
-                refs.push(listenAttendanceRequests('mine', collection.where('applicantUid', '==', currentUser.uid).where('applicantEmpId', '==', currentUserEmpId)));
-                refs.push(listenAttendanceRequests('target', collection.where('targetEmpId', '==', currentUserEmpId).where('status', '==', 'pending_target').where('type', '==', 'swap')));
-            }
-            unsubscribeAttendance = function() {
-                refs.forEach(function(unsubscribe) { try { unsubscribe(); } catch (_) {} });
-            };
-        }
-
-        function setupCloudSync() {
-            if (!currentUser || !db) return;
-            if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
-            stopAttendanceRequestListeners();
-            isCloudLoaded = false;
-            document.getElementById('loadingText').innerText = '載入共用資料...';
-            const docRef = db.collection('ecoleCafe').doc('main_schedule');
-            unsubscribeSnapshot = docRef.onSnapshot(function(docSnap) {
-                if (docSnap.exists) {
-                    const data = docSnap.data();
-                    scheduleData = data.scheduleData || {};
-                    stationData = data.stationData || {};
-                    noteData = data.noteData || {};
-                    carryOverData = data.carryOverData || {};
-                    lockData = data.lockData || {};
-                    employeesData = data.employeesData || {};
-                    shiftSettingsData = data.shiftSettingsData || {};
-                    dismissedWarningsData = data.dismissedWarningsData || {};
-                    ichefClockData = data.ichefClockData || {};
-                    legacyRequestsData = data.requestsData || {};
-                    tardinessFlexData = data.tardinessFlexData || {};
-                    rebuildRequestsFromSecureStore();
-                    isCloudLoaded = true;
-                    renderShiftButtons(); renderTable(); updatePendingBadge(); refreshOpenDialogs();
-                } else {
-                    legacyRequestsData = {};
-                    isCloudLoaded = true;
-                    if (currentUserRole === 'admin') saveData();
-                }
-                document.getElementById('loadingOverlay').style.display = 'none';
-            }, function(error) {
-                console.error('同步失敗:', error);
-                document.getElementById('loadingOverlay').style.display = 'none';
-            });
-            startAttendanceRequestListeners();
-        }
-
-        // Prevent cloud requests from being copied back into the legacy monolithic field.
-        function saveData() {
-            localStorage.setItem('ecoleSchedule', JSON.stringify(scheduleData));
-            localStorage.setItem('ecoleStation', JSON.stringify(stationData));
-            localStorage.setItem('ecoleNote', JSON.stringify(noteData));
-            localStorage.setItem('ecoleCarryOver', JSON.stringify(carryOverData));
-            localStorage.setItem('ecoleLock', JSON.stringify(lockData));
-            localStorage.setItem('ecoleEmployeesData', JSON.stringify(employeesData));
-            localStorage.setItem('ecoleShiftSettingsData', JSON.stringify(shiftSettingsData));
-            localStorage.setItem('ecoleDismissedWarnings', JSON.stringify(dismissedWarningsData));
-            localStorage.setItem('ecoleIchefClock', JSON.stringify(ichefClockData));
-            localStorage.setItem('ecoleRequests', JSON.stringify(requestsData));
-            localStorage.setItem('ecoleTardinessFlex', JSON.stringify(tardinessFlexData));
-            if (!currentUser || !db || !isCloudLoaded || currentUserRole !== 'admin') return;
-            const dataToSave = { scheduleData: scheduleData, stationData: stationData, noteData: noteData,
-                carryOverData: carryOverData, lockData: lockData, employeesData: employeesData,
-                shiftSettingsData: shiftSettingsData, dismissedWarningsData: dismissedWarningsData,
-                ichefClockData: ichefClockData, requestsData: legacyRequestsData || {}, tardinessFlexData: tardinessFlexData };
-            db.collection('ecoleCafe').doc('main_schedule').set(dataToSave, { merge: true })
-                .catch(function(error) { console.error('雲端存檔失敗:', error); });
-        }
-
-        async function persistNewRequest(req, ym) {
-            if (!db || !currentUser) throw new Error('尚未登入雲端');
-            if (!isCloudLoaded) throw new Error('雲端資料尚未載入完畢，請稍候再試');
-            const secureReq = Object.assign({}, req, {
-                id: req.id,
-                applicantUid: currentUser.uid,
-                applicantEmail: currentUser.email || '',
-                yearMonth: ym
-            });
-            // Rules permit create only. A collision is rejected instead of overwriting an audit record.
-            await withTimeout(db.collection('attendanceRequests').doc(secureReq.id).set(secureReq), 15000);
-        }
-
-        async function updateLegacyRequestAtomic(ym, reqId, applyFn) {
-            if (currentUserRole !== 'admin') throw new Error('舊版申請需由管理者處理；新申請已支援員工自行操作。');
-            const ref = db.collection('ecoleCafe').doc('main_schedule');
-            return db.runTransaction(async function(tx) {
-                const snap = await tx.get(ref);
-                const data = snap.exists ? snap.data() : {};
-                const list = ((data.requestsData && data.requestsData[ym]) || []).slice();
-                const index = list.findIndex(function(item) { return item && item.id === reqId; });
-                if (index < 0) throw new Error('找不到申請單');
-                const result = applyFn(list[index], data);
-                list[index] = result.req;
-                const payload = { requestsData: {} }; payload.requestsData[ym] = list;
-                if (result.extra) Object.keys(result.extra).forEach(function(path) {
-                    const parts = path.split('.'); let node = payload;
-                    parts.forEach(function(part, i) { if (i === parts.length - 1) node[part] = result.extra[path]; else node = node[part] = node[part] || {}; });
-                });
-                tx.set(ref, payload, { merge: true });
-            });
-        }
-
-        async function updateRequestsAtomic(ym, reqId, applyFn) {
-            const secureRef = db && db.collection('attendanceRequests').doc(reqId);
-            const secureKnown = Object.keys(attendanceRequestSources).some(function(source) {
-                return attendanceRequestSources[source] && attendanceRequestSources[source][reqId];
-            });
-            if (!secureRef || !secureKnown) return updateLegacyRequestAtomic(ym, reqId, applyFn);
-            const scheduleRef = db.collection('ecoleCafe').doc('main_schedule');
-            return db.runTransaction(async function(tx) {
-                const reqSnap = await tx.get(secureRef);
-                if (!reqSnap.exists) throw new Error('申請單已不存在或沒有讀取權限');
-                const scheduleSnap = await tx.get(scheduleRef);
-                const scheduleDoc = scheduleSnap.exists ? scheduleSnap.data() : {};
-                const result = applyFn(reqSnap.data(), scheduleDoc);
-                tx.update(secureRef, result.req);
-                if (result.extra && Object.keys(result.extra).length) {
-                    const payload = {};
-                    Object.keys(result.extra).forEach(function(path) {
-                        const parts = path.split('.'); let node = payload;
-                        parts.forEach(function(part, i) { if (i === parts.length - 1) node[part] = result.extra[path]; else node = node[part] = node[part] || {}; });
-                    });
-                    tx.set(scheduleRef, payload, { merge: true });
-                }
-            });
-        }
-
-        // Restore the V6.2.7 lock control. Only an authenticated administrator can
-        // persist this value because main_schedule writes are admin-only in Rules.
-        async function toggleScheduleLock() {
-            if (currentUserRole !== 'admin') {
-                alertCustom('權限不足：只有管理員可以鎖定或解鎖班表。');
-                return;
-            }
-            const ym = currentYearMonth;
-            const nextLocked = !isScheduleLocked(ym);
-            const action = nextLocked ? '鎖定' : '解鎖';
-            if (!await customConfirm('確定要' + action + ' ' + ym + ' 的班表嗎？')) return;
-
-            const button = document.getElementById('lockBtn');
-            if (button) button.disabled = true;
-            try {
-                if (currentUser && db) {
-                    if (!isCloudLoaded) throw new Error('雲端資料尚未載入完畢，請稍候再試');
-                    await withTimeout(
-                        db.collection('ecoleCafe').doc('main_schedule')
-                            .set({ lockData: { [ym]: nextLocked } }, { merge: true }),
-                        15000
-                    );
-                }
-                lockData = lockData || {};
-                lockData[ym] = nextLocked;
-                localStorage.setItem('ecoleLock', JSON.stringify(lockData));
-                renderTable();
-                alertCustom(nextLocked ? '已鎖定本月班表。' : '已解鎖本月班表。');
-            } catch (error) {
-                console.error('班表鎖定狀態更新失敗:', error);
-                alertCustom('無法' + action + '班表：' + ((error && error.message) || error));
-            } finally {
-                if (button) button.disabled = false;
-            }
-        }
-        /* V6.2.7 ATTENDANCE SECURITY PATCH END */
-
-</script>
+    </script>
 </body>
 </html>
