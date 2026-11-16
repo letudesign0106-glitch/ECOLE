@@ -457,15 +457,15 @@
 
     <dialog id="lineMessageDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-sm border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-            <h3 class="font-bold text-gray-800">✅ 已送出，請複製訊息傳給主管</h3>
+            <h3 id="lineDialogTitle" class="font-bold text-gray-800">✅ 已送出，請複製訊息傳給主管</h3>
             <button onclick="document.getElementById('lineMessageDialog').close()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
         </div>
         <div class="p-4 bg-white flex flex-col gap-3 text-sm">
-            <textarea id="lineMessageText" readonly rows="7" onclick="this.select()" class="border border-gray-300 rounded p-2 w-full text-sm leading-relaxed outline-none"></textarea>
+            <textarea id="lineMessageText" readonly rows="9" onclick="this.select()" class="border border-gray-300 rounded p-2 w-full text-sm leading-relaxed outline-none"></textarea>
             <p id="lineCopyHint" class="text-[11px] text-green-700 font-bold hidden"></p>
             <div class="flex justify-end gap-2">
                 <button onclick="document.getElementById('lineMessageDialog').close()" class="border border-gray-300 text-gray-600 px-4 py-2 rounded hover:bg-gray-50">關閉</button>
-                <button onclick="copyLineText()" class="bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700">複製訊息</button>
+                <button id="lineCopyBtn" onclick="copyLineText()" class="bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700">複製訊息</button>
             </div>
         </div>
     </dialog>
@@ -1109,6 +1109,7 @@
 
                             if (adminEmails.includes(user.email)) {
                                 isAdmin = true;
+                                if (staffMapping[user.email]) empId = staffMapping[user.email];
                             } else if (staffMapping[user.email]) {
                                 isStaff = true;
                                 empId = staffMapping[user.email];
@@ -1185,6 +1186,20 @@
 
         function isScheduleLocked(ym = currentYearMonth) {
             return !!(lockData && lockData[ym]);
+        }
+
+        function toggleScheduleLock() {
+            if (currentUserRole !== 'admin') {
+                alertCustom('權限不足：僅管理員可鎖定或解鎖班表。');
+                return;
+            }
+            if (!lockData) lockData = {};
+            const nextLocked = !isScheduleLocked(currentYearMonth);
+            lockData[currentYearMonth] = nextLocked;
+            localStorage.setItem('ecoleLock', JSON.stringify(lockData));
+            updateFirestoreField(`lockData.${currentYearMonth}`, nextLocked);
+            renderTable();
+            alertCustom(nextLocked ? `🔒 ${currentYearMonth} 月份班表已鎖定。` : `🔓 ${currentYearMonth} 月份班表已解鎖。`);
         }
 
         function setupCloudSync() {
@@ -1403,9 +1418,22 @@
         }
 
         // 每筆申請獨立一份文件（ecoleCafe/main_schedule/requests/{id}），含處理歷程，永久保存於後台
+        function getCurrentActorName() {
+            if (currentUserEmpId) {
+                const emps = getCurrentEmployees(currentYearMonth);
+                const emp = emps.find(e => e.id === currentUserEmpId);
+                if (emp && emp.name) return emp.name;
+            }
+            if (currentUser && currentUser.displayName && currentUser.displayName.trim()) {
+                return currentUser.displayName.trim();
+            }
+            return currentUserRole === 'admin' ? '管理員' : '員工';
+        }
+
         async function persistNewRequest(req, ym) {
             if (!db || !currentUser) throw new Error('尚未登入雲端');
-            const data = Object.assign({}, req, { history: [{ at: req.createdAt, by: currentUser.email || '', action: 'submit' }] });
+            const actorName = getCurrentActorName();
+            const data = Object.assign({}, req, { history: [{ at: req.createdAt, by: currentUser.email || '', name: actorName, action: 'submit' }] });
             try {
                 await withTimeout(db.collection('ecoleCafe').doc('main_schedule').collection('requests').doc(req.id).set(data), 15000);
             } catch (err) { throw new Error(fbErrText(err)); }
@@ -1615,29 +1643,44 @@
             const emps = getCurrentEmployees(currentYearMonth);
             const nameOf = id => (emps.find(e => e.id === id) || {}).name || id || '';
             const x = r.details || {};
+            let baseText = '';
             if (r.type === 'swap') {
                 let tt = x.originalTime, hh = x.shiftHours;
                 if (tt === undefined) { const i = getSwapShiftInfo(r.applicantEmpId, r.dateStr); tt = i.timeTxt; hh = i.hours; }
-                return swapLineText(nameOf(r.applicantEmpId), fmtMD(r.dateStr), { timeTxt: tt, hours: hh }, nameOf(r.targetEmpId), r.reason);
+                baseText = swapLineText(nameOf(r.applicantEmpId), fmtMD(r.dateStr), { timeTxt: tt, hours: hh }, nameOf(r.targetEmpId), r.reason);
+            } else {
+                const d = new Date(r.dateStr + 'T00:00:00');
+                const dt = `${d.getMonth() + 1}/${d.getDate()}(${'日一二三四五六'[d.getDay()]})`;
+                const L = [`【${REQ_TYPE_LABEL[r.type] || '出勤'}申請】`, `申請人：${nameOf(r.applicantEmpId)}`, `日期：${dt}`];
+                if (r.type === 'overtime') L.push(`時數：${x.hours}h（${x.otType === 'pay' ? '加班費' : '補休'}）`);
+                else if (r.type === 'leave') L.push(`類別：${x.category} ${x.hours}h`);
+                else if (r.type === 'clock_fix') L.push(`時間：${x.clockIn}-${x.clockOut}`);
+                L.push(`事由：${r.reason}`);
+                baseText = L.join('\n');
             }
-            const d = new Date(r.dateStr + 'T00:00:00');
-            const dt = `${d.getMonth() + 1}/${d.getDate()}(${'日一二三四五六'[d.getDay()]})`;
-            const L = [`【${REQ_TYPE_LABEL[r.type] || '出勤'}申請】`, `申請人：${nameOf(r.applicantEmpId)}`, `日期：${dt}`];
-            if (r.type === 'overtime') L.push(`時數：${x.hours}h（${x.otType === 'pay' ? '加班費' : '補休'}）`);
-            else if (r.type === 'leave') L.push(`類別：${x.category} ${x.hours}h`);
-            else if (r.type === 'clock_fix') L.push(`時間：${x.clockIn}-${x.clockOut}`);
-            L.push(`事由：${r.reason}`);
-            return L.join('\n');
+            if (r.status === 'approved' || r.status === 'rejected') {
+                const statusLabel = r.status === 'approved' ? '✅ 已核准生效' : '❌ 已駁回';
+                const approverName = resolveHandlerName(r);
+                const timeSuffix = r.handledAt ? `（${fmtDT(r.handledAt)}）` : '';
+                baseText += `\n簽核狀態：${statusLabel}\n簽核人員：${approverName}${timeSuffix}`;
+            }
+            return baseText;
         }
 
-        // 顯示「是誰處理」：處理人姓名（email）與時間
+        function resolveHandlerName(r) {
+            if (!r) return '';
+            if (r.handledByName && String(r.handledByName).trim()) return String(r.handledByName).trim();
+            const h = (r.history || []).slice().reverse().find(x => (x.action === 'approve' || x.action === 'reject') && x.name && String(x.name).trim());
+            if (h) return String(h.name).trim();
+            return '管理員';
+        }
+
+        // 顯示「是誰處理」：僅顯示簽核人員名字與時間，對外不顯示信箱號碼
         function handlerText(r) {
-            if (!r || (!r.handledAt && !r.handledByEmail)) return '';
+            if (!r || (!r.handledAt && !r.handledByName && !r.handledByEmail)) return '';
             if (r.handledBy === 'target') return '';
-            const h = (r.history || []).slice().reverse().find(x => x.action === 'approve' || x.action === 'reject');
-            const nm = (h && h.name) || '';
-            const who = nm ? `${nm}（${r.handledByEmail || ''}）` : (r.handledByEmail || '');
-            return `${r.status === 'approved' ? '核可人' : '處理人'}：${who}${r.handledAt ? ' ' + fmtDT(r.handledAt) : ''}`;
+            const who = resolveHandlerName(r);
+            return `${r.status === 'approved' ? '簽核人員' : '處理人員'}：${who}${r.handledAt ? '（' + fmtDT(r.handledAt) + '）' : ''}`;
         }
 
         async function copyTextToClipboard(text) {
@@ -1656,11 +1699,8 @@
         async function copyReqLine(id) {
             const r = (requestsData[currentYearMonth] || []).find(x => x.id === id);
             if (!r) return;
-            let text = lineTextForReq(r);
-            const h = handlerText(r);
-            if (r.status === 'approved' || r.status === 'rejected') text += `\n處理結果：${r.status === 'approved' ? '已核可' : '已駁回'}${h ? '（' + h.replace(/^(核可人|處理人)：/, '') + '）' : ''}`;
-            const ok = await copyTextToClipboard(text);
-            alertCustom((ok ? '已複製 LINE 訊息：\n\n' : '無法自動複製，請手動選取：\n\n') + text);
+            const mode = (r.status === 'approved' || r.status === 'rejected') ? 'approval' : 'submit';
+            showLineDialog(r, mode);
         }
 
         const REQ_ACTION_LABEL = { submit: '送出申請', target_accept: '同事確認', target_reject: '同事婉拒', approve: '核可', reject: '駁回', cancel: '取消' };
@@ -1692,7 +1732,15 @@
                 const st = REQ_STATUS_LABEL[r.status] || [escapeHTML(r.status), 'text-gray-600'];
                 const by = (r.status === 'rejected' && r.handledBy === 'target') ? '（同事婉拒）' : '';
                 const h = handlerText(r);
-                const hist = (r.history || []).map(x => `${escapeHTML(fmtDT(x.at))} ${escapeHTML(REQ_ACTION_LABEL[x.action] || x.action)}　${escapeHTML(x.name || x.by || '')}`).join('<br>');
+                const hist = (r.history || []).map(x => {
+                    let actor = (x.name && String(x.name).trim()) ? String(x.name).trim() : '';
+                    if (!actor) {
+                        if (x.action === 'submit' || x.action === 'cancel') actor = nameOf(r.applicantEmpId);
+                        else if (x.action === 'target_accept' || x.action === 'target_reject') actor = nameOf(r.targetEmpId);
+                        else if (x.action === 'approve' || x.action === 'reject') actor = resolveHandlerName(r);
+                    }
+                    return `${escapeHTML(fmtDT(x.at))} ${escapeHTML(REQ_ACTION_LABEL[x.action] || x.action)}　${escapeHTML(actor)}`;
+                }).join('<br>');
                 const canCancel = (r.status === 'pending_target' || r.status === 'pending_admin') && subRequests[r.id];
                 html += `<div class="border border-gray-200 rounded p-3 bg-gray-50 flex flex-col gap-1" data-id="${escapeHTML(r.id)}">
                     <div class="flex justify-between items-center"><span class="font-bold">${escapeHTML(REQ_TYPE_LABEL[r.type] || r.type)}　${escapeHTML(r.dateStr)}</span><span class="font-bold ${st[1]}">${st[0]}${by}</span></div>
@@ -1776,11 +1824,42 @@
             exportTablePDF(table, `ÉCOLE CAFÉ 出勤與調班申請審核紀錄 (${currentYearMonth})`, `申請審核紀錄_${currentYearMonth}.pdf`);
         }
 
-        function showLineDialog(req) {
-            document.getElementById('lineMessageText').value = lineTextForReq(req);
+        let lineDialogCurrentMode = 'submit';
+
+        async function showLineDialog(req, mode = 'submit') {
+            lineDialogCurrentMode = mode;
+            const titleEl = document.getElementById('lineDialogTitle');
+            const btnEl = document.getElementById('lineCopyBtn');
+            const ta = document.getElementById('lineMessageText');
             const hint = document.getElementById('lineCopyHint');
+
+            if (titleEl) {
+                if (mode === 'approval') {
+                    titleEl.textContent = req.status === 'rejected'
+                        ? '❌ 已駁回申請，請複製訊息通知群組'
+                        : '✅ 核可完成，請複製訊息貼至 LINE 群組';
+                } else {
+                    titleEl.textContent = '✅ 已送出，請複製訊息傳給主管';
+                }
+            }
+            if (btnEl) {
+                btnEl.textContent = mode === 'approval' ? '複製群組訊息' : '複製訊息';
+            }
+
+            const text = lineTextForReq(req);
+            ta.value = text;
             hint.classList.add('hidden');
             document.getElementById('lineMessageDialog').showModal();
+            ta.focus();
+            ta.select();
+
+            const copied = await copyTextToClipboard(text);
+            if (copied) {
+                hint.textContent = mode === 'approval'
+                    ? '✓ 已自動複製到剪貼簿，可直接貼到 LINE 群組'
+                    : '✓ 已自動複製，請貼到 LINE 傳給主管';
+                hint.classList.remove('hidden');
+            }
         }
 
         async function copyLineText() {
@@ -1791,7 +1870,9 @@
                 try { ta.focus(); ta.select(); ta.setSelectionRange(0, text.length); ok = document.execCommand('copy'); } catch (_) {}
             }
             const hint = document.getElementById('lineCopyHint');
-            hint.textContent = ok ? '✓ 已複製，請貼到 LINE 傳給主管' : '請長按文字框全選後手動複製';
+            hint.textContent = ok
+                ? (lineDialogCurrentMode === 'approval' ? '✓ 已複製，請貼到 LINE 群組' : '✓ 已複製，請貼到 LINE 傳給主管')
+                : '請長按文字框全選後手動複製';
             hint.classList.remove('hidden');
         }
 
@@ -1899,7 +1980,7 @@
         }
 
         function histAdd(req, action) {
-            return (req.history || []).concat([{ at: new Date().toISOString(), by: (currentUser && currentUser.email) || '', name: (currentUser && currentUser.displayName) || '', action: action }]);
+            return (req.history || []).concat([{ at: new Date().toISOString(), by: (currentUser && currentUser.email) || '', name: getCurrentActorName(), action: action }]);
         }
 
         async function respondSwap(reqId, accept) {
@@ -1933,10 +2014,19 @@
             const local = (requestsData[ym] || []).find(r => r.id === reqId);
             if (!local) return;
             if (isSelfRequest(local)) { alertCustom('不可核可自己提出的申請，請由其他管理者處理。'); return; }
+            const approverName = getCurrentActorName();
+            let completedReq = null;
             const apply = (req, data) => {
                 if (req.status !== 'pending_admin') throw new Error('此申請已被處理，或仍待同事確認');
                 if (isSelfRequest(req)) throw new Error('不可核可自己提出的申請');
-                const next = Object.assign({}, req, { status: isApproved ? 'approved' : 'rejected', handledBy: 'admin', handledAt: new Date().toISOString(), handledByEmail: (currentUser && currentUser.email) || '', history: histAdd(req, isApproved ? 'approve' : 'reject') });
+                const next = Object.assign({}, req, {
+                    status: isApproved ? 'approved' : 'rejected',
+                    handledBy: 'admin',
+                    handledByName: approverName,
+                    handledAt: new Date().toISOString(),
+                    handledByEmail: (currentUser && currentUser.email) || '',
+                    history: histAdd(req, isApproved ? 'approve' : 'reject')
+                });
                 const extra = {};
                 if (isApproved && req.type === 'swap') {
                     const sched = (data.scheduleData && data.scheduleData[ym]) || {};
@@ -1945,6 +2035,7 @@
                     extra[`scheduleData.${ym}.${req.applicantEmpId}.${req.day}`] = t;
                     extra[`scheduleData.${ym}.${req.targetEmpId}.${req.day}`] = a;
                 }
+                completedReq = next;
                 return { req: next, extra: extra };
             };
             try {
@@ -1953,6 +2044,7 @@
                 } else {   // 單機模式
                     const r = apply(local, { scheduleData });
                     Object.assign(local, r.req);
+                    completedReq = Object.assign({}, local);
                     if (isApproved && local.type === 'swap') {
                         const s = scheduleData[ym] = scheduleData[ym] || {};
                         s[local.applicantEmpId] = s[local.applicantEmpId] || {}; s[local.targetEmpId] = s[local.targetEmpId] || {};
@@ -1965,7 +2057,9 @@
             renderAdminApprovalList();
             renderTable();
             updatePendingBadge();
-            alertCustom(`申請單已處置完成：${isApproved ? '已核准並生效' : '已駁回'}`);
+            if (completedReq) {
+                showLineDialog(completedReq, 'approval');
+            }
         }
 
         // 雲端資料更新時，同步刷新已開啟的視窗（只讀取、不寫入，不會產生迴圈）
