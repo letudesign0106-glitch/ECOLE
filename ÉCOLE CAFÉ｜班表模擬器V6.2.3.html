@@ -342,8 +342,8 @@
             </div>
             <div class="mt-4 text-xs bg-gray-50 p-3 rounded border border-gray-200 leading-relaxed text-gray-600">
                 <b>比對與異常檢測規範：</b><br>
-                1. <b>工時低於標定異常</b>：實際工作時數低於排班表定時數時自動觸發 `⚠️ 工時不足 (低於表定)` 莫蘭迪警示標籤。<br>
-                2. <b>莫蘭迪柔和色系狀態列</b>：出勤狀態（正常、遲到、工時不足、打卡異常）均以莫蘭迪色系 Badge 展示。<br>
+                1. <b>工時低於標定異常</b>：實際工作時數低於排班表定時數時自動觸發 `⚠️ 工時不足 (低於表定)`。<br>
+                2. <b>狀態列</b>：出勤狀態（正常、遲到、工時不足、打卡異常）。<br>
                 3. <b>雙向打卡異常檢測</b>：有排班無打卡（未上班打卡）；未排班有打卡（未排班打卡）。<br>
                 4. <b>權限與篩選</b>：管理員可檢視全店或篩選個別同仁；一般同仁僅得瀏覽個人出勤比對資料。
             </div>
@@ -359,6 +359,7 @@
             <button onclick="document.getElementById('requestCenterDialog').close()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
         </div>
         <div class="p-5 bg-white flex flex-col gap-4 text-sm max-h-[75vh] overflow-y-auto">
+            <button type="button" onclick="openMyDashboard()" class="w-full border border-gray-300 bg-white rounded py-2 text-xs font-bold hover:bg-gray-50">📋 我的申請儀表板（查看全部申請與核可狀態）</button>
             <div class="grid grid-cols-4 gap-1 bg-gray-100 p-1 rounded font-bold text-center text-xs">
                 <button type="button" onclick="switchRequestTab('swap')" id="tabBtn_swap" class="py-1.5 rounded bg-white text-black shadow-sm">調班申請</button>
                 <button type="button" onclick="switchRequestTab('overtime')" id="tabBtn_overtime" class="py-1.5 rounded text-gray-600 hover:text-black">加班申請</button>
@@ -469,13 +470,34 @@
         </div>
     </dialog>
 
+    <dialog id="myDashboardDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-2xl border border-gray-200">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h3 class="font-bold text-gray-800 tracking-wide">📋 我的申請儀表板</h3>
+            <button onclick="document.getElementById('myDashboardDialog').close()" class="text-gray-400 hover:text-black text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 bg-white max-h-[75vh] overflow-y-auto flex flex-col gap-3">
+            <div id="myDashSummary" class="grid grid-cols-4 gap-2 text-center text-xs"></div>
+            <select id="myDashFilter" onchange="renderMyDashboard()" class="border border-gray-300 rounded px-3 py-1.5 w-full text-xs font-bold outline-none">
+                <option value="ALL">全部狀態</option>
+                <option value="PENDING">處理中（待同事／待主管）</option>
+                <option value="approved">已核准</option>
+                <option value="rejected">已駁回</option>
+                <option value="cancelled">已取消</option>
+            </select>
+            <div id="myDashList" class="flex flex-col gap-2 text-xs"></div>
+        </div>
+    </dialog>
+
     <dialog id="adminApprovalDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-3xl border border-gray-200">
         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
             <div class="flex items-center gap-2">
                 <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <h3 class="font-bold text-gray-800 tracking-wide">出勤與調班申請審核儀表板</h3>
             </div>
-            <button onclick="document.getElementById('adminApprovalDialog').close()" class="text-gray-400 hover:text-black text-2xl leading-none">&times;</button>
+            <div class="flex items-center gap-2">
+                <button onclick="exportApprovalPDF()" class="bg-gray-800 text-white hover:bg-black px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap">匯出 PDF</button>
+                <button onclick="document.getElementById('adminApprovalDialog').close()" class="text-gray-400 hover:text-black text-2xl leading-none">&times;</button>
+            </div>
         </div>
         <div class="p-4 bg-white max-h-[75vh] overflow-y-auto">
             <div id="adminApprovalList" class="flex flex-col gap-3"></div>
@@ -1332,15 +1354,15 @@
             const me = emps.find(e => e.id === getApplicantEmpId());
             const who = me ? me.name : ((currentUser && currentUser.displayName) || '');
             const ds = document.getElementById('reqDateInput').value;
-            const reason = document.getElementById('reqReason').value.trim() || '（未填）';
+            const reason = document.getElementById('reqReason').value.trim();
+            if (activeRequestTab === 'swap') {
+                const t = emps.find(e => e.id === document.getElementById('reqTargetEmpSelect').value);
+                return swapLineText(who, fmtMD(ds), me ? getSwapShiftInfo(me.id, ds) : {}, t ? t.name : '', reason);
+            }
             let dateTxt = ds;
             if (ds) { const d = new Date(ds + 'T00:00:00'); dateTxt = `${d.getMonth() + 1}/${d.getDate()}(${'日一二三四五六'[d.getDay()]})`; }
             const L = [];
-            if (activeRequestTab === 'swap') {
-                const tid = document.getElementById('reqTargetEmpSelect').value;
-                const t = emps.find(e => e.id === tid);
-                L.push('【調班申請】', `申請人：${who}`, `日期：${dateTxt}`, `對象：${t ? t.name : '-'}`);
-            } else if (activeRequestTab === 'overtime') {
+            if (activeRequestTab === 'overtime') {
                 const h = document.getElementById('reqOtHours').value;
                 const ty = document.getElementById('reqOtType').value === 'pay' ? '加班費' : '補休';
                 L.push('【加班申請】', `申請人：${who}`, `日期：${dateTxt}`, `時數：${h}h（${ty}）`);
@@ -1353,7 +1375,7 @@
                 const o = document.getElementById('reqFixClockOut').value || '--:--';
                 L.push('【補卡申請】', `申請人：${who}`, `日期：${dateTxt}`, `時間：${i}-${o}`);
             }
-            L.push(`事由：${reason}`);
+            L.push(`事由：${reason || '（未填）'}`);
             return L.join('\n');
         }
 
@@ -1420,7 +1442,8 @@
                 if (shiftStart - Date.now() < 24 * 3600 * 1000) { alertCustom("依規定：調班申請必須於班別開始 24 小時前提出！"); return; }
                 newReq.targetEmpId = targetEmpId;
                 newReq.status = 'pending_target';
-                newReq.details = { originalShift: parsed.shiftCode };
+                const swi = getSwapShiftInfo(applicantId, dateStr);
+                newReq.details = { originalShift: parsed.shiftCode, originalTime: swi.timeTxt, shiftHours: swi.hours };
             } else if (activeRequestTab === 'overtime') {
                 const hours = parseFloat(document.getElementById('reqOtHours').value) || 1.0;
                 const otType = document.getElementById('reqOtType').value;
@@ -1519,7 +1542,9 @@
                     <div class="text-gray-700 leading-normal">
                         <div>說明：${detailText}</div>
                         <div>理由：${escapeHTML(r.reason)}</div>
+                        ${handlerText(r) ? `<div class="font-bold text-gray-700">${escapeHTML(handlerText(r))}</div>` : ''}
                     </div>
+                    <div class="flex justify-end" data-id="${escapeHTML(r.id)}"><button onclick="copyReqLine(this.parentNode.dataset.id)" class="border border-green-600 text-green-700 px-3 py-1 rounded font-bold hover:bg-green-50">複製LINE訊息</button></div>
                     ${r.status === 'pending_admin' ? (isSelfRequest(r) ? `<div class="mt-1 border-t pt-2 text-right text-[11px] text-gray-500 font-bold">⚠️ 這是您自己的申請，需由其他管理者核可</div>` : `
                     <div class="flex justify-end gap-2 mt-1 border-t pt-2" data-id="${escapeHTML(r.id)}">
                         <button onclick="processRequest(this.parentNode.dataset.id, false)" class="border border-red-300 text-red-600 px-3 py-1 rounded hover:bg-red-50 font-bold">駁回</button>
@@ -1546,26 +1571,209 @@
 
         function reqSummaryText(r, nameOf) {
             const d = r.details || {};
-            if (r.type === 'swap') return `與 ${nameOf(r.targetEmpId)} 調班`;
+            if (r.type === 'swap') return `與 ${nameOf(r.targetEmpId)} 互換` + ((r.details && r.details.originalTime) ? `（原班 ${r.details.originalTime}，${r.details.shiftHours || '-'}h）` : '');
             if (r.type === 'overtime') return `加班 ${d.hours}h（${d.otType === 'pay' ? '加班費' : '補休'}）`;
             if (r.type === 'leave') return `${d.category} ${d.hours}h`;
             if (r.type === 'clock_fix') return `補卡 ${d.clockIn}-${d.clockOut}`;
             return '';
         }
 
+        function fmtMD(ds) {
+            const p = String(ds || '').split('-');
+            return p.length === 3 ? `${parseInt(p[1], 10)}/${parseInt(p[2], 10)}` : String(ds || '');
+        }
+        function fmtDT(iso) {
+            const d = new Date(iso);
+            if (isNaN(d)) return '';
+            return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        }
+
+        // 取得申請人在該日的原排班時間與時數（例：09:30-11:30、2）
+        function getSwapShiftInfo(empId, ds) {
+            const ym = String(ds).substring(0, 7), day = parseInt(String(ds).split('-')[2], 10);
+            const raw = (scheduleData[ym] && scheduleData[ym][empId] && scheduleData[ym][empId][day]) || '';
+            const p = parseCellData(raw);
+            if (!p.shiftCode) return { timeTxt: '', hours: '' };
+            const code = p.shiftCodes[0] || p.shiftCode;
+            const t = p.timeStr || getShiftInfo(code, ym).time || '';
+            const m = String(t).match(/^(\d{1,2}):?(\d{2})?\s*[-~|/]\s*(\d{1,2}):?(\d{2})?$/);
+            const f = (h, mi) => String(h).padStart(2, '0') + ':' + (mi || '00');
+            const h = calculateHours(raw);
+            return { timeTxt: m ? `${f(m[1], m[2])}-${f(m[3], m[4])}` : String(t), hours: h > 0 ? String(+h.toFixed(1)) : '' };
+        }
+
+        function swapLineText(who, md, info, targetName, reason) {
+            return ['【調班申請單】',
+                `申請人：${who}`,
+                `原排班日期與時間：${md} ${(info && info.timeTxt) || '（未排班）'}`,
+                `時數：${(info && info.hours) || '-'}`,
+                `互換人員： ${targetName}`,
+                `調班原因：${reason || ''}`].join('\n');
+        }
+
         function lineTextForReq(r) {
             const emps = getCurrentEmployees(currentYearMonth);
             const nameOf = id => (emps.find(e => e.id === id) || {}).name || id || '';
+            const x = r.details || {};
+            if (r.type === 'swap') {
+                let tt = x.originalTime, hh = x.shiftHours;
+                if (tt === undefined) { const i = getSwapShiftInfo(r.applicantEmpId, r.dateStr); tt = i.timeTxt; hh = i.hours; }
+                return swapLineText(nameOf(r.applicantEmpId), fmtMD(r.dateStr), { timeTxt: tt, hours: hh }, nameOf(r.targetEmpId), r.reason);
+            }
             const d = new Date(r.dateStr + 'T00:00:00');
             const dt = `${d.getMonth() + 1}/${d.getDate()}(${'日一二三四五六'[d.getDay()]})`;
-            const x = r.details || {};
             const L = [`【${REQ_TYPE_LABEL[r.type] || '出勤'}申請】`, `申請人：${nameOf(r.applicantEmpId)}`, `日期：${dt}`];
-            if (r.type === 'swap') L.push(`對象：${nameOf(r.targetEmpId)}`);
-            else if (r.type === 'overtime') L.push(`時數：${x.hours}h（${x.otType === 'pay' ? '加班費' : '補休'}）`);
+            if (r.type === 'overtime') L.push(`時數：${x.hours}h（${x.otType === 'pay' ? '加班費' : '補休'}）`);
             else if (r.type === 'leave') L.push(`類別：${x.category} ${x.hours}h`);
             else if (r.type === 'clock_fix') L.push(`時間：${x.clockIn}-${x.clockOut}`);
             L.push(`事由：${r.reason}`);
             return L.join('\n');
+        }
+
+        // 顯示「是誰處理」：處理人姓名（email）與時間
+        function handlerText(r) {
+            if (!r || (!r.handledAt && !r.handledByEmail)) return '';
+            if (r.handledBy === 'target') return '';
+            const h = (r.history || []).slice().reverse().find(x => x.action === 'approve' || x.action === 'reject');
+            const nm = (h && h.name) || '';
+            const who = nm ? `${nm}（${r.handledByEmail || ''}）` : (r.handledByEmail || '');
+            return `${r.status === 'approved' ? '核可人' : '處理人'}：${who}${r.handledAt ? ' ' + fmtDT(r.handledAt) : ''}`;
+        }
+
+        async function copyTextToClipboard(text) {
+            try { await navigator.clipboard.writeText(text); return true; } catch (e) {
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+                    document.body.appendChild(ta); ta.focus(); ta.select();
+                    const ok = document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    return ok;
+                } catch (_) { return false; }
+            }
+        }
+
+        async function copyReqLine(id) {
+            const r = (requestsData[currentYearMonth] || []).find(x => x.id === id);
+            if (!r) return;
+            let text = lineTextForReq(r);
+            const h = handlerText(r);
+            if (r.status === 'approved' || r.status === 'rejected') text += `\n處理結果：${r.status === 'approved' ? '已核可' : '已駁回'}${h ? '（' + h.replace(/^(核可人|處理人)：/, '') + '）' : ''}`;
+            const ok = await copyTextToClipboard(text);
+            alertCustom((ok ? '已複製 LINE 訊息：\n\n' : '無法自動複製，請手動選取：\n\n') + text);
+        }
+
+        const REQ_ACTION_LABEL = { submit: '送出申請', target_accept: '同事確認', target_reject: '同事婉拒', approve: '核可', reject: '駁回', cancel: '取消' };
+
+        function openMyDashboard() {
+            document.getElementById('myDashFilter').value = 'ALL';
+            renderMyDashboard();
+            document.getElementById('myDashboardDialog').showModal();
+        }
+
+        // 我的申請儀表板：列出自己「所有月份」的申請內容、核可狀態、處理人與歷程
+        function renderMyDashboard() {
+            const list = document.getElementById('myDashList');
+            if (!list) return;
+            const emps = getCurrentEmployees(currentYearMonth);
+            const nameOf = id => (emps.find(e => e.id === id) || {}).name || id || '';
+            let all = [];
+            Object.keys(requestsData || {}).forEach(ym => (requestsData[ym] || []).forEach(r => { if (isMyRequest(r)) all.push(r); }));
+            all.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+            const cnt = { p: 0, a: 0, r: 0, c: 0 };
+            all.forEach(r => { if (r.status === 'approved') cnt.a++; else if (r.status === 'rejected') cnt.r++; else if (r.status === 'cancelled') cnt.c++; else cnt.p++; });
+            const box = (n, label, cls) => `<div class="border rounded py-2 bg-gray-50"><div class="text-base font-extrabold ${cls}">${n}</div><div class="text-gray-500">${label}</div></div>`;
+            document.getElementById('myDashSummary').innerHTML = box(cnt.p, '處理中', 'text-blue-600') + box(cnt.a, '已核准', 'text-green-700') + box(cnt.r, '已駁回', 'text-red-600') + box(cnt.c, '已取消', 'text-gray-500');
+            const f = document.getElementById('myDashFilter').value;
+            if (f === 'PENDING') all = all.filter(r => r.status === 'pending_target' || r.status === 'pending_admin');
+            else if (f !== 'ALL') all = all.filter(r => r.status === f);
+            let html = '';
+            all.forEach(r => {
+                const st = REQ_STATUS_LABEL[r.status] || [escapeHTML(r.status), 'text-gray-600'];
+                const by = (r.status === 'rejected' && r.handledBy === 'target') ? '（同事婉拒）' : '';
+                const h = handlerText(r);
+                const hist = (r.history || []).map(x => `${escapeHTML(fmtDT(x.at))} ${escapeHTML(REQ_ACTION_LABEL[x.action] || x.action)}　${escapeHTML(x.name || x.by || '')}`).join('<br>');
+                const canCancel = (r.status === 'pending_target' || r.status === 'pending_admin') && subRequests[r.id];
+                html += `<div class="border border-gray-200 rounded p-3 bg-gray-50 flex flex-col gap-1" data-id="${escapeHTML(r.id)}">
+                    <div class="flex justify-between items-center"><span class="font-bold">${escapeHTML(REQ_TYPE_LABEL[r.type] || r.type)}　${escapeHTML(r.dateStr)}</span><span class="font-bold ${st[1]}">${st[0]}${by}</span></div>
+                    <div>內容：${escapeHTML(reqSummaryText(r, nameOf))}</div>
+                    <div>事由：${escapeHTML(r.reason)}</div>
+                    <div class="text-gray-500">送出時間：${escapeHTML(fmtDT(r.createdAt))}</div>
+                    ${h ? `<div class="font-bold text-gray-700">${escapeHTML(h)}</div>` : ''}
+                    ${hist ? `<div class="text-[11px] text-gray-400 leading-relaxed border-t pt-1 mt-1">${hist}</div>` : ''}
+                    ${canCancel ? `<div class="flex justify-end"><button onclick="cancelMyRequest(this.parentNode.parentNode.dataset.id)" class="border border-gray-300 text-gray-600 px-3 py-1 rounded font-bold hover:bg-gray-100">取消申請</button></div>` : ''}
+                </div>`;
+            });
+            list.innerHTML = html || '<p class="text-gray-400 text-center py-6">沒有符合條件的申請</p>';
+        }
+
+        // 通用：把表格轉成 PDF（A4 橫向、留邊界、依列分頁、每頁重複標題）
+        function exportTablePDF(src, titleText, fileName) {
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'position:absolute;top:-99999px;left:0;width:1100px;background:#fff;padding:24px;font-family:"Helvetica Neue",Arial,"LiHei Pro","微軟正黑體",sans-serif;';
+            const title = document.createElement('h2');
+            title.textContent = titleText;
+            title.style.cssText = 'font-size:18px;font-weight:bold;margin:0 0 14px 0;color:#111827;';
+            wrap.appendChild(title);
+            const clone = src.cloneNode(true);
+            clone.removeAttribute('id'); clone.classList.add('pdf-table'); clone.style.width = '100%';
+            wrap.appendChild(clone);
+            document.body.appendChild(wrap);
+            const top0 = wrap.getBoundingClientRect().top;
+            const headBottom = clone.querySelector('thead').getBoundingClientRect().bottom - top0;
+            const rows = Array.from(clone.querySelectorAll('tbody tr')).map(tr => { const r = tr.getBoundingClientRect(); return { top: r.top - top0, bottom: r.bottom - top0 }; });
+            document.getElementById('loadingText').innerText = '生成 PDF 報表中...';
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            const cleanup = () => { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); document.getElementById('loadingOverlay').style.display = 'none'; };
+            html2canvas(wrap, { scale: 2, backgroundColor: '#ffffff', useCORS: true }).then(canvas => {
+                cleanup();
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('l', 'mm', 'a4');
+                const PW = pdf.internal.pageSize.getWidth(), PH = pdf.internal.pageSize.getHeight(), M = 12;
+                const availW = PW - 2 * M, availH = PH - 2 * M, widthScale = availW / canvas.width;
+                if (canvas.height * widthScale <= availH) {
+                    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', M, M, availW, canvas.height * widthScale);
+                } else {
+                    const headerPx = Math.ceil(headBottom * 2), availPx = availH / widthScale;
+                    let start = 0, first = true;
+                    while (start < rows.length) {
+                        const pageTop = rows[start].top * 2;
+                        let end = start;
+                        while (end < rows.length && (rows[end].bottom * 2 - pageTop) + headerPx <= availPx) end++;
+                        if (end === start) end++;
+                        const bodyPx = Math.ceil(rows[end - 1].bottom * 2 - pageTop);
+                        const tmp = document.createElement('canvas');
+                        tmp.width = canvas.width; tmp.height = headerPx + bodyPx;
+                        const ctx = tmp.getContext('2d');
+                        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, tmp.width, tmp.height);
+                        ctx.drawImage(canvas, 0, 0, canvas.width, headerPx, 0, 0, canvas.width, headerPx);
+                        ctx.drawImage(canvas, 0, Math.floor(pageTop), canvas.width, bodyPx, 0, headerPx, canvas.width, bodyPx);
+                        if (!first) pdf.addPage();
+                        first = false;
+                        pdf.addImage(tmp.toDataURL('image/jpeg', 0.95), 'JPEG', M, M, availW, tmp.height * widthScale);
+                        start = end;
+                    }
+                }
+                pdf.save(fileName);
+            }).catch(err => { console.error('PDF 匯出失敗:', err); cleanup(); alertCustom('PDF 匯出發生錯誤，請重新再試。'); });
+        }
+
+        function exportApprovalPDF() {
+            if (currentUserRole !== 'admin') return;
+            const list = (requestsData[currentYearMonth] || []).slice().sort((a, b) => String(a.dateStr).localeCompare(String(b.dateStr)) || String(a.createdAt).localeCompare(String(b.createdAt)));
+            if (!list.length) { alertCustom('當月尚無申請紀錄可匯出。'); return; }
+            const emps = getCurrentEmployees(currentYearMonth);
+            const nameOf = id => (emps.find(e => e.id === id) || {}).name || id || '';
+            const heads = ['申請人', '類型', '日期', '申請內容', '事由', '狀態', '處理人／時間'];
+            const rows = list.map(r => {
+                const st = (REQ_STATUS_LABEL[r.status] || [r.status])[0];
+                const cells = [nameOf(r.applicantEmpId), REQ_TYPE_LABEL[r.type] || r.type, r.dateStr, reqSummaryText(r, nameOf), r.reason, st, handlerText(r).replace(/^(核可人|處理人)：/, '')];
+                return '<tr>' + cells.map(c => `<td>${escapeHTML(c)}</td>`).join('') + '</tr>';
+            }).join('');
+            const table = document.createElement('table');
+            table.className = 'att-table pdf-table';
+            table.innerHTML = '<thead><tr>' + heads.map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>' + rows + '</tbody>';
+            exportTablePDF(table, `ÉCOLE CAFÉ 出勤與調班申請審核紀錄 (${currentYearMonth})`, `申請審核紀錄_${currentYearMonth}.pdf`);
         }
 
         function showLineDialog(req) {
@@ -1610,7 +1818,7 @@
                 const by = (r.status === 'rejected' && r.handledBy === 'target') ? '（同事婉拒）' : '';
                 html += `<div class="border border-gray-200 bg-gray-50 rounded p-2 flex flex-col gap-0.5">
                     <div class="flex justify-between items-center"><span class="font-bold">${escapeHTML(REQ_TYPE_LABEL[r.type] || r.type)}　${escapeHTML(String(r.dateStr).substring(5))}</span><span class="font-bold ${st[1]}">${st[0]}${by}</span></div>
-                    <div class="text-gray-600">${escapeHTML(reqSummaryText(r, nameOf))}</div>${(r.status === 'pending_target' || r.status === 'pending_admin') && subRequests[r.id] ? `<div class="flex justify-end" data-id="${escapeHTML(r.id)}"><button onclick="cancelMyRequest(this.parentNode.dataset.id)" class="border border-gray-300 text-gray-600 px-3 py-1 rounded font-bold hover:bg-gray-100">取消申請</button></div>` : ''}</div>`;
+                    <div class="text-gray-600">${escapeHTML(reqSummaryText(r, nameOf))}</div>${handlerText(r) ? `<div class="text-gray-500">${escapeHTML(handlerText(r))}</div>` : ''}${(r.status === 'pending_target' || r.status === 'pending_admin') && subRequests[r.id] ? `<div class="flex justify-end" data-id="${escapeHTML(r.id)}"><button onclick="cancelMyRequest(this.parentNode.dataset.id)" class="border border-gray-300 text-gray-600 px-3 py-1 rounded font-bold hover:bg-gray-100">取消申請</button></div>` : ''}</div>`;
             });
             box.innerHTML = html || '<p class="text-gray-400 text-center py-3">本月尚無已送出的申請</p>';
         }
@@ -1691,7 +1899,7 @@
         }
 
         function histAdd(req, action) {
-            return (req.history || []).concat([{ at: new Date().toISOString(), by: (currentUser && currentUser.email) || '', action: action }]);
+            return (req.history || []).concat([{ at: new Date().toISOString(), by: (currentUser && currentUser.email) || '', name: (currentUser && currentUser.displayName) || '', action: action }]);
         }
 
         async function respondSwap(reqId, accept) {
@@ -1765,6 +1973,7 @@
             try {
                 if (document.getElementById('adminApprovalDialog').open) renderAdminApprovalList();
                 if (document.getElementById('requestCenterDialog').open) renderMyRequests();
+                if (document.getElementById('myDashboardDialog').open) renderMyDashboard();
                 if (document.getElementById('attendanceCompareDialog').open) renderAttendanceCompareTable();
             } catch (e) { console.error('refreshOpenDialogs:', e); }
         }
