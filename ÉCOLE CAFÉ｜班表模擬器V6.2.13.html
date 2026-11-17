@@ -12,7 +12,240 @@
     <meta name="theme-color" content="#ffffff">
     
     <!-- 引入 Tailwind CSS & 工具庫 -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    
+
+
+<script id="ecole-approval-compat-patch-v4">
+(function() {
+  if (window.__ECOLE_PATCH_V4_LOADED__) return;
+  window.__ECOLE_PATCH_V4_LOADED__ = true;
+
+  window.__ecolePatchState = window.__ecolePatchState || {
+    currentUserEmail: '',
+    currentUserDisplayName: '',
+    adminEmails: [],
+    adminEmailsRaw: [],
+    staffMapping: {},
+    writeTimestamps: []
+  };
+
+  window.__ecoleSyncWhitelist = function(wlData, userObj) {
+    const st = window.__ecolePatchState;
+    if (wlData && typeof wlData === 'object') {
+      const rawAdmins = Array.isArray(wlData.adminEmails)
+        ? wlData.adminEmails
+        : (wlData.adminEmails && typeof wlData.adminEmails === 'object' ? Object.keys(wlData.adminEmails) : []);
+      st.adminEmailsRaw = rawAdmins.slice();
+      st.adminEmails = rawAdmins.map(e => String(e || '').trim().toLowerCase()).filter(Boolean);
+      st.staffMapping = (wlData.staffMapping && typeof wlData.staffMapping === 'object') ? wlData.staffMapping : {};
+    }
+    if (userObj && userObj.email) {
+      st.currentUserEmail = String(userObj.email).trim().toLowerCase();
+      st.currentUserDisplayName = userObj.displayName || st.currentUserDisplayName;
+    }
+  };
+
+  window.__ecoleWrapAuthCb = function(cb) {
+    if (typeof cb !== 'function') return cb;
+    return function(user) {
+      if (user && user.email) {
+        const st = window.__ecolePatchState;
+        st.currentUserEmail = String(user.email).trim().toLowerCase();
+        st.currentUserDisplayName = user.displayName || st.currentUserDisplayName;
+      }
+      return cb.apply(this, arguments);
+    };
+  };
+
+  function detectCurrentUser() {
+    const st = window.__ecolePatchState;
+    try {
+      if (window.firebase && typeof window.firebase.auth === 'function') {
+        const u = window.firebase.auth().currentUser;
+        if (u && u.email) {
+          st.currentUserEmail = String(u.email).trim().toLowerCase();
+          st.currentUserDisplayName = u.displayName || st.currentUserDisplayName;
+        }
+      }
+    } catch (_) {}
+    return st;
+  }
+
+  window.__ecoleIsAdmin = function(wlData, email) {
+    if (wlData) window.__ecoleSyncWhitelist(wlData, null);
+    const st = detectCurrentUser();
+    const target = String(email || st.currentUserEmail || '').trim().toLowerCase();
+    if (!target) return false;
+    return st.adminEmails.includes(target);
+  };
+
+  function isInvalidName(val) {
+    if (val === undefined || val === null) return true;
+    const s = String(val).trim();
+    return !s || s === 'undefined' || s === 'null' || s.endsWith('(undefined)') || s.startsWith('undefined');
+  }
+
+  window.__ecoleResolveApproverName = function(fallbackName, wlData, userObj) {
+    if (wlData || userObj) window.__ecoleSyncWhitelist(wlData, userObj);
+    const st = detectCurrentUser();
+    if (!isInvalidName(fallbackName)) {
+      return String(fallbackName).trim();
+    }
+    if (!isInvalidName(st.currentUserDisplayName)) {
+      return String(st.currentUserDisplayName).trim();
+    }
+    if (st.currentUserEmail) {
+      return st.currentUserEmail.split('@')[0];
+    }
+    return '管理員';
+  };
+
+  function isPlainObject(obj) {
+    if (!obj || typeof obj !== 'object') return false;
+    const proto = Object.getPrototypeOf(obj);
+    return proto === Object.prototype || proto === null;
+  }
+
+  // 深度淨化物件與陣列（移除任何層級的 undefined，修補簽核人空白/undefined，並完整保留 serverTimestamp / arrayUnion 等 Firestore 物件）
+  function deepSanitizeNode(node, resolvedApproverName, parentKey) {
+    if (node === undefined) return undefined;
+    if (node === null || typeof node !== 'object') return node;
+
+    if (Array.isArray(node)) {
+      const outArr = [];
+      for (let i = 0; i < node.length; i++) {
+        const item = deepSanitizeNode(node[i], resolvedApproverName, parentKey);
+        if (item !== undefined) {
+          outArr.push(item);
+        }
+      }
+      return outArr;
+    }
+
+    // 非純物件（例如 Firestore Timestamp, FieldValue.serverTimestamp(), arrayUnion()）原封不動保留
+    if (!isPlainObject(node)) {
+      return node;
+    }
+
+    const nameKeys = ['handledBy', 'handledByName', 'approvedBy', 'rejectedBy', 'by', 'actorName', 'operatorName'];
+    const emailKeys = ['handledByEmail', 'approvedByEmail', 'rejectedByEmail', 'byEmail'];
+    const outObj = {};
+
+    const keys = Object.keys(node);
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      let v = node[k];
+
+      if (nameKeys.includes(k) && isInvalidName(v)) {
+        v = resolvedApproverName;
+      }
+      if (emailKeys.includes(k) && typeof v === 'string' && v.trim()) {
+        v = v.trim().toLowerCase();
+      }
+      if ((k === 'handledByEmpId' || k === 'byEmpId') && (v === undefined || v === null || v === '' || v === 'undefined')) {
+        continue; // 純管理員無員工編號時直接省略，不寫入無效值
+      }
+
+      const cleanedVal = deepSanitizeNode(v, resolvedApproverName, k);
+      if (cleanedVal !== undefined) {
+        outObj[k] = cleanedVal;
+      }
+    }
+    return outObj;
+  }
+
+  window.__ecoleSmartPatchWrite = function(docRef, payload) {
+    if (!payload || typeof payload !== 'object') return payload;
+
+    // 防迴圈保護：3 秒內超過 15 次寫入則自動熔斷
+    const now = Date.now();
+    const st = detectCurrentUser();
+    st.writeTimestamps = st.writeTimestamps.filter(t => now - t < 3000);
+    if (st.writeTimestamps.length >= 15) {
+      console.error('[ÉCOLE Security Guard] 偵測到異常高頻寫入，已自動阻斷以防止 Infinite Loop。');
+      throw new Error('系統偵測到短時間內重複寫入請求，已自動中止保護。');
+    }
+    st.writeTimestamps.push(now);
+
+    let docPath = '';
+    try {
+      if (docRef && typeof docRef.path === 'string') {
+        docPath = docRef.path;
+      }
+    } catch (_) {}
+
+    const isRequestPath = /(?:^|/)requests/[^/]+$/.test(docPath);
+    const hasApprovalStatus = (payload.status === 'approved' || payload.status === 'rejected');
+    const hasSignoffKeys = (
+      'handledBy' in payload ||
+      'handledByName' in payload ||
+      'handledByEmail' in payload ||
+      'handledAt' in payload ||
+      'approvedBy' in payload ||
+      'rejectedBy' in payload ||
+      'history' in payload
+    );
+    const looksLikeAdminApproval = hasApprovalStatus && (isRequestPath || hasSignoffKeys);
+
+    // 若非 requests 文件且非簽核操作（例如儲存 scheduleData 班表），原封不動放行
+    if (!isRequestPath && !looksLikeAdminApproval) {
+      return payload;
+    }
+
+    const rawActorEmail = payload.handledByEmail || payload.approvedByEmail || payload.rejectedByEmail || st.currentUserEmail;
+    if (rawActorEmail) {
+      st.currentUserEmail = String(rawActorEmail).trim().toLowerCase();
+    }
+
+    const resolvedName = window.__ecoleResolveApproverName(
+      payload.handledBy || payload.handledByName || payload.approvedBy || payload.rejectedBy
+    );
+
+    // 深度淨化所有巢狀欄位（包含 history 陣列內的簽核紀錄）
+    const clean = deepSanitizeNode(payload, resolvedName, '');
+
+    if (looksLikeAdminApproval) {
+      if (!clean.handledBy) {
+        clean.handledBy = resolvedName;
+      }
+      if (st.currentUserEmail && !clean.handledByEmail) {
+        clean.handledByEmail = st.currentUserEmail;
+      }
+    }
+
+    return clean;
+  };
+
+  window.__ecoleGetPermHint = function(applicantEmail) {
+    const st = detectCurrentUser();
+    const me = st.currentUserEmail;
+    const hints = [];
+
+    if (me && applicantEmail && String(applicantEmail).trim().toLowerCase() === me) {
+      hints.push('• 內控規則限制：管理員不可簽核「本人」提出的申請單，請由其他管理員帳號進行簽核。');
+    }
+
+    if (me && st.adminEmailsRaw.length > 0) {
+      const exactMatch = st.adminEmailsRaw.includes(me);
+      const caseInsensitiveMatch = st.adminEmails.includes(me);
+      if (!caseInsensitiveMatch) {
+        hints.push('• 您的 Google 帳號（' + me + '）尚未列入 systemConfig/whitelist 的 adminEmails 陣列中（簽核人員僅需列在 adminEmails，無需在 staffMapping）。');
+      } else if (!exactMatch) {
+        hints.push('• 提醒：systemConfig/whitelist 的 adminEmails 中含有大寫字母，建議統一改為全小寫（' + me + '）。');
+      }
+    } else {
+      const who = me ? '（' + me + '）' : '';
+      hints.push('• 請確認您的 Google 帳號' + who + '已列在 systemConfig/whitelist 的 adminEmails 內；簽核人員只需管理員權限，無需在 staffMapping 內。');
+    }
+
+    hints.push('• 請確認已在 Firebase Console → Firestore Database → Rules 貼上最新規則並點擊「發布」。');
+    hints.push('• 若該筆申請單是由您本人帳號提出（例如自行測試申請），後端規則會禁止簽核自己的申請單，請由其他員工帳號提出申請後再測試簽核。');
+
+    return hints.join('\n');
+  };
+})();
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <!-- SheetJS 用於解析與匯出 Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -290,6 +523,76 @@
         </div>
     </main>
 
+        <!-- [線上雲端連線設定彈窗] 手動輸入與管理 Firebase Key -->
+    <dialog id="firebaseConfigDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-lg border border-gray-200">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+                <h3 class="font-bold text-gray-800 tracking-wide">Firebase 線上雲端連線設定</h3>
+            </div>
+            <button type="button" onclick="document.getElementById('firebaseConfigDialog').close()" class="text-gray-400 hover:text-black text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-5 bg-white flex flex-col gap-3.5 text-xs max-h-[80vh] overflow-y-auto">
+            <div id="firebaseConnStatusBox" class="p-3 rounded border border-gray-200 bg-gray-50 flex items-center justify-between">
+                <span class="font-bold text-gray-700">目前連線狀態：</span>
+                <span id="firebaseConnStatusBadge" class="font-bold text-gray-600">檢測中...</span>
+            </div>
+
+            <div class="bg-gray-50 border border-gray-200 rounded p-3 flex flex-col gap-2">
+                <div class="flex justify-between items-center">
+                    <label for="fbRawPasteInput" class="font-bold text-gray-800">快速貼上 Firebase SDK 設定碼（選填，自動解析）：</label>
+                    <button type="button" onclick="parsePastedFirebaseConfig()" class="bg-gray-800 text-white px-2.5 py-1 rounded text-[11px] font-bold hover:bg-black">自動解析填入</button>
+                </div>
+                <textarea id="fbRawPasteInput" rows="3" oninput="parsePastedFirebaseConfig(true)" class="border border-gray-300 rounded p-2 w-full font-mono text-[11px] outline-none focus:border-black bg-white" placeholder='可直接貼上 Firebase Console 的 const firebaseConfig = { apiKey: "...", ... }; 或 JSON'></textarea>
+            </div>
+
+            <div class="grid grid-cols-1 gap-2.5">
+                <div>
+                    <label for="fbInput_apiKey" class="block font-bold text-gray-700 mb-1">apiKey <span class="text-red-600">*必填</span></label>
+                    <input type="text" id="fbInput_apiKey" autocomplete="off" spellcheck="false" class="border border-gray-300 rounded px-3 py-1.5 w-full font-mono text-xs outline-none focus:border-black" placeholder="例: AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXX">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                        <label for="fbInput_authDomain" class="block font-bold text-gray-700 mb-1">authDomain <span class="text-red-600">*必填</span></label>
+                        <input type="text" id="fbInput_authDomain" autocomplete="off" spellcheck="false" class="border border-gray-300 rounded px-3 py-1.5 w-full font-mono text-xs outline-none focus:border-black" placeholder="例: your-project.firebaseapp.com">
+                    </div>
+                    <div>
+                        <label for="fbInput_projectId" class="block font-bold text-gray-700 mb-1">projectId <span class="text-red-600">*必填</span></label>
+                        <input type="text" id="fbInput_projectId" autocomplete="off" spellcheck="false" class="border border-gray-300 rounded px-3 py-1.5 w-full font-mono text-xs outline-none focus:border-black" placeholder="例: your-project-id">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                        <label for="fbInput_storageBucket" class="block font-bold text-gray-700 mb-1">storageBucket</label>
+                        <input type="text" id="fbInput_storageBucket" autocomplete="off" spellcheck="false" class="border border-gray-300 rounded px-3 py-1.5 w-full font-mono text-xs outline-none focus:border-black" placeholder="例: your-project.firebasestorage.app">
+                    </div>
+                    <div>
+                        <label for="fbInput_messagingSenderId" class="block font-bold text-gray-700 mb-1">messagingSenderId</label>
+                        <input type="text" id="fbInput_messagingSenderId" autocomplete="off" spellcheck="false" class="border border-gray-300 rounded px-3 py-1.5 w-full font-mono text-xs outline-none focus:border-black" placeholder="例: 123456789012">
+                    </div>
+                </div>
+                <div>
+                    <label for="fbInput_appId" class="block font-bold text-gray-700 mb-1">appId <span class="text-red-600">*必填</span></label>
+                    <input type="text" id="fbInput_appId" autocomplete="off" spellcheck="false" class="border border-gray-300 rounded px-3 py-1.5 w-full font-mono text-xs outline-none focus:border-black" placeholder="例: 1:123456789012:web:abcdef1234567890">
+                </div>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-200 rounded p-2.5 text-[11px] text-blue-900 leading-relaxed">
+                <b>安全與連線說明：</b><br>
+                • 設定僅儲存於您目前裝置瀏覽器的本機儲存空間（localStorage），不會寫死於原始碼中。<br>
+                • 連線後請點擊上方「Google 登入同步」，後端將依據 Firestore <code>systemConfig/whitelist</code> 驗證管理員與員工權限。
+            </div>
+
+            <div class="flex flex-wrap justify-between items-center gap-2 pt-2 border-t border-gray-100">
+                <button type="button" onclick="clearFirebaseConfig()" class="border border-red-300 text-red-600 px-3 py-2 rounded font-bold hover:bg-red-50">清除金鑰（切回單機）</button>
+                <div class="flex items-center gap-2 ml-auto">
+                    <button type="button" onclick="document.getElementById('firebaseConfigDialog').close()" class="border border-gray-300 text-gray-600 px-4 py-2 rounded hover:bg-gray-50">取消</button>
+                    <button type="button" onclick="saveAndConnectFirebase()" class="bg-black text-white px-4 py-2 rounded font-bold hover:bg-gray-800">儲存並連接雲端</button>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
     <!-- [修訂A, B, C, D, E] iCHEF打卡紀錄與表定工時比對彈窗 (灰黑白按鈕、莫蘭迪狀態列、工時不足異常、無損PDF與員工下拉篩選) -->
     <dialog id="attendanceCompareDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-6xl border border-gray-200">
         <div class="relative border-b border-gray-200 bg-gray-50">
@@ -488,20 +791,26 @@
         </div>
     </dialog>
 
-    <dialog id="signoffDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-sm border border-gray-200" onclose="if (signoffResolver) { const r = signoffResolver; signoffResolver = null; r(null); }">
+    <dialog id="signerDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-md border border-gray-200" onclose="if (signerResolver) { const r = signerResolver; signerResolver = null; r(null); }">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h3 id="signerDialogTitle" class="font-bold text-gray-800 tracking-wide">簽核確認</h3>
+            <button type="button" onclick="resolveSigner(false)" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
+        </div>
         <div class="p-5 bg-white flex flex-col gap-3 text-sm">
-            <div id="signoffTitle" class="font-bold text-gray-800">簽核</div>
-            <p class="text-xs text-gray-500">簽核人可為主管或更高層級，不限於員工名單。簽核後會留下此姓名，對外不顯示信箱。</p>
-            <label class="text-xs font-bold text-gray-700">簽核人姓名（必填）</label>
-            <input id="signoffName" list="signoffNameList" maxlength="60" autocomplete="off" placeholder="請輸入簽核人姓名／職稱" class="border border-gray-300 rounded px-3 py-2 w-full font-bold outline-none focus:border-black">
-            <datalist id="signoffNameList"></datalist>
-            <div id="signoffReasonBox" style="display:none">
-                <label class="text-xs font-bold text-red-700">駁回原因（必填）</label>
-                <textarea id="signoffReason" rows="3" maxlength="300" placeholder="請填寫駁回原因，申請人將會看到" class="border border-red-300 rounded p-2 w-full text-sm outline-none focus:border-red-600 mt-1"></textarea>
+            <div id="signerReqPreview" class="hidden bg-gray-50 border border-gray-200 rounded p-2.5 text-xs text-gray-700 leading-relaxed"></div>
+            <div>
+                <label for="signerNameInput" class="block text-xs font-bold text-gray-800 mb-1">簽核人姓名／職稱 <span class="text-red-600">*必填</span></label>
+                <input type="text" id="signerNameInput" maxlength="40" class="border border-gray-300 rounded px-3 py-2 w-full font-bold outline-none focus:border-black" placeholder="請輸入簽核人姓名（如：店長 王小明 / 執行長）">
+                <p class="text-[11px] text-gray-500 mt-1">簽核人可為非排班表內之高階主管，輸入姓名後才可完成簽核（對外不顯示信箱）。</p>
+                <div id="signerQuickChips" class="flex flex-wrap gap-1.5 mt-2"></div>
             </div>
-            <div class="flex justify-end gap-2">
-                <button onclick="resolveSignoff(false)" class="border border-gray-300 text-gray-600 px-4 py-2 rounded hover:bg-gray-50">取消</button>
-                <button onclick="resolveSignoff(true)" class="bg-black text-white px-4 py-2 rounded font-bold hover:bg-gray-800">完成簽核</button>
+            <div id="rejectReasonBox" class="hidden">
+                <label for="rejectReasonInput" class="block text-xs font-bold text-red-700 mb-1">駁回原因 <span class="text-red-600">*必填</span></label>
+                <textarea id="rejectReasonInput" rows="3" maxlength="300" class="border border-red-300 rounded p-2 w-full text-xs outline-none focus:border-red-600" placeholder="請詳細輸入駁回原因（例：當日人力已達上限、未於24小時前提出...）"></textarea>
+            </div>
+            <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                <button type="button" onclick="resolveSigner(false)" class="border border-gray-300 text-gray-600 px-4 py-2 rounded hover:bg-gray-50">取消</button>
+                <button type="button" id="signerConfirmBtn" onclick="resolveSigner(true)" class="bg-black text-white px-4 py-2 rounded font-bold hover:bg-gray-800">確認完成簽核</button>
             </div>
         </div>
     </dialog>
@@ -513,7 +822,7 @@
                 <h3 class="font-bold text-gray-800 tracking-wide">出勤與調班申請審核儀表板</h3>
             </div>
             <div class="flex items-center gap-2">
-                <button onclick="checkCloudRequests()" class="border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap">雲端檢查</button>
+                <button onclick="changeSigner()" class="border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap">簽核人</button>
                 <button onclick="exportApprovalPDF()" class="bg-gray-800 text-white hover:bg-black px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap">匯出 PDF</button>
                 <button onclick="document.getElementById('adminApprovalDialog').close()" class="text-gray-400 hover:text-black text-2xl leading-none">&times;</button>
             </div>
@@ -840,22 +1149,55 @@
             return formatted;
         }
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
+        const FIREBASE_CONFIG_STORAGE_KEY = 'ecoleFirebaseConfig_v1';
+        const defaultFirebaseConfig = {
+             apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
             authDomain: "ecole-1f392.firebaseapp.com",
             projectId: "ecole-1f392",
             storageBucket: "ecole-1f392.firebasestorage.app",
             messagingSenderId: "117812812078",
             appId: "1:117812812078:web:41664b4e6f0a1c6aff42bf",
         };
+
+        function isValidFirebaseConfig(cfg) {
+            if (!cfg || typeof cfg !== 'object') return false;
+            const required = ['apiKey', 'authDomain', 'projectId', 'appId'];
+            for (let i = 0; i < required.length; i++) {
+                const v = String(cfg[required[i]] || '').trim();
+                if (!v || v.includes('您的') || v.includes('YOUR_') || v === 'undefined' || v === 'null') {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function loadStoredFirebaseConfig() {
+            try {
+                const raw = localStorage.getItem(FIREBASE_CONFIG_STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (isValidFirebaseConfig(parsed)) return parsed;
+                }
+            } catch (e) {
+                console.warn('讀取本機 Firebase 設定失敗:', e);
+            }
+            if (isValidFirebaseConfig(defaultFirebaseConfig)) {
+                return Object.assign({}, defaultFirebaseConfig);
+            }
+            return null;
+        }
+
+        let firebaseConfig = loadStoredFirebaseConfig() || Object.assign({}, defaultFirebaseConfig);
         
-        let auth, db, provider;
+        let auth = null, db = null, provider = null;
         let currentUser = null;
-        let currentUserRole = 'admin'; 
+        let currentUserRole = isValidFirebaseConfig(firebaseConfig) ? 'guest' : 'admin'; 
         let currentUserEmpId = null;   
         let unsubscribeSnapshot = null;
         let unsubscribeAttendance = null;
-        let isCloudLoaded = false; 
+        let unsubscribeAuthState = null;
+        let isCloudLoaded = false;
+        let hasInitializedMainDoc = false; 
 
         let tempSelectedShifts = [];
         let activeDialogRawReq = ''; 
@@ -1103,95 +1445,307 @@
             return shiftSettingsData[ym];
         }
 
-        try {
-            firebase.initializeApp(firebaseConfig);
-            auth = firebase.auth();
-            db = firebase.firestore();
-            provider = new firebase.auth.GoogleAuthProvider();
-            
-            auth.onAuthStateChanged(async (user) => {
-                const authArea = document.getElementById('authArea');
-                if (user) {
-                    try {
-                        document.getElementById('loadingText').innerText = "驗證白名單權限中...";
-                        document.getElementById('loadingOverlay').style.display = 'flex';
-                        
-                        const wlSnap = await db.collection("systemConfig").doc("whitelist").get();
-                        let isAdmin = false;
-                        let isStaff = false;
-                        let empId = null;
-
-                        if (wlSnap.exists) {
-                            const wlData = wlSnap.data();
-                            const adminEmails = wlData.adminEmails || [];
-                            const staffMapping = wlData.staffMapping || {};
-
-                            if (adminEmails.includes(user.email)) {
-                                isAdmin = true;
-                            } else if (staffMapping[user.email]) {
-                                isStaff = true;
-                                empId = staffMapping[user.email];
-                            }
-                        } else {
-                            console.warn("未找到 whitelist 設定，基於零信任原則拒絕預設權限。");
-                            isAdmin = false;
-                            isStaff = false;
-                        }
-
-                        if (isAdmin || isStaff) {
-                            currentUser = user;
-                            currentUserRole = isAdmin ? 'admin' : 'staff';
-                            currentUserEmpId = empId;
-
-                            authArea.innerHTML = `
-                                <img src="${escapeHTML(user.photoURL)}" class="w-5 h-5 rounded-full border border-gray-300">
-                                <span class="text-xs font-bold text-gray-700">${escapeHTML(user.displayName)} <span class="text-[9px] text-gray-400">(${isAdmin ? '管理員' : '員工'})</span></span>
-                                <button onclick="logoutGoogle()" class="ml-1 text-[10px] bg-white border border-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100">登出</button>
-                            `;
-                            
-                            updateUIPermissions();
-                            setupCloudSync(); 
-                        } else {
-                            alertCustom("存取被拒絕：您的 Google 帳號未列於後端授權白名單中。");
-                            auth.signOut();
-                            document.getElementById('loadingOverlay').style.display = 'none';
-                        }
-                    } catch(e) {
-                        console.error("驗證發生錯誤:", e);
-                        alertCustom("系統權限驗證失敗，請檢查資料庫與連線。");
-                        auth.signOut();
-                        document.getElementById('loadingOverlay').style.display = 'none';
-                    }
-                } else {
-                    currentUser = null;
-                    currentUserRole = 'admin'; 
-                    currentUserEmpId = null;
-                    isCloudLoaded = false;
-                    if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
-                    if (unsubscribeAttendance) { unsubscribeAttendance(); unsubscribeAttendance = null; }
-                    
-                    authArea.innerHTML = `
-                        <button onclick="loginGoogle()" class="flex items-center gap-1 text-xs font-bold text-gray-700 hover:text-black">
-                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 15.01 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                            Google 登入同步
-                        </button>
-                    `;
-                    updateUIPermissions();
-                    renderTable(); 
-                }
-            });
-        } catch(e) {
-            console.warn("Firebase 尚未設定，系統將以單機模擬模式運行。");
-            document.getElementById('authArea').innerHTML = `<span class="text-xs text-gray-400">單機測試模式</span>`;
-            isCloudLoaded = true;
-            updateUIPermissions();
+        function teardownCloudListeners() {
+            if (unsubscribeSnapshot) { try { unsubscribeSnapshot(); } catch (_) {} unsubscribeSnapshot = null; }
+            if (unsubscribeAttendance) { try { unsubscribeAttendance(); } catch (_) {} unsubscribeAttendance = null; }
         }
 
-        function loginGoogle() { if(auth) auth.signInWithPopup(provider); }
-        function logoutGoogle() { 
-            if(unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
-            if(unsubscribeAttendance) { unsubscribeAttendance(); unsubscribeAttendance = null; }
-            if(auth) auth.signOut(); 
+        function renderStandaloneAuthUI(reasonText) {
+            const authArea = document.getElementById('authArea');
+            if (!authArea) return;
+            const hint = reasonText ? ` title="${escapeHTML(reasonText)}"` : '';
+            authArea.innerHTML = `
+                <span class="w-2 h-2 rounded-full bg-gray-400 inline-block"></span>
+                <span class="text-xs text-gray-500 font-bold"${hint}>單機模式</span>
+                <button type="button" onclick="openFirebaseConfigDialog()" class="ml-1 text-[11px] bg-black text-white px-2.5 py-0.5 rounded-full font-bold hover:bg-gray-800 shadow-sm">⚙️ 連接雲端</button>
+            `;
+        }
+
+        function renderSignedOutCloudUI() {
+            const authArea = document.getElementById('authArea');
+            if (!authArea) return;
+            const proj = escapeHTML((firebaseConfig && firebaseConfig.projectId) || 'Cloud');
+            authArea.innerHTML = `
+                <span class="w-2 h-2 rounded-full bg-amber-500 inline-block" title="已設定 Firebase (${proj})，請登入"></span>
+                <button type="button" onclick="loginGoogle()" class="flex items-center gap-1 text-xs font-bold text-gray-800 hover:text-black">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 15.01 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                    Google 登入同步
+                </button>
+                <button type="button" onclick="openFirebaseConfigDialog()" title="修改 Firebase 設定 (${proj})" class="ml-0.5 text-[11px] bg-white border border-gray-300 px-1.5 py-0.5 rounded-full hover:bg-gray-100 text-gray-600 font-bold">⚙️</button>
+            `;
+        }
+
+        function resolveWhitelistRole(wlData, email) {
+            const norm = String(email || '').trim().toLowerCase();
+            if (!wlData || typeof wlData !== 'object' || !norm) {
+                return { isAdmin: false, isStaff: false, empId: null };
+            }
+            const rawAdmins = Array.isArray(wlData.adminEmails)
+                ? wlData.adminEmails
+                : (wlData.adminEmails && typeof wlData.adminEmails === 'object' ? Object.keys(wlData.adminEmails) : []);
+            const isAdmin = rawAdmins.some(e => String(e || '').trim().toLowerCase() === norm);
+            if (isAdmin) {
+                return { isAdmin: true, isStaff: false, empId: null };
+            }
+            const staffMapping = (wlData.staffMapping && typeof wlData.staffMapping === 'object') ? wlData.staffMapping : {};
+            if (Object.prototype.hasOwnProperty.call(staffMapping, email) && staffMapping[email]) {
+                return { isAdmin: false, isStaff: true, empId: staffMapping[email] };
+            }
+            const mapKeys = Object.keys(staffMapping);
+            for (let i = 0; i < mapKeys.length; i++) {
+                if (String(mapKeys[i] || '').trim().toLowerCase() === norm && staffMapping[mapKeys[i]]) {
+                    return { isAdmin: false, isStaff: true, empId: staffMapping[mapKeys[i]] };
+                }
+            }
+            return { isAdmin: false, isStaff: false, empId: null };
+        }
+
+        async function bootstrapFirebaseCloud(cfg, interactive = false) {
+            teardownCloudListeners();
+            if (unsubscribeAuthState) {
+                try { unsubscribeAuthState(); } catch (_) {}
+                unsubscribeAuthState = null;
+            }
+            currentUser = null;
+            currentUserEmpId = null;
+            isCloudLoaded = false;
+            hasInitializedMainDoc = false;
+
+            if (!isValidFirebaseConfig(cfg)) {
+                auth = null;
+                db = null;
+                provider = null;
+                currentUserRole = 'admin';
+                isCloudLoaded = true;
+                renderStandaloneAuthUI('尚未設定 Firebase 金鑰');
+                updateUIPermissions();
+                renderTable();
+                return false;
+            }
+
+            try {
+                if (window.firebase && Array.isArray(firebase.apps) && firebase.apps.length > 0) {
+                    for (let i = firebase.apps.length - 1; i >= 0; i--) {
+                        try { await firebase.apps[i].delete(); } catch (_) {}
+                    }
+                }
+                firebase.initializeApp(cfg);
+                auth = firebase.auth();
+                db = firebase.firestore();
+                provider = new firebase.auth.GoogleAuthProvider();
+                provider.setCustomParameters({ prompt: 'select_account' });
+
+                currentUserRole = 'guest';
+                renderSignedOutCloudUI();
+                updateUIPermissions();
+
+                unsubscribeAuthState = auth.onAuthStateChanged(window.__ecoleWrapAuthCb(async (user) => {
+                    const authArea = document.getElementById('authArea');
+                    if (user) {
+                        try {
+                            document.getElementById('loadingText').innerText = "驗證白名單權限中...";
+                            document.getElementById('loadingOverlay').style.display = 'flex';
+
+                            const wlSnap = await withTimeout(db.collection("systemConfig").doc("whitelist").get(), 15000);
+                            let roleInfo = { isAdmin: false, isStaff: false, empId: null };
+
+                            if (wlSnap.exists) {
+                                const wlData = wlSnap.data();
+                                if (typeof window.__ecoleSyncWhitelist === 'function') {
+                                    window.__ecoleSyncWhitelist(wlData, user);
+                                }
+                                roleInfo = resolveWhitelistRole(wlData, user.email);
+                            } else {
+                                console.warn("未找到 systemConfig/whitelist 設定，基於零信任原則拒絕預設權限。");
+                            }
+
+                            if (roleInfo.isAdmin || roleInfo.isStaff) {
+                                currentUser = user;
+                                currentUserRole = roleInfo.isAdmin ? 'admin' : 'staff';
+                                currentUserEmpId = roleInfo.empId;
+
+                                const avatarHTML = user.photoURL
+                                    ? `<img src="${escapeHTML(user.photoURL)}" class="w-5 h-5 rounded-full border border-gray-300">`
+                                    : `<span class="w-5 h-5 rounded-full bg-gray-800 text-white text-[10px] font-bold flex items-center justify-center">${escapeHTML((user.displayName || user.email || 'U').charAt(0).toUpperCase())}</span>`;
+
+                                authArea.innerHTML = `
+                                    <span class="w-2 h-2 rounded-full bg-green-500 inline-block" title="雲端已連線 (${escapeHTML(cfg.projectId)})"></span>
+                                    ${avatarHTML}
+                                    <span class="text-xs font-bold text-gray-700">${escapeHTML(user.displayName || user.email)} <span class="text-[9px] text-gray-500">(${roleInfo.isAdmin ? '管理員' : '員工'})</span></span>
+                                    <button type="button" onclick="openFirebaseConfigDialog()" title="Firebase 連線設定" class="text-[10px] bg-white border border-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 text-gray-600">⚙️</button>
+                                    <button type="button" onclick="logoutGoogle()" class="text-[10px] bg-white border border-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 font-bold">登出</button>
+                                `;
+
+                                updateUIPermissions();
+                                setupCloudSync();
+                            } else {
+                                document.getElementById('loadingOverlay').style.display = 'none';
+                                alertCustom("存取被拒絕：您的 Google 帳號（" + (user.email || '') + "）未列於後端 systemConfig/whitelist 授權白名單中。");
+                                await auth.signOut();
+                            }
+                        } catch (e) {
+                            console.error("驗證發生錯誤:", e);
+                            document.getElementById('loadingOverlay').style.display = 'none';
+                            const errMsg = (e && e.code === 'permission-denied')
+                                ? "讀取白名單權限被拒（permission-denied），請確認已在 Firebase Console 發布最新 Firestore Rules 並建立 systemConfig/whitelist 文件。"
+                                : ("系統權限驗證失敗：" + ((e && e.message) || e));
+                            alertCustom(errMsg);
+                            try { await auth.signOut(); } catch (_) {}
+                        }
+                    } else {
+                        currentUser = null;
+                        currentUserRole = isValidFirebaseConfig(firebaseConfig) ? 'guest' : 'admin';
+                        currentUserEmpId = null;
+                        isCloudLoaded = !isValidFirebaseConfig(firebaseConfig);
+                        teardownCloudListeners();
+
+                        if (isValidFirebaseConfig(firebaseConfig)) {
+                            renderSignedOutCloudUI();
+                        } else {
+                            renderStandaloneAuthUI();
+                        }
+                        updateUIPermissions();
+                        renderTable();
+                    }
+                }));
+                return true;
+            } catch (e) {
+                console.error("Firebase 初始化失敗:", e);
+                auth = null;
+                db = null;
+                provider = null;
+                currentUserRole = 'admin';
+                isCloudLoaded = true;
+                renderStandaloneAuthUI('Firebase 初始化失敗');
+                updateUIPermissions();
+                if (interactive) {
+                    alertCustom("Firebase 初始化失敗，請檢查輸入的金鑰格式是否正確：\n" + ((e && e.message) || e));
+                }
+                return false;
+            }
+        }
+
+        function openFirebaseConfigDialog() {
+            const statusBadge = document.getElementById('firebaseConnStatusBadge');
+            const isConfigured = isValidFirebaseConfig(firebaseConfig);
+            if (statusBadge) {
+                if (currentUser && isConfigured) {
+                    statusBadge.className = 'font-bold text-green-700';
+                    statusBadge.innerText = `🟢 雲端已連線（專案：${firebaseConfig.projectId}｜${currentUser.email}）`;
+                } else if (isConfigured) {
+                    statusBadge.className = 'font-bold text-amber-700';
+                    statusBadge.innerText = `🟡 雲端金鑰已設定（專案：${firebaseConfig.projectId}｜待 Google 登入）`;
+                } else {
+                    statusBadge.className = 'font-bold text-gray-500';
+                    statusBadge.innerText = '⚪ 單機模式（尚未設定 Firebase 金鑰）';
+                }
+            }
+
+            const fields = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+            fields.forEach(k => {
+                const el = document.getElementById('fbInput_' + k);
+                if (!el) return;
+                const val = (firebaseConfig && firebaseConfig[k]) ? String(firebaseConfig[k]) : '';
+                el.value = (val && !val.includes('您的')) ? val : '';
+            });
+            const pasteEl = document.getElementById('fbRawPasteInput');
+            if (pasteEl) pasteEl.value = '';
+            document.getElementById('firebaseConfigDialog').showModal();
+        }
+
+        function parsePastedFirebaseConfig(silent = false) {
+            const pasteEl = document.getElementById('fbRawPasteInput');
+            if (!pasteEl) return;
+            const raw = pasteEl.value.trim();
+            if (!raw) return;
+
+            const keys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+            const extracted = {};
+
+            try {
+                const jsonMatch = raw.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const obj = JSON.parse(jsonMatch[0]);
+                    keys.forEach(k => { if (obj[k]) extracted[k] = String(obj[k]).trim(); });
+                }
+            } catch (_) {
+                keys.forEach(k => {
+                    const re = new RegExp('["\x27]?' + k + '["\x27]?\\s*:\\s*["\x27]([^"\x27]+)["\x27]');
+                    const m = raw.match(re);
+                    if (m && m[1]) extracted[k] = m[1].trim();
+                });
+            }
+
+            const foundKeys = Object.keys(extracted);
+            if (foundKeys.length > 0) {
+                foundKeys.forEach(k => {
+                    const inp = document.getElementById('fbInput_' + k);
+                    if (inp) inp.value = extracted[k];
+                });
+            } else if (!silent) {
+                alertCustom('無法從貼上內容解析出 Firebase 欄位，請確認貼上格式或直接填寫下方欄位。');
+            }
+        }
+
+        async function saveAndConnectFirebase() {
+            const cfg = {
+                apiKey: (document.getElementById('fbInput_apiKey').value || '').trim(),
+                authDomain: (document.getElementById('fbInput_authDomain').value || '').trim(),
+                projectId: (document.getElementById('fbInput_projectId').value || '').trim(),
+                storageBucket: (document.getElementById('fbInput_storageBucket').value || '').trim(),
+                messagingSenderId: (document.getElementById('fbInput_messagingSenderId').value || '').trim(),
+                appId: (document.getElementById('fbInput_appId').value || '').trim()
+            };
+
+            if (!isValidFirebaseConfig(cfg)) {
+                alertCustom('請完整填寫有效的 apiKey、authDomain、projectId 與 appId（不可保留預設提示文字）。');
+                return;
+            }
+
+            firebaseConfig = cfg;
+            localStorage.setItem(FIREBASE_CONFIG_STORAGE_KEY, JSON.stringify(cfg));
+            const ok = await bootstrapFirebaseCloud(cfg, true);
+            if (ok) {
+                document.getElementById('firebaseConfigDialog').close();
+                alertCustom(`✅ Firebase 雲端設定已儲存（專案：${cfg.projectId}）！\n請點擊上方「Google 登入同步」進行帳號驗證與雲端同步。`);
+            }
+        }
+
+        async function clearFirebaseConfig() {
+            const ok = await customConfirm('確定要清除本機儲存的 Firebase 金鑰並切回單機模式嗎？\n（雲端資料庫資料不會被刪除）');
+            if (!ok) return;
+            localStorage.removeItem(FIREBASE_CONFIG_STORAGE_KEY);
+            firebaseConfig = Object.assign({}, defaultFirebaseConfig);
+            if (auth && currentUser) {
+                try { await auth.signOut(); } catch (_) {}
+            }
+            await bootstrapFirebaseCloud(firebaseConfig, false);
+            document.getElementById('firebaseConfigDialog').close();
+            alertCustom('已清除 Firebase 金鑰，系統已切回單機模式。');
+        }
+
+        bootstrapFirebaseCloud(firebaseConfig, false);
+
+        function loginGoogle() {
+            if (!auth || !provider || !isValidFirebaseConfig(firebaseConfig)) {
+                openFirebaseConfigDialog();
+                return;
+            }
+            auth.signInWithPopup(provider).catch((err) => {
+                console.error('Google 登入失敗:', err);
+                const code = (err && err.code) || '';
+                if (code === 'auth/popup-closed-by-user') return;
+                if (code === 'auth/api-key-not-valid' || code === 'auth/invalid-api-key') {
+                    alertCustom('Firebase API Key 無效，請點擊 ⚙️ 檢查並重新輸入正確的 Firebase 設定。');
+                    openFirebaseConfigDialog();
+                } else {
+                    alertCustom('Google 登入失敗：' + ((err && err.message) || err));
+                }
+            });
+        }
+        function logoutGoogle() {
+            teardownCloudListeners();
+            if (auth) auth.signOut();
         }
 
         function updateUIPermissions() {
@@ -1204,6 +1758,22 @@
 
         function isScheduleLocked(ym = currentYearMonth) {
             return !!(lockData && lockData[ym]);
+        }
+
+        function toggleScheduleLock() {
+            if (currentUserRole !== 'admin') {
+                alertCustom('權限不足：僅管理員可鎖定或解鎖當月班表！');
+                return;
+            }
+            const nextLocked = !isScheduleLocked(currentYearMonth);
+            if (!lockData || typeof lockData !== 'object') lockData = {};
+            lockData[currentYearMonth] = nextLocked;
+            localStorage.setItem('ecoleLock', JSON.stringify(lockData));
+            updateFirestoreField(`lockData.${currentYearMonth}`, nextLocked);
+            renderTable();
+            alertCustom(nextLocked
+                ? `🔒 已鎖定 ${currentYearMonth} 月份班表（員工與排班欄位已唯讀保護）。`
+                : `🔓 已解鎖 ${currentYearMonth} 月份班表，恢復可編輯狀態。`);
         }
 
         function setupCloudSync() {
@@ -1241,7 +1811,10 @@
                     refreshOpenDialogs();
                 } else {
                     isCloudLoaded = true;
-                    if (currentUserRole === 'admin') saveData();
+                    if (currentUserRole === 'admin' && !hasInitializedMainDoc) {
+                        hasInitializedMainDoc = true;
+                        saveData();
+                    }
                 }
                 document.getElementById('loadingOverlay').style.display = 'none';
             }, (error) => {
@@ -1264,7 +1837,7 @@
             const safeValue = (value === undefined || value === null) ? '' : value;
             const docRef = db.collection("ecoleCafe").doc("main_schedule");
             
-            docRef.update({ [fieldPath]: safeValue }).catch(() => {
+            docRef.update(window.__ecoleSmartPatchWrite(docRef, { [fieldPath]: safeValue })).catch(() => {
                 const parts = fieldPath.split('.');
                 let obj = {};
                 let curr = obj;
@@ -1421,15 +1994,27 @@
             return (err && err.message) || String(err);
         }
 
-        // 每筆申請獨立一份文件（ecoleCafe/main_schedule/requests/{id}），含處理歷程，永久保存於後台
+        // 每筆申請獨立一份文件（ecoleCafe/main_schedule/requests/{id}），含完整可管理欄位與處理歷程，永久保存於後台
         async function persistNewRequest(req, ym) {
             if (!db || !currentUser) throw new Error('尚未登入雲端');
-            const data = Object.assign({}, req, { history: [{ at: req.createdAt, name: currentUser.displayName || '', action: 'submit' }] });
+            const emps = getCurrentEmployees(ym || currentYearMonth);
+            const appEmp = emps.find(x => x.id === req.applicantEmpId);
+            const tgtEmp = req.targetEmpId ? emps.find(x => x.id === req.targetEmpId) : null;
+            const nowIso = req.createdAt || new Date().toISOString();
+            const data = Object.assign({}, req, {
+                ym: ym || String(req.dateStr || '').substring(0, 7),
+                applicantName: req.applicantName || (appEmp ? appEmp.name : (currentUser.displayName || req.applicantEmpId)),
+                targetEmpName: req.targetEmpName || (tgtEmp ? tgtEmp.name : ''),
+                signerName: '',
+                rejectReason: '',
+                updatedAt: nowIso,
+                history: [{ at: nowIso, name: (appEmp ? appEmp.name : (currentUser.displayName || '')), action: 'submit' }]
+            });
             try {
-                const reqRef = db.collection('ecoleCafe').doc('main_schedule').collection('requests').doc(req.id);
-                await withTimeout(reqRef.set(data), 15000);
-                const chk = await withTimeout(reqRef.get({ source: 'server' }), 15000);
-                if (!chk.exists || chk.data().status !== req.status) throw new Error('寫入後雲端讀回不一致，請重試');
+                await withTimeout(db.collection('ecoleCafe').doc('main_schedule').collection('requests').doc(req.id).set(data), 15000);
+                subRequests[req.id] = data;
+                rebuildRequestsData();
+                localStorage.setItem('ecoleRequests', JSON.stringify(requestsData));
             } catch (err) { throw new Error(fbErrText(err)); }
         }
 
@@ -1438,6 +2023,7 @@
             if (!currentUser) { alertCustom('請先登入 Google 帳號。'); return; }
             const dateStr = document.getElementById('reqDateInput').value;
             const reason = document.getElementById('reqReason').value.trim();
+            if (!reason) { alertCustom('請填寫申請事由！'); return; }
             const ymStr = dateStr.substring(0, 7);
             const dayNum = parseInt(dateStr.split('-')[2], 10);
             if (ymStr !== currentYearMonth) { alertCustom("申請日期必須在目前選取的月份內！"); return; }
@@ -1447,15 +2033,30 @@
                 alertCustom(currentUserRole === 'admin' ? '請先在「申請人」欄選擇您自己的姓名，才能提出申請。' : '找不到您對應的員工資料，請聯絡管理員。');
                 return;
             }
+            const empsList = getCurrentEmployees(currentYearMonth);
+            const appEmpObj = empsList.find(x => x.id === applicantId);
+            const nowIso = new Date().toISOString();
             const newReq = {
                 id: 'REQ_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-                type: activeRequestTab, applicantEmpId: applicantId, applicantEmail: currentUser.email || '',
-                dateStr: dateStr, day: dayNum, reason: reason, status: 'pending_admin', createdAt: new Date().toISOString()
+                ym: ymStr,
+                type: activeRequestTab,
+                applicantEmpId: applicantId,
+                applicantName: appEmpObj ? appEmpObj.name : (currentUser.displayName || applicantId),
+                applicantEmail: currentUser.email || '',
+                dateStr: dateStr,
+                day: dayNum,
+                reason: reason,
+                status: 'pending_admin',
+                signerName: '',
+                rejectReason: '',
+                createdAt: nowIso,
+                updatedAt: nowIso
             };
 
             if (activeRequestTab === 'swap') {
                 const targetEmpId = document.getElementById('reqTargetEmpSelect').value;
                 if (!targetEmpId || targetEmpId === applicantId) { alertCustom('請選擇調班對象。'); return; }
+                const targetEmpObj = empsList.find(x => x.id === targetEmpId);
                 const parsed = parseCellData(scheduleData[currentYearMonth]?.[applicantId]?.[dayNum] || '');
                 if (!parsed.shiftCode || ['✖', '❌'].includes(parsed.shiftCode)) { alertCustom("您在該日期未排定班別，無法發起調班！"); return; }
                 const info = getShiftInfo(parsed.shiftCode, currentYearMonth);
@@ -1463,6 +2064,7 @@
                 const shiftStart = new Date(`${dateStr}T${st.substring(0, 2)}:${st.substring(2, 4) || '00'}:00`).getTime();
                 if (shiftStart - Date.now() < 24 * 3600 * 1000) { alertCustom("依規定：調班申請必須於班別開始 24 小時前提出！"); return; }
                 newReq.targetEmpId = targetEmpId;
+                newReq.targetEmpName = targetEmpObj ? targetEmpObj.name : targetEmpId;
                 newReq.status = 'pending_target';
                 const swi = getSwapShiftInfo(applicantId, dateStr);
                 newReq.details = { originalShift: parsed.shiftCode, originalTime: swi.timeTxt, shiftHours: swi.hours };
@@ -1564,7 +2166,8 @@
                     <div class="text-gray-700 leading-normal">
                         <div>說明：${detailText}</div>
                         <div>理由：${escapeHTML(r.reason)}</div>
-                        ${handlerText(r) ? `<div class="font-bold text-gray-700">${escapeHTML(handlerText(r))}</div>` : ''}
+                        ${r.status === 'rejected' && r.rejectReason ? `<div class="text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1 mt-1 font-bold">駁回原因：${escapeHTML(r.rejectReason)}</div>` : ''}
+                        ${handlerText(r) ? `<div class="font-bold text-gray-800 mt-0.5">${escapeHTML(handlerText(r))}</div>` : ''}
                     </div>
                     <div class="flex justify-end" data-id="${escapeHTML(r.id)}"><button onclick="copyReqLine(this.parentNode.dataset.id)" class="border border-green-600 text-green-700 px-3 py-1 rounded font-bold hover:bg-green-50">複製LINE訊息</button></div>
                     ${r.status === 'pending_admin' ? (isSelfRequest(r) ? `<div class="mt-1 border-t pt-2 text-right text-[11px] text-gray-500 font-bold">⚠️ 這是您自己的申請，需由其他管理者核可</div>` : `
@@ -1653,115 +2256,127 @@
         }
 
         function signerOf(r) {
-            if (r.handledByName) return r.handledByName;
+            if (!r) return '';
+            if (r.signerName && String(r.signerName).trim()) return String(r.signerName).trim();
             const h = (r.history || []).slice().reverse().find(x => x.action === 'approve' || x.action === 'reject');
             return (h && h.name) || '';
         }
 
-        // 顯示「是誰簽核」：只顯示姓名與時間（駁回時附原因），不顯示信箱
+        // 顯示「是誰簽核」：只顯示姓名與時間，不顯示信箱
         function handlerText(r) {
-            if (!r || (!r.handledAt && !r.handledByEmail)) return '';
+            if (!r || (!r.handledAt && !r.signerName && !r.handledByEmail)) return '';
             if (r.handledBy === 'target') return '';
-            let t = `${r.status === 'approved' ? '核可人' : '處理人'}：${signerOf(r) || '管理者'}${r.handledAt ? ' ' + fmtDT(r.handledAt) : ''}`;
-            if (r.status === 'rejected' && r.rejectReason) t += `　駁回原因：${r.rejectReason}`;
-            return t;
+            const label = r.status === 'approved' ? '核可簽核人' : (r.status === 'rejected' ? '駁回簽核人' : '簽核人');
+            return `${label}：${signerOf(r) || '管理者'}${r.handledAt ? ' ' + fmtDT(r.handledAt) : ''}`;
         }
 
-        // 可貼到 LINE 群組的訊息：申請內容 + 處理結果 + 簽核人（+ 駁回原因）
+        // 可貼到 LINE 群組的訊息：申請內容 + 處理結果 + 簽核人 + 駁回原因（若有）
         function approvalLineText(r) {
             let text = lineTextForReq(r);
             if (r.handledBy === 'target' && r.status === 'rejected') text += '\n處理結果：同事婉拒';
             else if (r.status === 'approved' || r.status === 'rejected') {
                 text += `\n處理結果：${r.status === 'approved' ? '已核可' : '已駁回'}\n簽核人：${signerOf(r) || '管理者'}${r.handledAt ? ' ' + fmtDT(r.handledAt) : ''}`;
-                if (r.status === 'rejected' && r.rejectReason) text += `\n駁回原因：${r.rejectReason}`;
+                if (r.status === 'rejected' && r.rejectReason) {
+                    text += `\n駁回原因：${r.rejectReason}`;
+                }
             }
             return text;
         }
 
-        // ---- 簽核視窗：必須輸入簽核人姓名；駁回必須填寫原因（後端 Rules 同樣強制）----
-        let signoffResolver = null, signoffIsApprove = true;
-        function askSignoff(isApproved) {
-            signoffIsApprove = isApproved;
-            document.getElementById('signoffTitle').textContent = isApproved ? '✅ 核可簽核' : '❌ 駁回簽核';
-            document.getElementById('signoffName').value = '';
-            document.getElementById('signoffReason').value = '';
-            document.getElementById('signoffReasonBox').style.display = isApproved ? 'none' : '';
-            let recent = [];
-            try { recent = JSON.parse(localStorage.getItem('ecoleRecentSigners') || '[]'); } catch (e) {}
-            document.getElementById('signoffNameList').innerHTML = recent.map(n => `<option value="${escapeHTML(n)}"></option>`).join('');
-            document.getElementById('signoffDialog').showModal();
-            return new Promise(res => { signoffResolver = res; });
+        // ---- 簽核彈窗：強制輸入簽核人姓名（可為非員工高階主管），駁回時強制輸入駁回原因 ----
+        let signerResolver = null;
+        let signerDialogMode = 'preset'; // 'approve' | 'reject' | 'preset'
+        function signerKey() { return 'ecoleSigner:' + ((currentUser && currentUser.email) || ''); }
+        function fillSignerInput(val) {
+            const inp = document.getElementById('signerNameInput');
+            if (inp) { inp.value = val; inp.focus(); }
         }
-        function resolveSignoff(ok) {
+        function askSignOffDetails(req, mode) {
+            signerDialogMode = mode || 'preset';
+            const titleEl = document.getElementById('signerDialogTitle');
+            const previewEl = document.getElementById('signerReqPreview');
+            const nameInp = document.getElementById('signerNameInput');
+            const chipsEl = document.getElementById('signerQuickChips');
+            const rejectBox = document.getElementById('rejectReasonBox');
+            const rejectInp = document.getElementById('rejectReasonInput');
+            const confirmBtn = document.getElementById('signerConfirmBtn');
+
+            const savedName = localStorage.getItem(signerKey()) || '';
+            const gName = (currentUser && currentUser.displayName) || '';
+            nameInp.value = savedName;
+            rejectInp.value = '';
+
+            if (signerDialogMode === 'approve') {
+                titleEl.innerText = '✅ 核准簽核確認（請輸入簽核人姓名）';
+                confirmBtn.innerText = '確認核准並完成簽核';
+                confirmBtn.className = 'bg-black text-white px-4 py-2 rounded font-bold hover:bg-gray-800';
+                rejectBox.classList.add('hidden');
+            } else if (signerDialogMode === 'reject') {
+                titleEl.innerText = '❌ 駁回申請確認（需填寫簽核人與駁回原因）';
+                confirmBtn.innerText = '確認駁回並完成簽核';
+                confirmBtn.className = 'bg-red-700 text-white px-4 py-2 rounded font-bold hover:bg-red-800';
+                rejectBox.classList.remove('hidden');
+            } else {
+                titleEl.innerText = '✍️ 預設簽核人姓名設定';
+                confirmBtn.innerText = '儲存預設簽核人';
+                confirmBtn.className = 'bg-black text-white px-4 py-2 rounded font-bold hover:bg-gray-800';
+                rejectBox.classList.add('hidden');
+            }
+
+            if (req) {
+                const emps = getCurrentEmployees(currentYearMonth);
+                const appName = req.applicantName || ((emps.find(e => e.id === req.applicantEmpId) || {}).name) || req.applicantEmpId || '';
+                previewEl.innerHTML = `<div class="font-bold text-gray-900">申請單：${escapeHTML(appName)}｜${escapeHTML(REQ_TYPE_LABEL[req.type] || req.type)}（${escapeHTML(req.dateStr)}）</div><div class="text-gray-600 mt-0.5">事由：${escapeHTML(req.reason || '')}</div>`;
+                previewEl.classList.remove('hidden');
+            } else {
+                previewEl.classList.add('hidden');
+            }
+
+            const quickCandidates = [];
+            if (savedName) quickCandidates.push(savedName);
+            if (gName && !quickCandidates.includes(gName)) quickCandidates.push(gName);
+            getCurrentEmployees(currentYearMonth).filter(e => e.type === 'FT').forEach(e => {
+                if (!quickCandidates.includes(e.name)) quickCandidates.push(e.name);
+            });
+            chipsEl.innerHTML = quickCandidates.slice(0, 6).map(n => {
+                const safeAttr = n.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                return `<button type="button" onclick="fillSignerInput('${safeAttr}')" class="text-[11px] bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 px-2 py-0.5 rounded">${escapeHTML(n)}</button>`;
+            }).join('');
+
+            document.getElementById('signerDialog').showModal();
+            setTimeout(() => nameInp.focus(), 30);
+            return new Promise(res => { signerResolver = res; });
+        }
+        function resolveSigner(ok) {
             if (!ok) {
-                document.getElementById('signoffDialog').close();
-                const r0 = signoffResolver; signoffResolver = null; if (r0) r0(null);
+                document.getElementById('signerDialog').close();
+                const r = signerResolver; signerResolver = null;
+                if (r) r(null);
                 return;
             }
-            const name = document.getElementById('signoffName').value.trim();
-            if (!name) { alertCustom('請輸入簽核人姓名，才能完成簽核。'); return; }
-            let reason = '';
-            if (!signoffIsApprove) {
-                reason = document.getElementById('signoffReason').value.trim();
-                if (!reason) { alertCustom('駁回必須填寫駁回原因。'); return; }
+            const signerName = (document.getElementById('signerNameInput').value || '').trim();
+            if (!signerName) {
+                alertCustom('請務必輸入簽核人姓名後才可完成簽核！');
+                document.getElementById('signerNameInput').focus();
+                return;
             }
-            try {
-                let recent = JSON.parse(localStorage.getItem('ecoleRecentSigners') || '[]');
-                recent = [name].concat(recent.filter(n => n !== name)).slice(0, 8);
-                localStorage.setItem('ecoleRecentSigners', JSON.stringify(recent));
-            } catch (e) {}
-            document.getElementById('signoffDialog').close();
-            const r = signoffResolver; signoffResolver = null;
-            if (r) r({ name: name, reason: reason });
-        }
-
-        // ---- 雲端檢查：從伺服器讀取，確認申請與簽核稽核確實存在於 Firebase ----
-        async function checkCloudRequests() {
-            if (currentUserRole !== 'admin' || !db || !currentUser) { alertCustom('僅管理者登入雲端後可使用雲端檢查。'); return; }
-            try {
-                const base = db.collection('ecoleCafe').doc('main_schedule');
-                const both = await Promise.all([withTimeout(base.collection('requests').get({ source: 'server' }), 15000), withTimeout(base.collection('auditLogs').get({ source: 'server' }), 15000)]);
-                const rq = both[0], au = both[1];
-                const c = { p: 0, a: 0, r: 0, x: 0 };
-                rq.forEach(d => { const s = d.data().status; if (s === 'approved') c.a++; else if (s === 'rejected') c.r++; else if (s === 'cancelled') c.x++; else c.p++; });
-                const localN = Object.keys(subRequests).length;
-                alertCustom(`✅ 雲端資料庫連線正常\n申請 requests：${rq.size} 筆（處理中 ${c.p}／已核准 ${c.a}／已駁回 ${c.r}／已取消 ${c.x}）\n簽核稽核 auditLogs：${au.size} 筆\n本機同步：${localN} 筆${localN === rq.size ? '（一致）' : '（尚在同步或有差異）'}\n\n資料庫路徑：ecoleCafe/main_schedule/requests/{申請編號}`);
-            } catch (err) { alertCustom('❌ 雲端檢查失敗：' + fbErrText(err)); }
-        }
-
-        // ---- 備份：附上當月申請的簽核稽核紀錄（管理者才讀得到）----
-        async function fetchAuditLogsForMonth(ym) {
-            if (!db || !currentUser || currentUserRole !== 'admin') return [];
-            try {
-                const ids = {};
-                (requestsData[ym] || []).forEach(r => { ids[r.id] = true; });
-                const qs = await withTimeout(db.collection('ecoleCafe').doc('main_schedule').collection('auditLogs').get(), 15000);
-                const out = [];
-                qs.forEach(d => { const x = d.data(); if (ids[x.reqId]) out.push(x); });
-                return out;
-            } catch (e) { console.warn('稽核紀錄讀取失敗，備份將不含稽核紀錄:', e); return []; }
-        }
-
-        // ---- 還原：只補回雲端沒有的申請（依編號），不覆蓋雲端上較新的處理結果 ----
-        let lastRestoreMsg = '';
-        function restoreRequestsFromBackup(ym, list) {
-            if (!Array.isArray(list) || !list.length) { lastRestoreMsg = ''; return; }
-            const have = {};
-            Object.keys(subRequests).forEach(id => { have[id] = true; });
-            Object.keys(legacyRequestsData || {}).forEach(k => (legacyRequestsData[k] || []).forEach(r => { have[r.id] = true; }));
-            const add = list.filter(r => r && r.id && !have[r.id]);
-            if (add.length) {
-                const cur = (legacyRequestsData[ym] || []).concat(add);
-                legacyRequestsData[ym] = cur;
-                rebuildRequestsData();
-                if (db && currentUser && currentUserRole === 'admin') {
-                    withTimeout(db.collection('ecoleCafe').doc('main_schedule').update({ ['requestsData.' + ym]: cur }), 15000).catch(err => {
-                        console.error('申請還原寫入雲端失敗:', err);
-                        setTimeout(() => { if (!document.getElementById('alertDialog').open) alertCustom('⚠️ 申請紀錄還原後寫入雲端失敗：' + fbErrText(err)); }, 600);
-                    });
+            let rejectReason = '';
+            if (signerDialogMode === 'reject') {
+                rejectReason = (document.getElementById('rejectReasonInput').value || '').trim();
+                if (!rejectReason) {
+                    alertCustom('駁回申請時，請務必填寫駁回原因！');
+                    document.getElementById('rejectReasonInput').focus();
+                    return;
                 }
             }
-            lastRestoreMsg = `\n申請紀錄：還原 ${add.length} 筆，略過 ${list.length - add.length} 筆（雲端已有相同編號）。`;
+            document.getElementById('signerDialog').close();
+            localStorage.setItem(signerKey(), signerName);
+            const r = signerResolver; signerResolver = null;
+            if (r) r({ signerName, rejectReason });
+        }
+        async function changeSigner() {
+            if (currentUserRole !== 'admin') { alertCustom('權限不足：僅管理員可設定簽核人。'); return; }
+            await askSignOffDetails(null, 'preset');
         }
 
         async function copyTextToClipboard(text) {
@@ -1818,6 +2433,7 @@
                     <div class="flex justify-between items-center"><span class="font-bold">${escapeHTML(REQ_TYPE_LABEL[r.type] || r.type)}　${escapeHTML(r.dateStr)}</span><span class="font-bold ${st[1]}">${st[0]}${by}</span></div>
                     <div>內容：${escapeHTML(reqSummaryText(r, nameOf))}</div>
                     <div>事由：${escapeHTML(r.reason)}</div>
+                    ${r.status === 'rejected' && r.rejectReason ? `<div class="text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1 font-bold">駁回原因：${escapeHTML(r.rejectReason)}</div>` : ''}
                     <div class="text-gray-500">送出時間：${escapeHTML(fmtDT(r.createdAt))}</div>
                     ${h ? `<div class="font-bold text-gray-700">${escapeHTML(h)}</div>` : ''}
                     ${hist ? `<div class="text-[11px] text-gray-400 leading-relaxed border-t pt-1 mt-1">${hist}</div>` : ''}
@@ -1886,8 +2502,8 @@
             const nameOf = id => (emps.find(e => e.id === id) || {}).name || id || '';
             const heads = ['申請人', '類型', '日期', '申請內容', '事由', '狀態', '處理人／時間'];
             const rows = list.map(r => {
-                const st = (REQ_STATUS_LABEL[r.status] || [r.status])[0];
-                const cells = [nameOf(r.applicantEmpId), REQ_TYPE_LABEL[r.type] || r.type, r.dateStr, reqSummaryText(r, nameOf), r.reason, st, handlerText(r).replace(/^(核可人|處理人)：/, '')];
+                const st = (REQ_STATUS_LABEL[r.status] || [r.status])[0] + (r.status === 'rejected' && r.rejectReason ? `（原因：${r.rejectReason}）` : '');
+                const cells = [nameOf(r.applicantEmpId), REQ_TYPE_LABEL[r.type] || r.type, r.dateStr, reqSummaryText(r, nameOf), r.reason, st, handlerText(r).replace(/^(核可簽核人|駁回簽核人|簽核人|核可人|處理人)：/, '')];
                 return '<tr>' + cells.map(c => `<td>${escapeHTML(c)}</td>`).join('') + '</tr>';
             }).join('');
             const table = document.createElement('table');
@@ -1942,7 +2558,7 @@
                 const by = (r.status === 'rejected' && r.handledBy === 'target') ? '（同事婉拒）' : '';
                 html += `<div class="border border-gray-200 bg-gray-50 rounded p-2 flex flex-col gap-0.5">
                     <div class="flex justify-between items-center"><span class="font-bold">${escapeHTML(REQ_TYPE_LABEL[r.type] || r.type)}　${escapeHTML(String(r.dateStr).substring(5))}</span><span class="font-bold ${st[1]}">${st[0]}${by}</span></div>
-                    <div class="text-gray-600">${escapeHTML(reqSummaryText(r, nameOf))}</div>${handlerText(r) ? `<div class="text-gray-500">${escapeHTML(handlerText(r))}</div>` : ''}${(r.status === 'pending_target' || r.status === 'pending_admin') && subRequests[r.id] ? `<div class="flex justify-end" data-id="${escapeHTML(r.id)}"><button onclick="cancelMyRequest(this.parentNode.dataset.id)" class="border border-gray-300 text-gray-600 px-3 py-1 rounded font-bold hover:bg-gray-100">取消申請</button></div>` : ''}</div>`;
+                    <div class="text-gray-600">${escapeHTML(reqSummaryText(r, nameOf))}</div>${r.status === 'rejected' && r.rejectReason ? `<div class="text-red-700 font-bold">駁回原因：${escapeHTML(r.rejectReason)}</div>` : ''}${handlerText(r) ? `<div class="text-gray-500">${escapeHTML(handlerText(r))}</div>` : ''}${(r.status === 'pending_target' || r.status === 'pending_admin') && subRequests[r.id] ? `<div class="flex justify-end" data-id="${escapeHTML(r.id)}"><button onclick="cancelMyRequest(this.parentNode.dataset.id)" class="border border-gray-300 text-gray-600 px-3 py-1 rounded font-bold hover:bg-gray-100">取消申請</button></div>` : ''}</div>`;
             });
             box.innerHTML = html || '<p class="text-gray-400 text-center py-3">本月尚無已送出的申請</p>';
         }
@@ -1959,7 +2575,7 @@
                 if (idx < 0) throw new Error('找不到申請單');
                 const res = applyFn(list[idx], data);
                 list[idx] = res.req;
-                tx.update(ref, Object.assign({ ['requestsData.' + ym]: list }, res.extra || {}));
+                tx.update(ref, window.__ecoleSmartPatchWrite(ref, Object.assign({ ['requestsData.' + ym]: list }, res.extra || {})));
                 if (res.audit) tx.set(ref.collection('auditLogs').doc(), res.audit);
             });
         }
@@ -1968,7 +2584,7 @@
             const out = {}, seen = {};
             Object.keys(subRequests).forEach(id => {
                 const r = subRequests[id];
-                const ym = String(r.dateStr || '').substring(0, 7);
+                const ym = r.ym || String(r.dateStr || '').substring(0, 7) || currentYearMonth;
                 (out[ym] = out[ym] || []).push(r);
                 seen[id] = true;
             });
@@ -1976,6 +2592,7 @@
                 (legacyRequestsData[ym] || []).forEach(r => { if (!seen[r.id]) (out[ym] = out[ym] || []).push(r); });
             });
             requestsData = out;
+            try { localStorage.setItem('ecoleRequests', JSON.stringify(requestsData)); } catch (_) {}
         }
 
         // 申請子集合監聽：管理者看全部；員工只看「自己提出」與「待自己確認」。統一由 unsubscribeAttendance 管理，登出/重登時會先解除，不會重複
@@ -1988,8 +2605,14 @@
             const unsubs = [];
             const onSnap = (qs) => {
                 qs.docChanges().forEach(ch => {
-                    if (ch.type === 'removed') delete subRequests[ch.doc.id];
-                    else subRequests[ch.doc.id] = Object.assign({ id: ch.doc.id }, ch.doc.data());
+                    if (ch.type === 'removed') {
+                        delete subRequests[ch.doc.id];
+                        Object.keys(legacyRequestsData || {}).forEach(ym => {
+                            legacyRequestsData[ym] = (legacyRequestsData[ym] || []).filter(x => x.id !== ch.doc.id);
+                        });
+                    } else {
+                        subRequests[ch.doc.id] = Object.assign({ id: ch.doc.id }, ch.doc.data());
+                    }
                 });
                 rebuildRequestsData();
                 updatePendingBadge();
@@ -2018,15 +2641,17 @@
                 const res = applyFn(req, main);
                 const upd = {};
                 Object.keys(res.req).forEach(k => { if (k !== 'id' && JSON.stringify(res.req[k]) !== JSON.stringify(req[k])) upd[k] = res.req[k]; });
-                tx.update(reqRef, upd);
-                if (res.extra && Object.keys(res.extra).length) tx.update(mainRef, res.extra);
+                tx.update(reqRef, window.__ecoleSmartPatchWrite(reqRef, upd));
+                if (res.extra && Object.keys(res.extra).length) tx.update(mainRef, window.__ecoleSmartPatchWrite(mainRef, res.extra));
                 if (res.audit) tx.set(mainRef.collection('auditLogs').doc(), res.audit);
             });
         }
 
-        function histAdd(req, action, nameOverride) {
-            // 只記錄姓名，不記錄 email（員工讀得到申請文件；簽核者 email 改存管理者專用的稽核紀錄）
-            return (req.history || []).concat([{ at: new Date().toISOString(), name: nameOverride || (currentUser && currentUser.displayName) || '', action: action }]);
+        function histAdd(req, action, nameOverride, reasonOverride) {
+            // 只記錄姓名與必要說明，不記錄 email（員工讀得到申請文件；簽核者 email 改存管理者專用的稽核紀錄）
+            const entry = { at: new Date().toISOString(), name: nameOverride || (currentUser && currentUser.displayName) || '', action: action };
+            if (reasonOverride) entry.reason = reasonOverride;
+            return (req.history || []).concat([entry]);
         }
 
         async function respondSwap(reqId, accept) {
@@ -2060,13 +2685,26 @@
             const local = (requestsData[ym] || []).find(r => r.id === reqId);
             if (!local) return;
             if (isSelfRequest(local)) { alertCustom('不可核可自己提出的申請，請由其他管理者處理。'); return; }
-            const so = await askSignoff(isApproved);
-            if (!so) return;
-            const signer = so.name;
+
+            // 強制彈出簽核視窗：必須輸入簽核人姓名（可為非員工高階主管），駁回時必須輸入駁回原因
+            const signOff = await askSignOffDetails(local, isApproved ? 'approve' : 'reject');
+            if (!signOff) return;
+            const signer = signOff.signerName;
+            const rejectReason = isApproved ? '' : signOff.rejectReason;
+
             const apply = (req, data) => {
                 if (req.status !== 'pending_admin') throw new Error('此申請已被處理，或仍待同事確認');
                 if (isSelfRequest(req)) throw new Error('不可核可自己提出的申請');
-                const next = Object.assign({}, req, { status: isApproved ? 'approved' : 'rejected', handledBy: 'admin', handledAt: new Date().toISOString(), history: histAdd(req, isApproved ? 'approve' : 'reject', signer), handledByName: signer }, isApproved ? {} : { rejectReason: so.reason });
+                const nowIso = new Date().toISOString();
+                const next = Object.assign({}, req, {
+                    status: isApproved ? 'approved' : 'rejected',
+                    handledBy: 'admin',
+                    handledAt: nowIso,
+                    updatedAt: nowIso,
+                    signerName: signer,
+                    rejectReason: rejectReason,
+                    history: histAdd(req, isApproved ? 'approve' : 'reject', signer, rejectReason)
+                });
                 const extra = {};
                 if (isApproved && req.type === 'swap') {
                     const sched = (data.scheduleData && data.scheduleData[ym]) || {};
@@ -2075,7 +2713,20 @@
                     extra[`scheduleData.${ym}.${req.applicantEmpId}.${req.day}`] = t;
                     extra[`scheduleData.${ym}.${req.targetEmpId}.${req.day}`] = a;
                 }
-                return { req: next, extra: extra, audit: { reqId: req.id, action: isApproved ? 'approve' : 'reject', name: signer, reason: isApproved ? '' : so.reason, byEmail: (currentUser && currentUser.email) || '', at: next.handledAt } };
+                return {
+                    req: next,
+                    extra: extra,
+                    audit: {
+                        reqId: req.id,
+                        ym: ym,
+                        action: isApproved ? 'approve' : 'reject',
+                        name: signer,
+                        signerName: signer,
+                        rejectReason: rejectReason,
+                        byEmail: (currentUser && currentUser.email) || '',
+                        at: nowIso
+                    }
+                };
             };
             try {
                 if (currentUser && db) {
@@ -2092,11 +2743,19 @@
                     saveData();
                 }
             } catch (err) { alertCustom('處置失敗：' + fbErrText(err)); return; }
+            localStorage.setItem('ecoleRequests', JSON.stringify(requestsData));
             renderAdminApprovalList();
             renderTable();
             updatePendingBadge();
             const nowIso = new Date().toISOString();
-            const done = Object.assign({}, local, { status: isApproved ? 'approved' : 'rejected', handledBy: 'admin', handledAt: nowIso, handledByName: signer, rejectReason: isApproved ? '' : so.reason, history: (local.history || []).concat([{ at: nowIso, name: signer, action: isApproved ? 'approve' : 'reject' }]) });
+            const done = Object.assign({}, local, {
+                status: isApproved ? 'approved' : 'rejected',
+                handledBy: 'admin',
+                handledAt: nowIso,
+                signerName: signer,
+                rejectReason: rejectReason,
+                history: (local.history || []).concat([{ at: nowIso, name: signer, action: isApproved ? 'approve' : 'reject', ...(rejectReason ? { reason: rejectReason } : {}) }])
+            });
             showLineDialogText(approvalLineText(done), isApproved ? '✅ 已核可，請複製訊息貼到群組' : '✅ 已駁回，請複製訊息貼到群組');
         }
 
@@ -4277,30 +4936,77 @@
         }
 
         async function exportJSON() {
-            const currentEmployees = getCurrentEmployees(currentYearMonth);
-            const currentShiftSettings = getCurrentShiftSettings(currentYearMonth);
+            if (currentUser && currentUserRole !== 'admin') {
+                alertCustom('權限不足：僅管理員可匯出系統備份。');
+                return;
+            }
+            const ym = currentYearMonth;
+            const currentEmployees = getCurrentEmployees(ym);
+            const currentShiftSettings = getCurrentShiftSettings(ym);
+
+            // 1. 彙整當月所有出勤申請資料（合併子集合 subRequests 與 requestsData，並向 Firestore 確認最新資料）
+            const reqMap = {};
+            (requestsData[ym] || []).forEach(r => { if (r && r.id) reqMap[r.id] = r; });
+            Object.keys(subRequests || {}).forEach(id => {
+                const r = subRequests[id];
+                const rYm = r.ym || String(r.dateStr || '').substring(0, 7);
+                if (rYm === ym) reqMap[id] = Object.assign({ id }, r);
+            });
+            if (currentUser && db && currentUserRole === 'admin') {
+                try {
+                    const snap = await withTimeout(
+                        db.collection('ecoleCafe').doc('main_schedule').collection('requests').where('ym', '==', ym).get(),
+                        8000
+                    );
+                    snap.forEach(doc => {
+                        reqMap[doc.id] = Object.assign({ id: doc.id }, doc.data());
+                    });
+                } catch (e) {
+                    console.warn('匯出前雲端查詢申請單略過（改用本地快取）:', e);
+                }
+            }
+            const monthRequests = Object.values(reqMap).sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+
+            // 2. 彙整當月所有 iCHEF 打卡比對資料
+            const monthClocks = [];
+            const seenClockKey = new Set();
+            (ichefClockData[ym] || []).forEach((c, idx) => {
+                const key = `${c.dateStr || ''}_${c.empId || c.empName || idx}`;
+                seenClockKey.add(key);
+                monthClocks.push(c);
+            });
+            Object.keys(ichefClockData || {}).forEach(k => {
+                if (k === ym) return;
+                (ichefClockData[k] || []).forEach((c, idx) => {
+                    if (String(c.dateStr || '').startsWith(ym)) {
+                        const key = `${c.dateStr || ''}_${c.empId || c.empName || idx}`;
+                        if (!seenClockKey.has(key)) {
+                            seenClockKey.add(key);
+                            monthClocks.push(c);
+                        }
+                    }
+                });
+            });
 
             const data = { 
-                version: "4.0",
-                exportMonth: currentYearMonth,
-                scheduleData: { [currentYearMonth]: scheduleData[currentYearMonth] || {} }, 
-                stationData: { [currentYearMonth]: stationData[currentYearMonth] || {} }, 
-                noteData: { [currentYearMonth]: noteData[currentYearMonth] || {} }, 
-                carryOverData: { [currentYearMonth]: carryOverData[currentYearMonth] || {} }, 
-                lockData: { [currentYearMonth]: lockData[currentYearMonth] || false }, 
-                employeesData: { [currentYearMonth]: employeesData[currentYearMonth] || currentEmployees }, 
-                shiftSettingsData: { [currentYearMonth]: shiftSettingsData[currentYearMonth] || currentShiftSettings },
-                dismissedWarningsData: { [currentYearMonth]: dismissedWarningsData[currentYearMonth] || {} },
-                ichefClockData: { [currentYearMonth]: ichefClockData[currentYearMonth] || [] },
-                requestsData: { [currentYearMonth]: requestsData[currentYearMonth] || [] },
-                tardinessFlexData: { [currentYearMonth]: tardinessFlexData[currentYearMonth] || {} },
+                version: "4.1",
+                exportMonth: ym,
+                exportedAt: new Date().toISOString(),
+                scheduleData: { [ym]: scheduleData[ym] || {} }, 
+                stationData: { [ym]: stationData[ym] || {} }, 
+                noteData: { [ym]: noteData[ym] || {} }, 
+                carryOverData: { [ym]: carryOverData[ym] || {} }, 
+                lockData: { [ym]: lockData[ym] || false }, 
+                employeesData: { [ym]: employeesData[ym] || currentEmployees }, 
+                shiftSettingsData: { [ym]: shiftSettingsData[ym] || currentShiftSettings },
+                dismissedWarningsData: { [ym]: dismissedWarningsData[ym] || {} },
+                ichefClockData: { [ym]: monthClocks },
+                requestsData: { [ym]: monthRequests },
+                tardinessFlexData: { [ym]: tardinessFlexData[ym] || {} },
                 employees: currentEmployees,
                 shiftSettings: currentShiftSettings
             };
-            data.version = "5.0";
-            data.exportedAt = new Date().toISOString();
-            data.auditLogs = { [currentYearMonth]: await fetchAuditLogsForMonth(currentYearMonth) };
-            const fileName = `EcoleCafe_Backup_${currentYearMonth}.json`;
+            const fileName = `EcoleCafe_Backup_${ym}.json`;
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const file = new File([blob], fileName, { type: 'application/json' });
 
@@ -4324,17 +5030,29 @@
             }
         }
 
-        function triggerImport() { document.getElementById('importFile').click(); }
+        function triggerImport() {
+            if (currentUser && currentUserRole !== 'admin') {
+                alertCustom('權限不足：僅管理員可匯入系統備份。');
+                return;
+            }
+            document.getElementById('importFile').click();
+        }
 
         function importJSON(event) {
+            if (currentUser && currentUserRole !== 'admin') {
+                alertCustom('權限不足：僅管理員可匯入系統備份。');
+                event.target.value = '';
+                return;
+            }
             const file = event.target.files[0];
             if(!file) return;
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
-                    lastRestoreMsg = '';
                     const data = JSON.parse(e.target.result);
                     const targetYM = data.exportMonth || currentYearMonth;
+                    let restoredReqCount = 0;
+                    let restoredClockCount = 0;
                     
                     if (data.exportMonth) {
                         if (data.scheduleData && data.scheduleData[targetYM]) scheduleData[targetYM] = data.scheduleData[targetYM];
@@ -4346,19 +5064,51 @@
                         if (data.employeesData && data.employeesData[targetYM]) employeesData[targetYM] = data.employeesData[targetYM];
                         if (data.shiftSettingsData && data.shiftSettingsData[targetYM]) shiftSettingsData[targetYM] = data.shiftSettingsData[targetYM];
                         
-                        if (data.ichefClockData && data.ichefClockData[targetYM]) ichefClockData[targetYM] = data.ichefClockData[targetYM];
-                        if (data.requestsData && data.requestsData[targetYM]) restoreRequestsFromBackup(targetYM, data.requestsData[targetYM]);
-                        if (data.tardinessFlexData && data.tardinessFlexData[targetYM]) tardinessFlexData[targetYM] = data.tardinessFlexData[targetYM];
+                        if (data.ichefClockData && Array.isArray(data.ichefClockData[targetYM])) {
+                            ichefClockData[targetYM] = data.ichefClockData[targetYM];
+                            restoredClockCount = data.ichefClockData[targetYM].length;
+                        }
+                        if (data.tardinessFlexData && data.tardinessFlexData[targetYM]) {
+                            tardinessFlexData[targetYM] = data.tardinessFlexData[targetYM];
+                        }
+                        if (data.requestsData && Array.isArray(data.requestsData[targetYM])) {
+                            const importedReqs = data.requestsData[targetYM].map(r => Object.assign({}, r, {
+                                ym: r.ym || targetYM
+                            }));
+                            restoredReqCount = importedReqs.length;
+                            legacyRequestsData[targetYM] = importedReqs;
+                            importedReqs.forEach(r => { if (r && r.id) subRequests[r.id] = r; });
+                            rebuildRequestsData();
+
+                            // 同步寫入 Firestore 子集合 ecoleCafe/main_schedule/requests，確保雲端資料庫完整還原且不被覆蓋
+                            if (currentUser && db && currentUserRole === 'admin' && importedReqs.length > 0) {
+                                const col = db.collection('ecoleCafe').doc('main_schedule').collection('requests');
+                                for (let i = 0; i < importedReqs.length; i += 400) {
+                                    const batch = db.batch();
+                                    importedReqs.slice(i, i + 400).forEach(r => {
+                                        if (r && r.id) batch.set(col.doc(r.id), r, { merge: true });
+                                    });
+                                    await withTimeout(batch.commit(), 15000);
+                                }
+                            }
+                        }
+
+                        if (targetYM !== currentYearMonth) {
+                            currentYearMonth = targetYM;
+                            const ms = document.getElementById('monthSelector');
+                            if (ms) ms.value = targetYM;
+                        }
                     }
 
                     saveData();
                     renderShiftButtons();
                     renderTable();
                     updatePendingBadge();
-                    alertCustom(`資料匯入成功！已同步 ${targetYM} 月份之排班與出勤設定。` + lastRestoreMsg);
+                    refreshOpenDialogs();
+                    alertCustom(`資料匯入成功！已完整同步 ${targetYM} 月份資料：\n• 排班與站點設定\n• 出勤申請紀錄：${restoredReqCount} 筆\n• iCHEF 打卡比對紀錄：${restoredClockCount} 筆`);
                 } catch(err) {
                     console.error("匯入失敗:", err);
-                    alertCustom('檔案格式錯誤，請確定是本系統匯出的 JSON 備份檔。');
+                    alertCustom('檔案格式錯誤或雲端同步失敗：' + ((err && err.message) || '請確定是本系統匯出的 JSON 備份檔。'));
                 }
             }
             reader.readAsText(file);
