@@ -12,207 +12,7 @@
     <meta name="theme-color" content="#ffffff">
     
     <!-- 引入 Tailwind CSS & 工具庫 -->
-    
-
-<script id="ecole-approval-compat-patch-v3">
-(function() {
-  if (window.__ECOLE_PATCH_V3_LOADED__) return;
-  window.__ECOLE_PATCH_V3_LOADED__ = true;
-
-  window.__ecolePatchState = window.__ecolePatchState || {
-    currentUserEmail: '',
-    currentUserDisplayName: '',
-    adminEmails: [],
-    adminEmailsRaw: [],
-    staffMapping: {},
-    writeTimestamps: []
-  };
-
-  window.__ecoleSyncWhitelist = function(wlData, userObj) {
-    const st = window.__ecolePatchState;
-    if (wlData && typeof wlData === 'object') {
-      const rawAdmins = Array.isArray(wlData.adminEmails)
-        ? wlData.adminEmails
-        : (wlData.adminEmails && typeof wlData.adminEmails === 'object' ? Object.keys(wlData.adminEmails) : []);
-      st.adminEmailsRaw = rawAdmins.slice();
-      st.adminEmails = rawAdmins.map(e => String(e || '').trim().toLowerCase()).filter(Boolean);
-      st.staffMapping = (wlData.staffMapping && typeof wlData.staffMapping === 'object') ? wlData.staffMapping : {};
-    }
-    if (userObj && userObj.email) {
-      st.currentUserEmail = String(userObj.email).trim().toLowerCase();
-      st.currentUserDisplayName = userObj.displayName || '';
-    }
-  };
-
-  // 嘗試從全域 firebase auth 讀取目前登入者
-  function detectCurrentUser() {
-    const st = window.__ecolePatchState;
-    try {
-      if (window.firebase && typeof window.firebase.auth === 'function') {
-        const u = window.firebase.auth().currentUser;
-        if (u && u.email) {
-          st.currentUserEmail = String(u.email).trim().toLowerCase();
-          st.currentUserDisplayName = u.displayName || st.currentUserDisplayName;
-        }
-      }
-    } catch (_) {}
-    return st;
-  }
-
-  window.__ecoleIsAdmin = function(wlData, email) {
-    if (wlData) window.__ecoleSyncWhitelist(wlData, null);
-    const st = detectCurrentUser();
-    const target = String(email || st.currentUserEmail || '').trim().toLowerCase();
-    if (!target) return false;
-    return st.adminEmails.includes(target);
-  };
-
-  window.__ecoleResolveApproverName = function(fallbackName, wlData, userObj) {
-    if (wlData || userObj) window.__ecoleSyncWhitelist(wlData, userObj);
-    const st = detectCurrentUser();
-    if (fallbackName !== undefined && fallbackName !== null) {
-      const s = String(fallbackName).trim();
-      if (s && s !== 'undefined' && s !== 'null' && !s.endsWith('(undefined)')) {
-        return s;
-      }
-    }
-    if (st.currentUserDisplayName && String(st.currentUserDisplayName).trim()) {
-      return String(st.currentUserDisplayName).trim();
-    }
-    if (st.currentUserEmail) {
-      return st.currentUserEmail.split('@')[0];
-    }
-    return '管理員';
-  };
-
-  // 路徑感知寫入淨化器：僅針對 /requests/ 簽核寫入進行欄位白名單對齊與純管理員身份補齊
-  window.__ecoleSmartPatchWrite = function(docRef, payload) {
-    if (!payload || typeof payload !== 'object') return payload;
-
-    // 防迴圈保護：3 秒內超過 15 次寫入則自動熔斷
-    const now = Date.now();
-    const st = detectCurrentUser();
-    st.writeTimestamps = st.writeTimestamps.filter(t => now - t < 3000);
-    if (st.writeTimestamps.length >= 15) {
-      console.error('[ÉCOLE Security Guard] 偵測到異常高頻寫入，已自動阻斷以防止 Infinite Loop。');
-      throw new Error('系統偵測到短時間內重複寫入請求，已自動中止保護。');
-    }
-    st.writeTimestamps.push(now);
-
-    // 判斷是否為出勤申請子集合 (/requests/{rid}) 或簽核操作
-    let docPath = '';
-    try {
-      if (docRef && typeof docRef.path === 'string') {
-        docPath = docRef.path;
-      }
-    } catch (_) {}
-
-    const isRequestPath = /(?:^|/)requests/[^/]+$/.test(docPath);
-    const looksLikeAdminApproval = (
-      (payload.status === 'approved' || payload.status === 'rejected') &&
-      ('handledBy' in payload || 'handledByEmail' in payload || 'handledAt' in payload || 'approvedBy' in payload || 'rejectedBy' in payload)
-    );
-
-    // 若非 requests 文件且非簽核操作（例如儲存 scheduleData 班表），原封不動放行
-    if (!isRequestPath && !looksLikeAdminApproval) {
-      return payload;
-    }
-
-    // 記錄簽核者 Email 供診斷使用
-    const rawActorEmail = payload.handledByEmail || payload.approvedByEmail || payload.rejectedByEmail || st.currentUserEmail;
-    if (rawActorEmail) {
-      st.currentUserEmail = String(rawActorEmail).trim().toLowerCase();
-    }
-
-    // 若非管理員簽核（例如申請人取消 cancelled 或同事確認 pending_admin），僅移除 undefined 值後放行
-    if (!looksLikeAdminApproval) {
-      const cleanOther = {};
-      Object.keys(payload).forEach(k => {
-        if (payload[k] !== undefined) cleanOther[k] = payload[k];
-      });
-      return cleanOther;
-    }
-
-    // 管理員簽核（approved / rejected）：嚴格對齊 Firestore Rules 允許之欄位白名單
-    const allowedKeys = [
-      'status',
-      'handledBy',
-      'handledByName',
-      'handledByEmail',
-      'handledByEmpId',
-      'handledAt',
-      'approvedBy',
-      'approvedAt',
-      'rejectedBy',
-      'rejectedAt',
-      'rejectReason',
-      'reason',
-      'note',
-      'adminNote',
-      'updatedAt',
-      'history'
-    ];
-
-    const clean = {};
-    for (let i = 0; i < allowedKeys.length; i++) {
-      const k = allowedKeys[i];
-      if (Object.prototype.hasOwnProperty.call(payload, k) && payload[k] !== undefined) {
-        clean[k] = payload[k];
-      }
-    }
-
-    // 純管理員不在 staffMapping 時，確保 handledBy 絕不為 undefined 或空字串
-    const resolvedName = window.__ecoleResolveApproverName(clean.handledBy || clean.handledByName);
-    if ('handledBy' in payload || !clean.handledBy) {
-      clean.handledBy = resolvedName;
-    }
-    if ('handledByName' in clean && !clean.handledByName) {
-      clean.handledByName = resolvedName;
-    }
-
-    // 正規化 Email 為小寫
-    if (clean.handledByEmail) {
-      clean.handledByEmail = String(clean.handledByEmail).trim().toLowerCase();
-    }
-
-    // 若純管理員無員工編號（null 或空字串），移除 handledByEmpId 避免傳入無效值
-    if ('handledByEmpId' in clean && (clean.handledByEmpId === null || clean.handledByEmpId === '')) {
-      delete clean.handledByEmpId;
-    }
-
-    return clean;
-  };
-
-  window.__ecoleGetPermHint = function(applicantEmail) {
-    const st = detectCurrentUser();
-    const me = st.currentUserEmail;
-    const hints = [];
-
-    if (me && applicantEmail && String(applicantEmail).trim().toLowerCase() === me) {
-      hints.push('• 內控規則限制：管理員不可簽核「本人」提出的申請單，請由其他管理員帳號進行簽核。');
-    }
-
-    if (me && st.adminEmailsRaw.length > 0) {
-      const exactMatch = st.adminEmailsRaw.includes(me);
-      const caseInsensitiveMatch = st.adminEmails.includes(me);
-      if (!caseInsensitiveMatch) {
-        hints.push('• 您的 Google 帳號（' + me + '）尚未列入 systemConfig/whitelist 的 adminEmails 陣列中（簽核人員僅需列在 adminEmails，無需在 staffMapping）。');
-      } else if (!exactMatch) {
-        hints.push('• 大小寫不一致：systemConfig/whitelist 的 adminEmails 中含有大寫字母，請將該 Email 改為全小寫（' + me + '），否則 Firestore Rules 比對會失敗。');
-      }
-    } else {
-      const who = me ? '（' + me + '）' : '';
-      hints.push('• 請確認您的 Google 帳號' + who + '已列在 systemConfig/whitelist 的 adminEmails（全小寫）內；簽核人員只需管理員權限，無需在 staffMapping 內。');
-    }
-
-    hints.push('• 請確認已在 Firebase Console → Firestore Database → Rules 貼上並點擊「發布」最新規則。');
-    hints.push('• 若該筆申請單是由您本人帳號提出（例如測試申請），後端規則會禁止自己簽核自己，請改由員工帳號提出申請後再測試簽核。');
-
-    return hints.join('\n');
-  };
-})();
-</script>
-<script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <!-- SheetJS 用於解析與匯出 Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -661,11 +461,11 @@
             <button onclick="document.getElementById('lineMessageDialog').close()" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
         </div>
         <div class="p-4 bg-white flex flex-col gap-3 text-sm">
-            <textarea id="lineMessageText" readonly rows="7" onclick="this.select()" class="border border-gray-300 rounded p-2 w-full text-sm leading-relaxed outline-none"></textarea>
+            <textarea id="lineMessageText" readonly rows="9" onclick="this.select()" class="border border-gray-300 rounded p-2 w-full text-sm leading-relaxed outline-none"></textarea>
             <p id="lineCopyHint" class="text-[11px] text-green-700 font-bold hidden"></p>
             <div class="flex justify-end gap-2">
                 <button onclick="document.getElementById('lineMessageDialog').close()" class="border border-gray-300 text-gray-600 px-4 py-2 rounded hover:bg-gray-50">關閉</button>
-                <button onclick="copyLineText()" class="bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700">複製訊息</button>
+                <button id="lineCopyBtn" onclick="copyLineText()" class="bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700">複製訊息</button>
             </div>
         </div>
     </dialog>
@@ -688,43 +488,27 @@
         </div>
     </dialog>
 
-    <dialog id="signerDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-md border border-gray-200" onclose="if (signerResolver) { const r = signerResolver; signerResolver = null; r(null); }">
-        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-            <h3 id="signerDialogTitle" class="font-bold text-gray-800 tracking-wide">簽核確認</h3>
-            <button type="button" onclick="resolveSigner(false)" class="text-gray-400 hover:text-black text-xl leading-none">&times;</button>
-        </div>
-        <div class="p-5 bg-white flex flex-col gap-3 text-sm">
-            <div id="signerReqPreview" class="hidden bg-gray-50 border border-gray-200 rounded p-2.5 text-xs text-gray-700 leading-relaxed"></div>
-            <div>
-                <label for="signerNameInput" class="block text-xs font-bold text-gray-800 mb-1">簽核人姓名／職稱 <span class="text-red-600">*必填</span></label>
-                <input type="text" id="signerNameInput" maxlength="40" class="border border-gray-300 rounded px-3 py-2 w-full font-bold outline-none focus:border-black" placeholder="請輸入簽核人姓名（如：店長 王小明 / 執行長）">
-                <p class="text-[11px] text-gray-500 mt-1">簽核人可為非排班表內之高階主管，輸入姓名後才可完成簽核（對外不顯示信箱）。</p>
-                <div id="signerQuickChips" class="flex flex-wrap gap-1.5 mt-2"></div>
-            </div>
-            <div id="rejectReasonBox" class="hidden">
-                <label for="rejectReasonInput" class="block text-xs font-bold text-red-700 mb-1">駁回原因 <span class="text-red-600">*必填</span></label>
-                <textarea id="rejectReasonInput" rows="3" maxlength="300" class="border border-red-300 rounded p-2 w-full text-xs outline-none focus:border-red-600" placeholder="請詳細輸入駁回原因（例：當日人力已達上限、未於24小時前提出...）"></textarea>
-            </div>
-            <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
-                <button type="button" onclick="resolveSigner(false)" class="border border-gray-300 text-gray-600 px-4 py-2 rounded hover:bg-gray-50">取消</button>
-                <button type="button" id="signerConfirmBtn" onclick="resolveSigner(true)" class="bg-black text-white px-4 py-2 rounded font-bold hover:bg-gray-800">確認完成簽核</button>
-            </div>
-        </div>
-    </dialog>
-
     <dialog id="adminApprovalDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-3xl border border-gray-200">
-        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+        <div class="p-4 border-b border-gray-100 flex flex-wrap justify-between items-center gap-2 bg-gray-50">
             <div class="flex items-center gap-2">
                 <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <h3 class="font-bold text-gray-800 tracking-wide">出勤與調班申請審核儀表板</h3>
             </div>
-            <div class="flex items-center gap-2">
-                <button onclick="changeSigner()" class="border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap">簽核人</button>
+            <div class="flex items-center gap-2 flex-wrap">
+                <select id="adminApprovalFilter" onchange="renderAdminApprovalList()" class="border border-gray-300 bg-white rounded px-2.5 py-1.5 text-xs font-bold text-gray-800 outline-none">
+                    <option value="PENDING_ALL">待簽核申請（全月份）</option>
+                    <option value="MONTH_ALL">當月所有申請</option>
+                    <option value="ALL_RECORDS">全部歷史紀錄（全月份）</option>
+                </select>
+                <button onclick="syncRequestsToMainDoc(true)" title="將子集合申請同步匯整至主文件 requestsData 欄位" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap">同步至 requestsData</button>
                 <button onclick="exportApprovalPDF()" class="bg-gray-800 text-white hover:bg-black px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap">匯出 PDF</button>
                 <button onclick="document.getElementById('adminApprovalDialog').close()" class="text-gray-400 hover:text-black text-2xl leading-none">&times;</button>
             </div>
         </div>
-        <div class="p-4 bg-white max-h-[75vh] overflow-y-auto">
+        <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 text-[11px] text-gray-500 flex flex-wrap justify-between items-center gap-1">
+            <span id="adminApprovalStats" class="font-bold text-gray-700"></span>
+        </div>
+        <div class="p-4 bg-white max-h-[72vh] overflow-y-auto">
             <div id="adminApprovalList" class="flex flex-col gap-3"></div>
         </div>
     </dialog>
@@ -1329,14 +1113,25 @@
 
                         if (wlSnap.exists) {
                             const wlData = wlSnap.data();
-                            const adminEmails = wlData.adminEmails || [];
-                            const staffMapping = wlData.staffMapping || {};
+                            const rawAdmins = Array.isArray(wlData.adminEmails)
+                                ? wlData.adminEmails
+                                : (wlData.adminEmails && typeof wlData.adminEmails === 'object' ? Object.keys(wlData.adminEmails).filter(k => wlData.adminEmails[k]) : []);
+                            const staffMapping = (wlData.staffMapping && typeof wlData.staffMapping === 'object') ? wlData.staffMapping : {};
+                            const userEmailNorm = String(user.email || '').trim().toLowerCase();
 
-                            if (adminEmails.includes(user.email)) {
+                            const normalizedAdminSet = new Set(rawAdmins.map(e => String(e || '').trim().toLowerCase()).filter(Boolean));
+                            let matchedEmpId = staffMapping[user.email] || null;
+                            if (!matchedEmpId) {
+                                const foundKey = Object.keys(staffMapping).find(k => String(k || '').trim().toLowerCase() === userEmailNorm);
+                                if (foundKey) matchedEmpId = staffMapping[foundKey];
+                            }
+
+                            if (normalizedAdminSet.has(userEmailNorm)) {
                                 isAdmin = true;
-                            } else if (staffMapping[user.email]) {
+                                if (matchedEmpId) empId = matchedEmpId;
+                            } else if (matchedEmpId) {
                                 isStaff = true;
-                                empId = staffMapping[user.email];
+                                empId = matchedEmpId;
                             }
                         } else {
                             console.warn("未找到 whitelist 設定，基於零信任原則拒絕預設權限。");
@@ -1412,6 +1207,20 @@
             return !!(lockData && lockData[ym]);
         }
 
+        function toggleScheduleLock() {
+            if (currentUserRole !== 'admin') {
+                alertCustom('權限不足：僅管理員可鎖定或解鎖班表。');
+                return;
+            }
+            if (!lockData) lockData = {};
+            const nextLocked = !isScheduleLocked(currentYearMonth);
+            lockData[currentYearMonth] = nextLocked;
+            localStorage.setItem('ecoleLock', JSON.stringify(lockData));
+            updateFirestoreField(`lockData.${currentYearMonth}`, nextLocked);
+            renderTable();
+            alertCustom(nextLocked ? `🔒 ${currentYearMonth} 月份班表已鎖定。` : `🔓 ${currentYearMonth} 月份班表已解鎖。`);
+        }
+
         function setupCloudSync() {
             if (!currentUser || !db) return;
             
@@ -1462,7 +1271,7 @@
                 console.warn("雲端資料尚未載入完畢，取消寫入以防蓋檔。");
                 return;
             }
-            if (isScheduleLocked(currentYearMonth) && !fieldPath.startsWith('lockData') && !fieldPath.startsWith('requestsData')) {
+            if (isScheduleLocked(currentYearMonth) && !fieldPath.startsWith('lockData') && !fieldPath.startsWith('requestsData') && !fieldPath.startsWith('scheduleData')) {
                 console.warn("當月班表已被鎖定，拒絕寫入變更。");
                 return;
             }
@@ -1470,7 +1279,7 @@
             const safeValue = (value === undefined || value === null) ? '' : value;
             const docRef = db.collection("ecoleCafe").doc("main_schedule");
             
-            docRef.update(window.__ecoleSmartPatchWrite(null, { [fieldPath]: safeValue })).catch(() => {
+            docRef.update({ [fieldPath]: safeValue }).catch(() => {
                 const parts = fieldPath.split('.');
                 let obj = {};
                 let curr = obj;
@@ -1511,11 +1320,19 @@
 
         // --- 出勤申請與審核模組 ---
 
+        function getAllRequestsFlat() {
+            const list = [];
+            Object.keys(requestsData || {}).forEach(ym => {
+                (requestsData[ym] || []).forEach(r => list.push(r));
+            });
+            return list;
+        }
+
         function updatePendingBadge() {
             const badge = document.getElementById('pendingBadge');
             if (!badge) return;
-            const monthReqs = requestsData[currentYearMonth] || [];
-            const pendingCount = monthReqs.filter(r => r.status === 'pending_admin').length;
+            const allReqs = getAllRequestsFlat();
+            const pendingCount = allReqs.filter(r => r.status === 'pending_admin').length;
             if (pendingCount > 0 && currentUserRole === 'admin') {
                 badge.innerText = pendingCount;
                 badge.classList.remove('hidden');
@@ -1623,31 +1440,34 @@
         }
 
         function fbErrText(err) {
-            if (err && err.code === 'permission-denied') return '權限被拒絕（permission-denied）。請確認：①已在 Firebase 發布最新的 firestore.rules　②您的 Google 帳號（' + ((currentUser && currentUser.email) || '') + '）已列在 systemConfig/whitelist 的 staffMapping 內';
+            if (err && err.code === 'permission-denied') {
+                const roleHint = currentUserRole === 'admin'
+                    ? '管理員帳號需列於 systemConfig/whitelist 的 adminEmails 陣列中，且 firestore.rules 需允許 adminEmails 讀寫 requests 子集合'
+                    : '員工帳號需列於 systemConfig/whitelist 的 staffMapping 對照表中';
+                return '權限被拒絕（permission-denied）。請確認：①已在 Firebase 發布最新的 firestore.rules　②您的 Google 帳號（' + ((currentUser && currentUser.email) || '') + '）權限設定正確（' + roleHint + '）';
+            }
             return (err && err.message) || String(err);
         }
 
-        // 每筆申請獨立一份文件（ecoleCafe/main_schedule/requests/{id}），含完整可管理欄位與處理歷程，永久保存於後台
+        // 每筆申請獨立一份文件（ecoleCafe/main_schedule/requests/{id}），含處理歷程，永久保存於後台
+        function getCurrentActorName() {
+            if (currentUserEmpId) {
+                const emps = getCurrentEmployees(currentYearMonth);
+                const emp = emps.find(e => e.id === currentUserEmpId);
+                if (emp && emp.name) return emp.name;
+            }
+            if (currentUser && currentUser.displayName && currentUser.displayName.trim()) {
+                return currentUser.displayName.trim();
+            }
+            return currentUserRole === 'admin' ? '管理員' : '員工';
+        }
+
         async function persistNewRequest(req, ym) {
             if (!db || !currentUser) throw new Error('尚未登入雲端');
-            const emps = getCurrentEmployees(ym || currentYearMonth);
-            const appEmp = emps.find(x => x.id === req.applicantEmpId);
-            const tgtEmp = req.targetEmpId ? emps.find(x => x.id === req.targetEmpId) : null;
-            const nowIso = req.createdAt || new Date().toISOString();
-            const data = Object.assign({}, req, {
-                ym: ym || String(req.dateStr || '').substring(0, 7),
-                applicantName: req.applicantName || (appEmp ? appEmp.name : (currentUser.displayName || req.applicantEmpId)),
-                targetEmpName: req.targetEmpName || (tgtEmp ? tgtEmp.name : ''),
-                signerName: '',
-                rejectReason: '',
-                updatedAt: nowIso,
-                history: [{ at: nowIso, name: (appEmp ? appEmp.name : (currentUser.displayName || '')), action: 'submit' }]
-            });
+            const actorName = getCurrentActorName();
+            const data = Object.assign({}, req, { history: [{ at: req.createdAt, by: currentUser.email || '', name: actorName, action: 'submit' }] });
             try {
                 await withTimeout(db.collection('ecoleCafe').doc('main_schedule').collection('requests').doc(req.id).set(data), 15000);
-                subRequests[req.id] = data;
-                rebuildRequestsData();
-                localStorage.setItem('ecoleRequests', JSON.stringify(requestsData));
             } catch (err) { throw new Error(fbErrText(err)); }
         }
 
@@ -1656,7 +1476,6 @@
             if (!currentUser) { alertCustom('請先登入 Google 帳號。'); return; }
             const dateStr = document.getElementById('reqDateInput').value;
             const reason = document.getElementById('reqReason').value.trim();
-            if (!reason) { alertCustom('請填寫申請事由！'); return; }
             const ymStr = dateStr.substring(0, 7);
             const dayNum = parseInt(dateStr.split('-')[2], 10);
             if (ymStr !== currentYearMonth) { alertCustom("申請日期必須在目前選取的月份內！"); return; }
@@ -1666,30 +1485,15 @@
                 alertCustom(currentUserRole === 'admin' ? '請先在「申請人」欄選擇您自己的姓名，才能提出申請。' : '找不到您對應的員工資料，請聯絡管理員。');
                 return;
             }
-            const empsList = getCurrentEmployees(currentYearMonth);
-            const appEmpObj = empsList.find(x => x.id === applicantId);
-            const nowIso = new Date().toISOString();
             const newReq = {
                 id: 'REQ_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-                ym: ymStr,
-                type: activeRequestTab,
-                applicantEmpId: applicantId,
-                applicantName: appEmpObj ? appEmpObj.name : (currentUser.displayName || applicantId),
-                applicantEmail: currentUser.email || '',
-                dateStr: dateStr,
-                day: dayNum,
-                reason: reason,
-                status: 'pending_admin',
-                signerName: '',
-                rejectReason: '',
-                createdAt: nowIso,
-                updatedAt: nowIso
+                type: activeRequestTab, applicantEmpId: applicantId, applicantEmail: currentUser.email || '',
+                dateStr: dateStr, day: dayNum, reason: reason, status: 'pending_admin', createdAt: new Date().toISOString()
             };
 
             if (activeRequestTab === 'swap') {
                 const targetEmpId = document.getElementById('reqTargetEmpSelect').value;
                 if (!targetEmpId || targetEmpId === applicantId) { alertCustom('請選擇調班對象。'); return; }
-                const targetEmpObj = empsList.find(x => x.id === targetEmpId);
                 const parsed = parseCellData(scheduleData[currentYearMonth]?.[applicantId]?.[dayNum] || '');
                 if (!parsed.shiftCode || ['✖', '❌'].includes(parsed.shiftCode)) { alertCustom("您在該日期未排定班別，無法發起調班！"); return; }
                 const info = getShiftInfo(parsed.shiftCode, currentYearMonth);
@@ -1697,7 +1501,6 @@
                 const shiftStart = new Date(`${dateStr}T${st.substring(0, 2)}:${st.substring(2, 4) || '00'}:00`).getTime();
                 if (shiftStart - Date.now() < 24 * 3600 * 1000) { alertCustom("依規定：調班申請必須於班別開始 24 小時前提出！"); return; }
                 newReq.targetEmpId = targetEmpId;
-                newReq.targetEmpName = targetEmpObj ? targetEmpObj.name : targetEmpId;
                 newReq.status = 'pending_target';
                 const swi = getSwapShiftInfo(applicantId, dateStr);
                 newReq.details = { originalShift: parsed.shiftCode, originalTime: swi.timeTxt, shiftHours: swi.hours };
@@ -1745,27 +1548,69 @@
                 alertCustom("提醒：只有管理者具有審核儀表板存取權限。");
                 return;
             }
+            const filterEl = document.getElementById('adminApprovalFilter');
+            if (filterEl) {
+                const allPending = getAllRequestsFlat().filter(r => r.status === 'pending_admin');
+                filterEl.value = allPending.length > 0 ? 'PENDING_ALL' : 'MONTH_ALL';
+            }
             renderAdminApprovalList();
             document.getElementById('adminApprovalDialog').showModal();
         }
 
+        async function syncRequestsToMainDoc(showToast = false) {
+            if (currentUserRole !== 'admin' || !db || !currentUser) return;
+            try {
+                const payload = {};
+                Object.keys(requestsData || {}).forEach(ym => {
+                    payload[`requestsData.${ym}`] = requestsData[ym] || [];
+                });
+                if (Object.keys(payload).length === 0) {
+                    payload[`requestsData.${currentYearMonth}`] = [];
+                }
+                await withTimeout(db.collection('ecoleCafe').doc('main_schedule').set({ requestsData: requestsData || {} }, { merge: true }), 15000);
+                if (showToast) alertCustom('✅ 已將所有出勤申請資料同步匯整至主文件 requestsData 欄位！');
+            } catch (err) {
+                console.error('同步 requestsData 失敗:', err);
+                if (showToast) alertCustom('同步失敗：' + fbErrText(err));
+            }
+        }
+
         function renderAdminApprovalList() {
             const container = document.getElementById('adminApprovalList');
-            const monthReqs = requestsData[currentYearMonth] || [];
+            const statsEl = document.getElementById('adminApprovalStats');
+            const filterMode = document.getElementById('adminApprovalFilter')?.value || 'PENDING_ALL';
+            const allReqs = getAllRequestsFlat();
+            const pendingAllCount = allReqs.filter(r => r.status === 'pending_admin').length;
+            if (statsEl) {
+                statsEl.innerText = `待簽核：${pendingAllCount} 筆 ｜ 總紀錄：${allReqs.length} 筆`;
+            }
+
+            let targetReqs = [];
+            if (filterMode === 'PENDING_ALL') {
+                targetReqs = allReqs.filter(r => r.status === 'pending_admin' || r.status === 'pending_target');
+            } else if (filterMode === 'ALL_RECORDS') {
+                targetReqs = allReqs.slice();
+            } else {
+                targetReqs = (requestsData[currentYearMonth] || []).slice();
+            }
             
-            if (monthReqs.length === 0) {
-                container.innerHTML = '<p class="text-center text-gray-400 py-8">當月尚無任何申請單紀錄</p>';
+            if (targetReqs.length === 0) {
+                const emptyText = filterMode === 'PENDING_ALL' ? '目前無待簽核的申請單' : (filterMode === 'ALL_RECORDS' ? '尚無任何歷史申請紀錄' : '當月尚無任何申請單紀錄');
+                container.innerHTML = `<p class="text-center text-gray-400 py-8">${emptyText}</p>`;
                 return;
             }
 
-            const emps = getCurrentEmployees(currentYearMonth);
             const empMap = {};
-            emps.forEach(e => empMap[e.id] = e.name);
+            getCurrentEmployees(currentYearMonth).forEach(e => empMap[e.id] = e.name);
+            Object.keys(employeesData || {}).forEach(ym => {
+                (employeesData[ym] || []).forEach(e => { if (!empMap[e.id]) empMap[e.id] = e.name; });
+            });
 
             let html = '';
-            monthReqs.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).forEach(r => {
+            targetReqs.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).forEach(r => {
                 const applicantName = escapeHTML(empMap[r.applicantEmpId] || r.applicantEmpId);
                 const targetName = escapeHTML(empMap[r.targetEmpId] || r.targetEmpId);
+                const d = r.details || {};
                 
                 let typeBadge = '';
                 if (r.type === 'swap') typeBadge = '<span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold text-xs">調班</span>';
@@ -1782,9 +1627,11 @@
 
                 let detailText = '';
                 if (r.type === 'swap') detailText = `與 <b>${targetName}</b> 調班 (${escapeHTML(r.dateStr)})`;
-                else if (r.type === 'overtime') detailText = `加班 <b>${escapeHTML(r.details.hours)}h</b> (${r.details.otType === 'pay' ? '加班費' : '補休'})`;
-                else if (r.type === 'leave') detailText = `假別: <b>${escapeHTML(r.details.category)}</b> (${escapeHTML(r.details.hours)}h)`;
-                else if (r.type === 'clock_fix') detailText = `補卡時間: <b>${escapeHTML(r.details.clockIn)} - ${escapeHTML(r.details.clockOut)}</b>`;
+                else if (r.type === 'overtime') detailText = `加班 <b>${escapeHTML(d.hours)}h</b> (${d.otType === 'pay' ? '加班費' : '補休'})`;
+                else if (r.type === 'leave') detailText = `假別: <b>${escapeHTML(d.category)}</b> (${escapeHTML(d.hours)}h)`;
+                else if (r.type === 'clock_fix') detailText = `補卡時間: <b>${escapeHTML(d.clockIn)} - ${escapeHTML(d.clockOut)}</b>`;
+
+                const selfNotice = isSelfRequest(r) ? `<span class="text-[11px] text-amber-700 font-bold mr-auto">ℹ️ 本人申請（將記錄本人簽核軌跡）</span>` : '';
 
                 html += `
                 <div class="border border-gray-200 rounded p-3 bg-gray-50 flex flex-col gap-2 text-xs">
@@ -1799,15 +1646,15 @@
                     <div class="text-gray-700 leading-normal">
                         <div>說明：${detailText}</div>
                         <div>理由：${escapeHTML(r.reason)}</div>
-                        ${r.status === 'rejected' && r.rejectReason ? `<div class="text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1 mt-1 font-bold">駁回原因：${escapeHTML(r.rejectReason)}</div>` : ''}
-                        ${handlerText(r) ? `<div class="font-bold text-gray-800 mt-0.5">${escapeHTML(handlerText(r))}</div>` : ''}
+                        ${handlerText(r) ? `<div class="font-bold text-gray-700">${escapeHTML(handlerText(r))}</div>` : ''}
                     </div>
                     <div class="flex justify-end" data-id="${escapeHTML(r.id)}"><button onclick="copyReqLine(this.parentNode.dataset.id)" class="border border-green-600 text-green-700 px-3 py-1 rounded font-bold hover:bg-green-50">複製LINE訊息</button></div>
-                    ${r.status === 'pending_admin' ? (isSelfRequest(r) ? `<div class="mt-1 border-t pt-2 text-right text-[11px] text-gray-500 font-bold">⚠️ 這是您自己的申請，需由其他管理者核可</div>` : `
-                    <div class="flex justify-end gap-2 mt-1 border-t pt-2" data-id="${escapeHTML(r.id)}">
+                    ${r.status === 'pending_admin' ? `
+                    <div class="flex items-center justify-end gap-2 mt-1 border-t pt-2" data-id="${escapeHTML(r.id)}">
+                        ${selfNotice}
                         <button onclick="processRequest(this.parentNode.dataset.id, false)" class="border border-red-300 text-red-600 px-3 py-1 rounded hover:bg-red-50 font-bold">駁回</button>
                         <button onclick="processRequest(this.parentNode.dataset.id, true)" class="bg-black text-white px-4 py-1 rounded hover:bg-gray-800 font-bold">核准生效</button>
-                    </div>`) : ''}
+                    </div>` : ''}
                 </div>`;
             });
 
@@ -1873,143 +1720,44 @@
             const emps = getCurrentEmployees(currentYearMonth);
             const nameOf = id => (emps.find(e => e.id === id) || {}).name || id || '';
             const x = r.details || {};
+            let baseText = '';
             if (r.type === 'swap') {
                 let tt = x.originalTime, hh = x.shiftHours;
                 if (tt === undefined) { const i = getSwapShiftInfo(r.applicantEmpId, r.dateStr); tt = i.timeTxt; hh = i.hours; }
-                return swapLineText(nameOf(r.applicantEmpId), fmtMD(r.dateStr), { timeTxt: tt, hours: hh }, nameOf(r.targetEmpId), r.reason);
+                baseText = swapLineText(nameOf(r.applicantEmpId), fmtMD(r.dateStr), { timeTxt: tt, hours: hh }, nameOf(r.targetEmpId), r.reason);
+            } else {
+                const d = new Date(r.dateStr + 'T00:00:00');
+                const dt = `${d.getMonth() + 1}/${d.getDate()}(${'日一二三四五六'[d.getDay()]})`;
+                const L = [`【${REQ_TYPE_LABEL[r.type] || '出勤'}申請】`, `申請人：${nameOf(r.applicantEmpId)}`, `日期：${dt}`];
+                if (r.type === 'overtime') L.push(`時數：${x.hours}h（${x.otType === 'pay' ? '加班費' : '補休'}）`);
+                else if (r.type === 'leave') L.push(`類別：${x.category} ${x.hours}h`);
+                else if (r.type === 'clock_fix') L.push(`時間：${x.clockIn}-${x.clockOut}`);
+                L.push(`事由：${r.reason}`);
+                baseText = L.join('\n');
             }
-            const d = new Date(r.dateStr + 'T00:00:00');
-            const dt = `${d.getMonth() + 1}/${d.getDate()}(${'日一二三四五六'[d.getDay()]})`;
-            const L = [`【${REQ_TYPE_LABEL[r.type] || '出勤'}申請】`, `申請人：${nameOf(r.applicantEmpId)}`, `日期：${dt}`];
-            if (r.type === 'overtime') L.push(`時數：${x.hours}h（${x.otType === 'pay' ? '加班費' : '補休'}）`);
-            else if (r.type === 'leave') L.push(`類別：${x.category} ${x.hours}h`);
-            else if (r.type === 'clock_fix') L.push(`時間：${x.clockIn}-${x.clockOut}`);
-            L.push(`事由：${r.reason}`);
-            return L.join('\n');
+            if (r.status === 'approved' || r.status === 'rejected') {
+                const statusLabel = r.status === 'approved' ? '✅ 已核准生效' : '❌ 已駁回';
+                const approverName = resolveHandlerName(r);
+                const timeSuffix = r.handledAt ? `（${fmtDT(r.handledAt)}）` : '';
+                baseText += `\n簽核狀態：${statusLabel}\n簽核人員：${approverName}${timeSuffix}`;
+            }
+            return baseText;
         }
 
-        function signerOf(r) {
+        function resolveHandlerName(r) {
             if (!r) return '';
-            if (r.signerName && String(r.signerName).trim()) return String(r.signerName).trim();
-            const h = (r.history || []).slice().reverse().find(x => x.action === 'approve' || x.action === 'reject');
-            return (h && h.name) || '';
+            if (r.handledByName && String(r.handledByName).trim()) return String(r.handledByName).trim();
+            const h = (r.history || []).slice().reverse().find(x => (x.action === 'approve' || x.action === 'reject') && x.name && String(x.name).trim());
+            if (h) return String(h.name).trim();
+            return '管理員';
         }
 
-        // 顯示「是誰簽核」：只顯示姓名與時間，不顯示信箱
+        // 顯示「是誰處理」：僅顯示簽核人員名字與時間，對外不顯示信箱號碼
         function handlerText(r) {
-            if (!r || (!r.handledAt && !r.signerName && !r.handledByEmail)) return '';
+            if (!r || (!r.handledAt && !r.handledByName && !r.handledByEmail)) return '';
             if (r.handledBy === 'target') return '';
-            const label = r.status === 'approved' ? '核可簽核人' : (r.status === 'rejected' ? '駁回簽核人' : '簽核人');
-            return `${label}：${signerOf(r) || '管理者'}${r.handledAt ? ' ' + fmtDT(r.handledAt) : ''}`;
-        }
-
-        // 可貼到 LINE 群組的訊息：申請內容 + 處理結果 + 簽核人 + 駁回原因（若有）
-        function approvalLineText(r) {
-            let text = lineTextForReq(r);
-            if (r.handledBy === 'target' && r.status === 'rejected') text += '\n處理結果：同事婉拒';
-            else if (r.status === 'approved' || r.status === 'rejected') {
-                text += `\n處理結果：${r.status === 'approved' ? '已核可' : '已駁回'}\n簽核人：${signerOf(r) || '管理者'}${r.handledAt ? ' ' + fmtDT(r.handledAt) : ''}`;
-                if (r.status === 'rejected' && r.rejectReason) {
-                    text += `\n駁回原因：${r.rejectReason}`;
-                }
-            }
-            return text;
-        }
-
-        // ---- 簽核彈窗：強制輸入簽核人姓名（可為非員工高階主管），駁回時強制輸入駁回原因 ----
-        let signerResolver = null;
-        let signerDialogMode = 'preset'; // 'approve' | 'reject' | 'preset'
-        function signerKey() { return 'ecoleSigner:' + ((currentUser && currentUser.email) || ''); }
-        function fillSignerInput(val) {
-            const inp = document.getElementById('signerNameInput');
-            if (inp) { inp.value = val; inp.focus(); }
-        }
-        function askSignOffDetails(req, mode) {
-            signerDialogMode = mode || 'preset';
-            const titleEl = document.getElementById('signerDialogTitle');
-            const previewEl = document.getElementById('signerReqPreview');
-            const nameInp = document.getElementById('signerNameInput');
-            const chipsEl = document.getElementById('signerQuickChips');
-            const rejectBox = document.getElementById('rejectReasonBox');
-            const rejectInp = document.getElementById('rejectReasonInput');
-            const confirmBtn = document.getElementById('signerConfirmBtn');
-
-            const savedName = localStorage.getItem(signerKey()) || '';
-            const gName = (currentUser && currentUser.displayName) || '';
-            nameInp.value = savedName;
-            rejectInp.value = '';
-
-            if (signerDialogMode === 'approve') {
-                titleEl.innerText = '✅ 核准簽核確認（請輸入簽核人姓名）';
-                confirmBtn.innerText = '確認核准並完成簽核';
-                confirmBtn.className = 'bg-black text-white px-4 py-2 rounded font-bold hover:bg-gray-800';
-                rejectBox.classList.add('hidden');
-            } else if (signerDialogMode === 'reject') {
-                titleEl.innerText = '❌ 駁回申請確認（需填寫簽核人與駁回原因）';
-                confirmBtn.innerText = '確認駁回並完成簽核';
-                confirmBtn.className = 'bg-red-700 text-white px-4 py-2 rounded font-bold hover:bg-red-800';
-                rejectBox.classList.remove('hidden');
-            } else {
-                titleEl.innerText = '✍️ 預設簽核人姓名設定';
-                confirmBtn.innerText = '儲存預設簽核人';
-                confirmBtn.className = 'bg-black text-white px-4 py-2 rounded font-bold hover:bg-gray-800';
-                rejectBox.classList.add('hidden');
-            }
-
-            if (req) {
-                const emps = getCurrentEmployees(currentYearMonth);
-                const appName = req.applicantName || ((emps.find(e => e.id === req.applicantEmpId) || {}).name) || req.applicantEmpId || '';
-                previewEl.innerHTML = `<div class="font-bold text-gray-900">申請單：${escapeHTML(appName)}｜${escapeHTML(REQ_TYPE_LABEL[req.type] || req.type)}（${escapeHTML(req.dateStr)}）</div><div class="text-gray-600 mt-0.5">事由：${escapeHTML(req.reason || '')}</div>`;
-                previewEl.classList.remove('hidden');
-            } else {
-                previewEl.classList.add('hidden');
-            }
-
-            const quickCandidates = [];
-            if (savedName) quickCandidates.push(savedName);
-            if (gName && !quickCandidates.includes(gName)) quickCandidates.push(gName);
-            getCurrentEmployees(currentYearMonth).filter(e => e.type === 'FT').forEach(e => {
-                if (!quickCandidates.includes(e.name)) quickCandidates.push(e.name);
-            });
-            chipsEl.innerHTML = quickCandidates.slice(0, 6).map(n => {
-                const safeAttr = n.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                return `<button type="button" onclick="fillSignerInput('${safeAttr}')" class="text-[11px] bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 px-2 py-0.5 rounded">${escapeHTML(n)}</button>`;
-            }).join('');
-
-            document.getElementById('signerDialog').showModal();
-            setTimeout(() => nameInp.focus(), 30);
-            return new Promise(res => { signerResolver = res; });
-        }
-        function resolveSigner(ok) {
-            if (!ok) {
-                document.getElementById('signerDialog').close();
-                const r = signerResolver; signerResolver = null;
-                if (r) r(null);
-                return;
-            }
-            const signerName = (document.getElementById('signerNameInput').value || '').trim();
-            if (!signerName) {
-                alertCustom('請務必輸入簽核人姓名後才可完成簽核！');
-                document.getElementById('signerNameInput').focus();
-                return;
-            }
-            let rejectReason = '';
-            if (signerDialogMode === 'reject') {
-                rejectReason = (document.getElementById('rejectReasonInput').value || '').trim();
-                if (!rejectReason) {
-                    alertCustom('駁回申請時，請務必填寫駁回原因！');
-                    document.getElementById('rejectReasonInput').focus();
-                    return;
-                }
-            }
-            document.getElementById('signerDialog').close();
-            localStorage.setItem(signerKey(), signerName);
-            const r = signerResolver; signerResolver = null;
-            if (r) r({ signerName, rejectReason });
-        }
-        async function changeSigner() {
-            if (currentUserRole !== 'admin') { alertCustom('權限不足：僅管理員可設定簽核人。'); return; }
-            await askSignOffDetails(null, 'preset');
+            const who = resolveHandlerName(r);
+            return `${r.status === 'approved' ? '簽核人員' : '處理人員'}：${who}${r.handledAt ? '（' + fmtDT(r.handledAt) + '）' : ''}`;
         }
 
         async function copyTextToClipboard(text) {
@@ -2026,9 +1774,10 @@
         }
 
         async function copyReqLine(id) {
-            const r = (requestsData[currentYearMonth] || []).find(x => x.id === id);
+            const r = getAllRequestsFlat().find(x => x.id === id);
             if (!r) return;
-            showLineDialogText(approvalLineText(r), '複製 LINE 訊息');
+            const mode = (r.status === 'approved' || r.status === 'rejected') ? 'approval' : 'submit';
+            showLineDialog(r, mode);
         }
 
         const REQ_ACTION_LABEL = { submit: '送出申請', target_accept: '同事確認', target_reject: '同事婉拒', approve: '核可', reject: '駁回', cancel: '取消' };
@@ -2060,13 +1809,20 @@
                 const st = REQ_STATUS_LABEL[r.status] || [escapeHTML(r.status), 'text-gray-600'];
                 const by = (r.status === 'rejected' && r.handledBy === 'target') ? '（同事婉拒）' : '';
                 const h = handlerText(r);
-                const hist = (r.history || []).map(x => `${escapeHTML(fmtDT(x.at))} ${escapeHTML(REQ_ACTION_LABEL[x.action] || x.action)}　${escapeHTML(x.name || '')}`).join('<br>');
+                const hist = (r.history || []).map(x => {
+                    let actor = (x.name && String(x.name).trim()) ? String(x.name).trim() : '';
+                    if (!actor) {
+                        if (x.action === 'submit' || x.action === 'cancel') actor = nameOf(r.applicantEmpId);
+                        else if (x.action === 'target_accept' || x.action === 'target_reject') actor = nameOf(r.targetEmpId);
+                        else if (x.action === 'approve' || x.action === 'reject') actor = resolveHandlerName(r);
+                    }
+                    return `${escapeHTML(fmtDT(x.at))} ${escapeHTML(REQ_ACTION_LABEL[x.action] || x.action)}　${escapeHTML(actor)}`;
+                }).join('<br>');
                 const canCancel = (r.status === 'pending_target' || r.status === 'pending_admin') && subRequests[r.id];
                 html += `<div class="border border-gray-200 rounded p-3 bg-gray-50 flex flex-col gap-1" data-id="${escapeHTML(r.id)}">
                     <div class="flex justify-between items-center"><span class="font-bold">${escapeHTML(REQ_TYPE_LABEL[r.type] || r.type)}　${escapeHTML(r.dateStr)}</span><span class="font-bold ${st[1]}">${st[0]}${by}</span></div>
                     <div>內容：${escapeHTML(reqSummaryText(r, nameOf))}</div>
                     <div>事由：${escapeHTML(r.reason)}</div>
-                    ${r.status === 'rejected' && r.rejectReason ? `<div class="text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1 font-bold">駁回原因：${escapeHTML(r.rejectReason)}</div>` : ''}
                     <div class="text-gray-500">送出時間：${escapeHTML(fmtDT(r.createdAt))}</div>
                     ${h ? `<div class="font-bold text-gray-700">${escapeHTML(h)}</div>` : ''}
                     ${hist ? `<div class="text-[11px] text-gray-400 leading-relaxed border-t pt-1 mt-1">${hist}</div>` : ''}
@@ -2135,8 +1891,8 @@
             const nameOf = id => (emps.find(e => e.id === id) || {}).name || id || '';
             const heads = ['申請人', '類型', '日期', '申請內容', '事由', '狀態', '處理人／時間'];
             const rows = list.map(r => {
-                const st = (REQ_STATUS_LABEL[r.status] || [r.status])[0] + (r.status === 'rejected' && r.rejectReason ? `（原因：${r.rejectReason}）` : '');
-                const cells = [nameOf(r.applicantEmpId), REQ_TYPE_LABEL[r.type] || r.type, r.dateStr, reqSummaryText(r, nameOf), r.reason, st, handlerText(r).replace(/^(核可簽核人|駁回簽核人|簽核人|核可人|處理人)：/, '')];
+                const st = (REQ_STATUS_LABEL[r.status] || [r.status])[0];
+                const cells = [nameOf(r.applicantEmpId), REQ_TYPE_LABEL[r.type] || r.type, r.dateStr, reqSummaryText(r, nameOf), r.reason, st, handlerText(r).replace(/^(核可人|處理人)：/, '')];
                 return '<tr>' + cells.map(c => `<td>${escapeHTML(c)}</td>`).join('') + '</tr>';
             }).join('');
             const table = document.createElement('table');
@@ -2145,15 +1901,42 @@
             exportTablePDF(table, `ÉCOLE CAFÉ 出勤與調班申請審核紀錄 (${currentYearMonth})`, `申請審核紀錄_${currentYearMonth}.pdf`);
         }
 
-        function showLineDialogText(text, title) {
-            document.getElementById('lineMessageText').value = text;
-            document.getElementById('lineDialogTitle').textContent = title || '✅ 已送出，請複製訊息傳給主管';
-            document.getElementById('lineCopyHint').classList.add('hidden');
-            document.getElementById('lineMessageDialog').showModal();
-        }
+        let lineDialogCurrentMode = 'submit';
 
-        function showLineDialog(req) {
-            showLineDialogText(lineTextForReq(req), '✅ 已送出，請複製訊息傳給主管');
+        async function showLineDialog(req, mode = 'submit') {
+            lineDialogCurrentMode = mode;
+            const titleEl = document.getElementById('lineDialogTitle');
+            const btnEl = document.getElementById('lineCopyBtn');
+            const ta = document.getElementById('lineMessageText');
+            const hint = document.getElementById('lineCopyHint');
+
+            if (titleEl) {
+                if (mode === 'approval') {
+                    titleEl.textContent = req.status === 'rejected'
+                        ? '❌ 已駁回申請，請複製訊息通知群組'
+                        : '✅ 核可完成，請複製訊息貼至 LINE 群組';
+                } else {
+                    titleEl.textContent = '✅ 已送出，請複製訊息傳給主管';
+                }
+            }
+            if (btnEl) {
+                btnEl.textContent = mode === 'approval' ? '複製群組訊息' : '複製訊息';
+            }
+
+            const text = lineTextForReq(req);
+            ta.value = text;
+            hint.classList.add('hidden');
+            document.getElementById('lineMessageDialog').showModal();
+            ta.focus();
+            ta.select();
+
+            const copied = await copyTextToClipboard(text);
+            if (copied) {
+                hint.textContent = mode === 'approval'
+                    ? '✓ 已自動複製到剪貼簿，可直接貼到 LINE 群組'
+                    : '✓ 已自動複製，請貼到 LINE 傳給主管';
+                hint.classList.remove('hidden');
+            }
         }
 
         async function copyLineText() {
@@ -2164,7 +1947,9 @@
                 try { ta.focus(); ta.select(); ta.setSelectionRange(0, text.length); ok = document.execCommand('copy'); } catch (_) {}
             }
             const hint = document.getElementById('lineCopyHint');
-            hint.textContent = ok ? '✓ 已複製，請貼到 LINE 傳給主管' : '請長按文字框全選後手動複製';
+            hint.textContent = ok
+                ? (lineDialogCurrentMode === 'approval' ? '✓ 已複製，請貼到 LINE 群組' : '✓ 已複製，請貼到 LINE 傳給主管')
+                : '請長按文字框全選後手動複製';
             hint.classList.remove('hidden');
         }
 
@@ -2191,7 +1976,7 @@
                 const by = (r.status === 'rejected' && r.handledBy === 'target') ? '（同事婉拒）' : '';
                 html += `<div class="border border-gray-200 bg-gray-50 rounded p-2 flex flex-col gap-0.5">
                     <div class="flex justify-between items-center"><span class="font-bold">${escapeHTML(REQ_TYPE_LABEL[r.type] || r.type)}　${escapeHTML(String(r.dateStr).substring(5))}</span><span class="font-bold ${st[1]}">${st[0]}${by}</span></div>
-                    <div class="text-gray-600">${escapeHTML(reqSummaryText(r, nameOf))}</div>${r.status === 'rejected' && r.rejectReason ? `<div class="text-red-700 font-bold">駁回原因：${escapeHTML(r.rejectReason)}</div>` : ''}${handlerText(r) ? `<div class="text-gray-500">${escapeHTML(handlerText(r))}</div>` : ''}${(r.status === 'pending_target' || r.status === 'pending_admin') && subRequests[r.id] ? `<div class="flex justify-end" data-id="${escapeHTML(r.id)}"><button onclick="cancelMyRequest(this.parentNode.dataset.id)" class="border border-gray-300 text-gray-600 px-3 py-1 rounded font-bold hover:bg-gray-100">取消申請</button></div>` : ''}</div>`;
+                    <div class="text-gray-600">${escapeHTML(reqSummaryText(r, nameOf))}</div>${handlerText(r) ? `<div class="text-gray-500">${escapeHTML(handlerText(r))}</div>` : ''}${(r.status === 'pending_target' || r.status === 'pending_admin') && subRequests[r.id] ? `<div class="flex justify-end" data-id="${escapeHTML(r.id)}"><button onclick="cancelMyRequest(this.parentNode.dataset.id)" class="border border-gray-300 text-gray-600 px-3 py-1 rounded font-bold hover:bg-gray-100">取消申請</button></div>` : ''}</div>`;
             });
             box.innerHTML = html || '<p class="text-gray-400 text-center py-3">本月尚無已送出的申請</p>';
         }
@@ -2209,7 +1994,6 @@
                 const res = applyFn(list[idx], data);
                 list[idx] = res.req;
                 tx.update(ref, Object.assign({ ['requestsData.' + ym]: list }, res.extra || {}));
-                if (res.audit) tx.set(ref.collection('auditLogs').doc(), res.audit);
             });
         }
 
@@ -2217,7 +2001,7 @@
             const out = {}, seen = {};
             Object.keys(subRequests).forEach(id => {
                 const r = subRequests[id];
-                const ym = r.ym || String(r.dateStr || '').substring(0, 7) || currentYearMonth;
+                const ym = String(r.dateStr || '').substring(0, 7);
                 (out[ym] = out[ym] || []).push(r);
                 seen[id] = true;
             });
@@ -2225,7 +2009,6 @@
                 (legacyRequestsData[ym] || []).forEach(r => { if (!seen[r.id]) (out[ym] = out[ym] || []).push(r); });
             });
             requestsData = out;
-            try { localStorage.setItem('ecoleRequests', JSON.stringify(requestsData)); } catch (_) {}
         }
 
         // 申請子集合監聽：管理者看全部；員工只看「自己提出」與「待自己確認」。統一由 unsubscribeAttendance 管理，登出/重登時會先解除，不會重複
@@ -2238,20 +2021,19 @@
             const unsubs = [];
             const onSnap = (qs) => {
                 qs.docChanges().forEach(ch => {
-                    if (ch.type === 'removed') {
-                        delete subRequests[ch.doc.id];
-                        Object.keys(legacyRequestsData || {}).forEach(ym => {
-                            legacyRequestsData[ym] = (legacyRequestsData[ym] || []).filter(x => x.id !== ch.doc.id);
-                        });
-                    } else {
-                        subRequests[ch.doc.id] = Object.assign({ id: ch.doc.id }, ch.doc.data());
-                    }
+                    if (ch.type === 'removed') delete subRequests[ch.doc.id];
+                    else subRequests[ch.doc.id] = Object.assign({ id: ch.doc.id }, ch.doc.data());
                 });
                 rebuildRequestsData();
                 updatePendingBadge();
                 refreshOpenDialogs();
             };
-            const onErr = (e) => console.error('申請同步失敗:', e);
+            const onErr = (e) => {
+                console.error('申請同步失敗:', e);
+                if (e && e.code === 'permission-denied') {
+                    alertCustom('出勤申請監聽權限被拒絕：請確認 Firebase Console 已發布最新的 firestore.rules，且您的帳號列於 systemConfig/whitelist。');
+                }
+            };
             if (currentUserRole === 'admin') unsubs.push(col.onSnapshot(onSnap, onErr));
             else {
                 unsubs.push(col.where('applicantEmail', '==', currentUser.email).onSnapshot(onSnap, onErr));
@@ -2270,27 +2052,52 @@
                 const rs = await tx.get(reqRef);
                 if (!rs.exists) throw new Error('找不到申請單');
                 const req = Object.assign({ id: reqId }, rs.data());
-                const main = currentUserRole === 'admin' ? ((await tx.get(mainRef)).data() || {}) : {};
+                let mainSnap = null;
+                let main = {};
+                if (currentUserRole === 'admin') {
+                    mainSnap = await tx.get(mainRef);
+                    main = mainSnap.exists ? (mainSnap.data() || {}) : {};
+                }
                 const res = applyFn(req, main);
                 const upd = {};
-                Object.keys(res.req).forEach(k => { if (k !== 'id' && JSON.stringify(res.req[k]) !== JSON.stringify(req[k])) upd[k] = res.req[k]; });
-                tx.update(reqRef, upd);
-                if (res.extra && Object.keys(res.extra).length) tx.update(mainRef, res.extra);
-                if (res.audit) tx.set(mainRef.collection('auditLogs').doc(), res.audit);
+                Object.keys(res.req).forEach(k => {
+                    if (k !== 'id' && res.req[k] !== undefined && JSON.stringify(res.req[k]) !== JSON.stringify(req[k])) {
+                        upd[k] = res.req[k];
+                    }
+                });
+                if (Object.keys(upd).length > 0) {
+                    tx.update(reqRef, upd);
+                }
+                if (res.extra && Object.keys(res.extra).length > 0) {
+                    if (mainSnap && mainSnap.exists) {
+                        tx.update(mainRef, res.extra);
+                    } else {
+                        const nested = {};
+                        Object.keys(res.extra).forEach(path => {
+                            const parts = path.split('.');
+                            let cur = nested;
+                            for (let i = 0; i < parts.length - 1; i++) {
+                                cur[parts[i]] = cur[parts[i]] || {};
+                                cur = cur[parts[i]];
+                            }
+                            cur[parts[parts.length - 1]] = res.extra[path];
+                        });
+                        tx.set(mainRef, nested, { merge: true });
+                    }
+                }
             });
         }
 
-        function histAdd(req, action, nameOverride, reasonOverride) {
-            // 只記錄姓名與必要說明，不記錄 email（員工讀得到申請文件；簽核者 email 改存管理者專用的稽核紀錄）
-            const entry = { at: new Date().toISOString(), name: nameOverride || (currentUser && currentUser.displayName) || '', action: action };
-            if (reasonOverride) entry.reason = reasonOverride;
-            return (req.history || []).concat([entry]);
+        function histAdd(req, action) {
+            return (req.history || []).concat([{ at: new Date().toISOString(), by: (currentUser && currentUser.email) || '', name: getCurrentActorName(), action: action }]);
         }
 
         async function respondSwap(reqId, accept) {
             if (!currentUserEmpId) return;
+            const local = getAllRequestsFlat().find(x => x.id === reqId);
+            const reqYm = local ? String(local.dateStr || currentYearMonth).substring(0, 7) : currentYearMonth;
             try {
-                await withTimeout(updateRequest(reqId, currentYearMonth, req => {
+                await withTimeout(updateRequest(reqId, reqYm, req => {
                     if (req.status !== 'pending_target' || req.targetEmpId !== currentUserEmpId) throw new Error('此申請不需要您確認或已處理');
                     return { req: Object.assign({}, req, { status: accept ? 'pending_admin' : 'rejected', handledBy: accept ? '' : 'target', targetRespondedAt: new Date().toISOString(), history: histAdd(req, accept ? 'target_accept' : 'target_reject') }) };
                 }), 15000);
@@ -2299,12 +2106,13 @@
         }
 
         async function cancelMyRequest(reqId) {
-            const r = (requestsData[currentYearMonth] || []).find(x => x.id === reqId);
+            const r = getAllRequestsFlat().find(x => x.id === reqId);
             if (!r || !isMyRequest(r)) return;
+            const reqYm = String(r.dateStr || currentYearMonth).substring(0, 7);
             const ok = await customConfirm('確定要取消這筆申請嗎？取消後無法恢復。');
             if (!ok) return;
             try {
-                await withTimeout(updateRequest(reqId, currentYearMonth, req => {
+                await withTimeout(updateRequest(reqId, reqYm, req => {
                     if (req.status !== 'pending_target' && req.status !== 'pending_admin') throw new Error('此申請已被處理，無法取消');
                     return { req: Object.assign({}, req, { status: 'cancelled', cancelledAt: new Date().toISOString(), cancelledBy: (currentUser && currentUser.email) || '', history: histAdd(req, 'cancel') }) };
                 }), 15000);
@@ -2314,29 +2122,20 @@
 
         async function processRequest(reqId, isApproved) {
             if (currentUserRole !== 'admin') { alertCustom('權限不足：僅管理員可審核申請。'); return; }
-            const ym = currentYearMonth;
-            const local = (requestsData[ym] || []).find(r => r.id === reqId);
-            if (!local) return;
-            if (isSelfRequest(local)) { alertCustom('不可核可自己提出的申請，請由其他管理者處理。'); return; }
-
-            // 強制彈出簽核視窗：必須輸入簽核人姓名（可為非員工高階主管），駁回時必須輸入駁回原因
-            const signOff = await askSignOffDetails(local, isApproved ? 'approve' : 'reject');
-            if (!signOff) return;
-            const signer = signOff.signerName;
-            const rejectReason = isApproved ? '' : signOff.rejectReason;
-
+            const local = getAllRequestsFlat().find(r => r.id === reqId);
+            if (!local) { alertCustom('找不到該筆申請單，請重新整理後再試。'); return; }
+            const ym = String(local.dateStr || currentYearMonth).substring(0, 7);
+            const approverName = getCurrentActorName();
+            let completedReq = null;
             const apply = (req, data) => {
                 if (req.status !== 'pending_admin') throw new Error('此申請已被處理，或仍待同事確認');
-                if (isSelfRequest(req)) throw new Error('不可核可自己提出的申請');
-                const nowIso = new Date().toISOString();
                 const next = Object.assign({}, req, {
                     status: isApproved ? 'approved' : 'rejected',
                     handledBy: 'admin',
-                    handledAt: nowIso,
-                    updatedAt: nowIso,
-                    signerName: signer,
-                    rejectReason: rejectReason,
-                    history: histAdd(req, isApproved ? 'approve' : 'reject', signer, rejectReason)
+                    handledByName: approverName,
+                    handledAt: new Date().toISOString(),
+                    handledByEmail: (currentUser && currentUser.email) || '',
+                    history: histAdd(req, isApproved ? 'approve' : 'reject')
                 });
                 const extra = {};
                 if (isApproved && req.type === 'swap') {
@@ -2346,27 +2145,22 @@
                     extra[`scheduleData.${ym}.${req.applicantEmpId}.${req.day}`] = t;
                     extra[`scheduleData.${ym}.${req.targetEmpId}.${req.day}`] = a;
                 }
-                return {
-                    req: next,
-                    extra: extra,
-                    audit: {
-                        reqId: req.id,
-                        ym: ym,
-                        action: isApproved ? 'approve' : 'reject',
-                        name: signer,
-                        signerName: signer,
-                        rejectReason: rejectReason,
-                        byEmail: (currentUser && currentUser.email) || '',
-                        at: nowIso
-                    }
-                };
+                completedReq = next;
+                return { req: next, extra: extra };
             };
             try {
                 if (currentUser && db) {
                     await withTimeout(updateRequest(reqId, ym, apply), 15000);
+                    // 同步更新本地快取並將當月申請清單同步鏡像至主文件 requestsData 欄位（方便 Firebase Console 檢視）
+                    if (subRequests[reqId] && completedReq) {
+                        subRequests[reqId] = Object.assign({}, completedReq);
+                        rebuildRequestsData();
+                    }
+                    await syncRequestsToMainDoc(false);
                 } else {   // 單機模式
                     const r = apply(local, { scheduleData });
                     Object.assign(local, r.req);
+                    completedReq = Object.assign({}, local);
                     if (isApproved && local.type === 'swap') {
                         const s = scheduleData[ym] = scheduleData[ym] || {};
                         s[local.applicantEmpId] = s[local.applicantEmpId] || {}; s[local.targetEmpId] = s[local.targetEmpId] || {};
@@ -2376,20 +2170,12 @@
                     saveData();
                 }
             } catch (err) { alertCustom('處置失敗：' + fbErrText(err)); return; }
-            localStorage.setItem('ecoleRequests', JSON.stringify(requestsData));
             renderAdminApprovalList();
             renderTable();
             updatePendingBadge();
-            const nowIso = new Date().toISOString();
-            const done = Object.assign({}, local, {
-                status: isApproved ? 'approved' : 'rejected',
-                handledBy: 'admin',
-                handledAt: nowIso,
-                signerName: signer,
-                rejectReason: rejectReason,
-                history: (local.history || []).concat([{ at: nowIso, name: signer, action: isApproved ? 'approve' : 'reject', ...(rejectReason ? { reason: rejectReason } : {}) }])
-            });
-            showLineDialogText(approvalLineText(done), isApproved ? '✅ 已核可，請複製訊息貼到群組' : '✅ 已駁回，請複製訊息貼到群組');
+            if (completedReq) {
+                showLineDialog(completedReq, 'approval');
+            }
         }
 
         // 雲端資料更新時，同步刷新已開啟的視窗（只讀取、不寫入，不會產生迴圈）
@@ -4569,77 +4355,27 @@
         }
 
         async function exportJSON() {
-            if (currentUser && currentUserRole !== 'admin') {
-                alertCustom('權限不足：僅管理員可匯出系統備份。');
-                return;
-            }
-            const ym = currentYearMonth;
-            const currentEmployees = getCurrentEmployees(ym);
-            const currentShiftSettings = getCurrentShiftSettings(ym);
-
-            // 1. 彙整當月所有出勤申請資料（合併子集合 subRequests 與 requestsData，並向 Firestore 確認最新資料）
-            const reqMap = {};
-            (requestsData[ym] || []).forEach(r => { if (r && r.id) reqMap[r.id] = r; });
-            Object.keys(subRequests || {}).forEach(id => {
-                const r = subRequests[id];
-                const rYm = r.ym || String(r.dateStr || '').substring(0, 7);
-                if (rYm === ym) reqMap[id] = Object.assign({ id }, r);
-            });
-            if (currentUser && db && currentUserRole === 'admin') {
-                try {
-                    const snap = await withTimeout(
-                        db.collection('ecoleCafe').doc('main_schedule').collection('requests').where('ym', '==', ym).get(),
-                        8000
-                    );
-                    snap.forEach(doc => {
-                        reqMap[doc.id] = Object.assign({ id: doc.id }, doc.data());
-                    });
-                } catch (e) {
-                    console.warn('匯出前雲端查詢申請單略過（改用本地快取）:', e);
-                }
-            }
-            const monthRequests = Object.values(reqMap).sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
-
-            // 2. 彙整當月所有 iCHEF 打卡比對資料
-            const monthClocks = [];
-            const seenClockKey = new Set();
-            (ichefClockData[ym] || []).forEach((c, idx) => {
-                const key = `${c.dateStr || ''}_${c.empId || c.empName || idx}`;
-                seenClockKey.add(key);
-                monthClocks.push(c);
-            });
-            Object.keys(ichefClockData || {}).forEach(k => {
-                if (k === ym) return;
-                (ichefClockData[k] || []).forEach((c, idx) => {
-                    if (String(c.dateStr || '').startsWith(ym)) {
-                        const key = `${c.dateStr || ''}_${c.empId || c.empName || idx}`;
-                        if (!seenClockKey.has(key)) {
-                            seenClockKey.add(key);
-                            monthClocks.push(c);
-                        }
-                    }
-                });
-            });
+            const currentEmployees = getCurrentEmployees(currentYearMonth);
+            const currentShiftSettings = getCurrentShiftSettings(currentYearMonth);
 
             const data = { 
-                version: "4.1",
-                exportMonth: ym,
-                exportedAt: new Date().toISOString(),
-                scheduleData: { [ym]: scheduleData[ym] || {} }, 
-                stationData: { [ym]: stationData[ym] || {} }, 
-                noteData: { [ym]: noteData[ym] || {} }, 
-                carryOverData: { [ym]: carryOverData[ym] || {} }, 
-                lockData: { [ym]: lockData[ym] || false }, 
-                employeesData: { [ym]: employeesData[ym] || currentEmployees }, 
-                shiftSettingsData: { [ym]: shiftSettingsData[ym] || currentShiftSettings },
-                dismissedWarningsData: { [ym]: dismissedWarningsData[ym] || {} },
-                ichefClockData: { [ym]: monthClocks },
-                requestsData: { [ym]: monthRequests },
-                tardinessFlexData: { [ym]: tardinessFlexData[ym] || {} },
+                version: "4.0",
+                exportMonth: currentYearMonth,
+                scheduleData: { [currentYearMonth]: scheduleData[currentYearMonth] || {} }, 
+                stationData: { [currentYearMonth]: stationData[currentYearMonth] || {} }, 
+                noteData: { [currentYearMonth]: noteData[currentYearMonth] || {} }, 
+                carryOverData: { [currentYearMonth]: carryOverData[currentYearMonth] || {} }, 
+                lockData: { [currentYearMonth]: lockData[currentYearMonth] || false }, 
+                employeesData: { [currentYearMonth]: employeesData[currentYearMonth] || currentEmployees }, 
+                shiftSettingsData: { [currentYearMonth]: shiftSettingsData[currentYearMonth] || currentShiftSettings },
+                dismissedWarningsData: { [currentYearMonth]: dismissedWarningsData[currentYearMonth] || {} },
+                ichefClockData: { [currentYearMonth]: ichefClockData[currentYearMonth] || [] },
+                requestsData: { [currentYearMonth]: requestsData[currentYearMonth] || [] },
+                tardinessFlexData: { [currentYearMonth]: tardinessFlexData[currentYearMonth] || {} },
                 employees: currentEmployees,
                 shiftSettings: currentShiftSettings
             };
-            const fileName = `EcoleCafe_Backup_${ym}.json`;
+            const fileName = `EcoleCafe_Backup_${currentYearMonth}.json`;
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const file = new File([blob], fileName, { type: 'application/json' });
 
@@ -4663,29 +4399,16 @@
             }
         }
 
-        function triggerImport() {
-            if (currentUser && currentUserRole !== 'admin') {
-                alertCustom('權限不足：僅管理員可匯入系統備份。');
-                return;
-            }
-            document.getElementById('importFile').click();
-        }
+        function triggerImport() { document.getElementById('importFile').click(); }
 
         function importJSON(event) {
-            if (currentUser && currentUserRole !== 'admin') {
-                alertCustom('權限不足：僅管理員可匯入系統備份。');
-                event.target.value = '';
-                return;
-            }
             const file = event.target.files[0];
             if(!file) return;
             const reader = new FileReader();
-            reader.onload = async function(e) {
+            reader.onload = function(e) {
                 try {
                     const data = JSON.parse(e.target.result);
                     const targetYM = data.exportMonth || currentYearMonth;
-                    let restoredReqCount = 0;
-                    let restoredClockCount = 0;
                     
                     if (data.exportMonth) {
                         if (data.scheduleData && data.scheduleData[targetYM]) scheduleData[targetYM] = data.scheduleData[targetYM];
@@ -4697,51 +4420,19 @@
                         if (data.employeesData && data.employeesData[targetYM]) employeesData[targetYM] = data.employeesData[targetYM];
                         if (data.shiftSettingsData && data.shiftSettingsData[targetYM]) shiftSettingsData[targetYM] = data.shiftSettingsData[targetYM];
                         
-                        if (data.ichefClockData && Array.isArray(data.ichefClockData[targetYM])) {
-                            ichefClockData[targetYM] = data.ichefClockData[targetYM];
-                            restoredClockCount = data.ichefClockData[targetYM].length;
-                        }
-                        if (data.tardinessFlexData && data.tardinessFlexData[targetYM]) {
-                            tardinessFlexData[targetYM] = data.tardinessFlexData[targetYM];
-                        }
-                        if (data.requestsData && Array.isArray(data.requestsData[targetYM])) {
-                            const importedReqs = data.requestsData[targetYM].map(r => Object.assign({}, r, {
-                                ym: r.ym || targetYM
-                            }));
-                            restoredReqCount = importedReqs.length;
-                            legacyRequestsData[targetYM] = importedReqs;
-                            importedReqs.forEach(r => { if (r && r.id) subRequests[r.id] = r; });
-                            rebuildRequestsData();
-
-                            // 同步寫入 Firestore 子集合 ecoleCafe/main_schedule/requests，確保雲端資料庫完整還原且不被覆蓋
-                            if (currentUser && db && currentUserRole === 'admin' && importedReqs.length > 0) {
-                                const col = db.collection('ecoleCafe').doc('main_schedule').collection('requests');
-                                for (let i = 0; i < importedReqs.length; i += 400) {
-                                    const batch = db.batch();
-                                    importedReqs.slice(i, i + 400).forEach(r => {
-                                        if (r && r.id) batch.set(col.doc(r.id), r, { merge: true });
-                                    });
-                                    await withTimeout(batch.commit(), 15000);
-                                }
-                            }
-                        }
-
-                        if (targetYM !== currentYearMonth) {
-                            currentYearMonth = targetYM;
-                            const ms = document.getElementById('monthSelector');
-                            if (ms) ms.value = targetYM;
-                        }
+                        if (data.ichefClockData && data.ichefClockData[targetYM]) ichefClockData[targetYM] = data.ichefClockData[targetYM];
+                        if (data.requestsData && data.requestsData[targetYM]) requestsData[targetYM] = data.requestsData[targetYM];
+                        if (data.tardinessFlexData && data.tardinessFlexData[targetYM]) tardinessFlexData[targetYM] = data.tardinessFlexData[targetYM];
                     }
 
                     saveData();
                     renderShiftButtons();
                     renderTable();
                     updatePendingBadge();
-                    refreshOpenDialogs();
-                    alertCustom(`資料匯入成功！已完整同步 ${targetYM} 月份資料：\n• 排班與站點設定\n• 出勤申請紀錄：${restoredReqCount} 筆\n• iCHEF 打卡比對紀錄：${restoredClockCount} 筆`);
+                    alertCustom(`資料匯入成功！已同步 ${targetYM} 月份之排班與出勤設定。`);
                 } catch(err) {
                     console.error("匯入失敗:", err);
-                    alertCustom('檔案格式錯誤或雲端同步失敗：' + ((err && err.message) || '請確定是本系統匯出的 JSON 備份檔。'));
+                    alertCustom('檔案格式錯誤，請確定是本系統匯出的 JSON 備份檔。');
                 }
             }
             reader.readAsText(file);
