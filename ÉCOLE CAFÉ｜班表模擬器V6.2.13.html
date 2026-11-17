@@ -489,26 +489,17 @@
     </dialog>
 
     <dialog id="adminApprovalDialog" class="rounded-lg shadow-xl p-0 w-11/12 max-w-3xl border border-gray-200">
-        <div class="p-4 border-b border-gray-100 flex flex-wrap justify-between items-center gap-2 bg-gray-50">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
             <div class="flex items-center gap-2">
                 <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <h3 class="font-bold text-gray-800 tracking-wide">出勤與調班申請審核儀表板</h3>
             </div>
-            <div class="flex items-center gap-2 flex-wrap">
-                <select id="adminApprovalFilter" onchange="renderAdminApprovalList()" class="border border-gray-300 bg-white rounded px-2.5 py-1.5 text-xs font-bold text-gray-800 outline-none">
-                    <option value="PENDING_ALL">待簽核申請（全月份）</option>
-                    <option value="MONTH_ALL">當月所有申請</option>
-                    <option value="ALL_RECORDS">全部歷史紀錄（全月份）</option>
-                </select>
-                <button onclick="syncRequestsToMainDoc(true)" title="將子集合申請同步匯整至主文件 requestsData 欄位" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap">同步至 requestsData</button>
+            <div class="flex items-center gap-2">
                 <button onclick="exportApprovalPDF()" class="bg-gray-800 text-white hover:bg-black px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap">匯出 PDF</button>
                 <button onclick="document.getElementById('adminApprovalDialog').close()" class="text-gray-400 hover:text-black text-2xl leading-none">&times;</button>
             </div>
         </div>
-        <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 text-[11px] text-gray-500 flex flex-wrap justify-between items-center gap-1">
-            <span id="adminApprovalStats" class="font-bold text-gray-700"></span>
-        </div>
-        <div class="p-4 bg-white max-h-[72vh] overflow-y-auto">
+        <div class="p-4 bg-white max-h-[75vh] overflow-y-auto">
             <div id="adminApprovalList" class="flex flex-col gap-3"></div>
         </div>
     </dialog>
@@ -1113,25 +1104,15 @@
 
                         if (wlSnap.exists) {
                             const wlData = wlSnap.data();
-                            const rawAdmins = Array.isArray(wlData.adminEmails)
-                                ? wlData.adminEmails
-                                : (wlData.adminEmails && typeof wlData.adminEmails === 'object' ? Object.keys(wlData.adminEmails).filter(k => wlData.adminEmails[k]) : []);
-                            const staffMapping = (wlData.staffMapping && typeof wlData.staffMapping === 'object') ? wlData.staffMapping : {};
-                            const userEmailNorm = String(user.email || '').trim().toLowerCase();
+                            const adminEmails = wlData.adminEmails || [];
+                            const staffMapping = wlData.staffMapping || {};
 
-                            const normalizedAdminSet = new Set(rawAdmins.map(e => String(e || '').trim().toLowerCase()).filter(Boolean));
-                            let matchedEmpId = staffMapping[user.email] || null;
-                            if (!matchedEmpId) {
-                                const foundKey = Object.keys(staffMapping).find(k => String(k || '').trim().toLowerCase() === userEmailNorm);
-                                if (foundKey) matchedEmpId = staffMapping[foundKey];
-                            }
-
-                            if (normalizedAdminSet.has(userEmailNorm)) {
+                            if (adminEmails.includes(user.email)) {
                                 isAdmin = true;
-                                if (matchedEmpId) empId = matchedEmpId;
-                            } else if (matchedEmpId) {
+                                if (staffMapping[user.email]) empId = staffMapping[user.email];
+                            } else if (staffMapping[user.email]) {
                                 isStaff = true;
-                                empId = matchedEmpId;
+                                empId = staffMapping[user.email];
                             }
                         } else {
                             console.warn("未找到 whitelist 設定，基於零信任原則拒絕預設權限。");
@@ -1271,7 +1252,7 @@
                 console.warn("雲端資料尚未載入完畢，取消寫入以防蓋檔。");
                 return;
             }
-            if (isScheduleLocked(currentYearMonth) && !fieldPath.startsWith('lockData') && !fieldPath.startsWith('requestsData') && !fieldPath.startsWith('scheduleData')) {
+            if (isScheduleLocked(currentYearMonth) && !fieldPath.startsWith('lockData') && !fieldPath.startsWith('requestsData')) {
                 console.warn("當月班表已被鎖定，拒絕寫入變更。");
                 return;
             }
@@ -1320,19 +1301,11 @@
 
         // --- 出勤申請與審核模組 ---
 
-        function getAllRequestsFlat() {
-            const list = [];
-            Object.keys(requestsData || {}).forEach(ym => {
-                (requestsData[ym] || []).forEach(r => list.push(r));
-            });
-            return list;
-        }
-
         function updatePendingBadge() {
             const badge = document.getElementById('pendingBadge');
             if (!badge) return;
-            const allReqs = getAllRequestsFlat();
-            const pendingCount = allReqs.filter(r => r.status === 'pending_admin').length;
+            const monthReqs = requestsData[currentYearMonth] || [];
+            const pendingCount = monthReqs.filter(r => r.status === 'pending_admin').length;
             if (pendingCount > 0 && currentUserRole === 'admin') {
                 badge.innerText = pendingCount;
                 badge.classList.remove('hidden');
@@ -1440,12 +1413,7 @@
         }
 
         function fbErrText(err) {
-            if (err && err.code === 'permission-denied') {
-                const roleHint = currentUserRole === 'admin'
-                    ? '管理員帳號需列於 systemConfig/whitelist 的 adminEmails 陣列中，且 firestore.rules 需允許 adminEmails 讀寫 requests 子集合'
-                    : '員工帳號需列於 systemConfig/whitelist 的 staffMapping 對照表中';
-                return '權限被拒絕（permission-denied）。請確認：①已在 Firebase 發布最新的 firestore.rules　②您的 Google 帳號（' + ((currentUser && currentUser.email) || '') + '）權限設定正確（' + roleHint + '）';
-            }
+            if (err && err.code === 'permission-denied') return '權限被拒絕（permission-denied）。請確認：①已在 Firebase 發布最新的 firestore.rules　②您的 Google 帳號（' + ((currentUser && currentUser.email) || '') + '）已列在 systemConfig/whitelist 的 staffMapping 內';
             return (err && err.message) || String(err);
         }
 
@@ -1548,69 +1516,27 @@
                 alertCustom("提醒：只有管理者具有審核儀表板存取權限。");
                 return;
             }
-            const filterEl = document.getElementById('adminApprovalFilter');
-            if (filterEl) {
-                const allPending = getAllRequestsFlat().filter(r => r.status === 'pending_admin');
-                filterEl.value = allPending.length > 0 ? 'PENDING_ALL' : 'MONTH_ALL';
-            }
             renderAdminApprovalList();
             document.getElementById('adminApprovalDialog').showModal();
         }
 
-        async function syncRequestsToMainDoc(showToast = false) {
-            if (currentUserRole !== 'admin' || !db || !currentUser) return;
-            try {
-                const payload = {};
-                Object.keys(requestsData || {}).forEach(ym => {
-                    payload[`requestsData.${ym}`] = requestsData[ym] || [];
-                });
-                if (Object.keys(payload).length === 0) {
-                    payload[`requestsData.${currentYearMonth}`] = [];
-                }
-                await withTimeout(db.collection('ecoleCafe').doc('main_schedule').set({ requestsData: requestsData || {} }, { merge: true }), 15000);
-                if (showToast) alertCustom('✅ 已將所有出勤申請資料同步匯整至主文件 requestsData 欄位！');
-            } catch (err) {
-                console.error('同步 requestsData 失敗:', err);
-                if (showToast) alertCustom('同步失敗：' + fbErrText(err));
-            }
-        }
-
         function renderAdminApprovalList() {
             const container = document.getElementById('adminApprovalList');
-            const statsEl = document.getElementById('adminApprovalStats');
-            const filterMode = document.getElementById('adminApprovalFilter')?.value || 'PENDING_ALL';
-            const allReqs = getAllRequestsFlat();
-            const pendingAllCount = allReqs.filter(r => r.status === 'pending_admin').length;
-            if (statsEl) {
-                statsEl.innerText = `待簽核：${pendingAllCount} 筆 ｜ 總紀錄：${allReqs.length} 筆`;
-            }
-
-            let targetReqs = [];
-            if (filterMode === 'PENDING_ALL') {
-                targetReqs = allReqs.filter(r => r.status === 'pending_admin' || r.status === 'pending_target');
-            } else if (filterMode === 'ALL_RECORDS') {
-                targetReqs = allReqs.slice();
-            } else {
-                targetReqs = (requestsData[currentYearMonth] || []).slice();
-            }
+            const monthReqs = requestsData[currentYearMonth] || [];
             
-            if (targetReqs.length === 0) {
-                const emptyText = filterMode === 'PENDING_ALL' ? '目前無待簽核的申請單' : (filterMode === 'ALL_RECORDS' ? '尚無任何歷史申請紀錄' : '當月尚無任何申請單紀錄');
-                container.innerHTML = `<p class="text-center text-gray-400 py-8">${emptyText}</p>`;
+            if (monthReqs.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-400 py-8">當月尚無任何申請單紀錄</p>';
                 return;
             }
 
+            const emps = getCurrentEmployees(currentYearMonth);
             const empMap = {};
-            getCurrentEmployees(currentYearMonth).forEach(e => empMap[e.id] = e.name);
-            Object.keys(employeesData || {}).forEach(ym => {
-                (employeesData[ym] || []).forEach(e => { if (!empMap[e.id]) empMap[e.id] = e.name; });
-            });
+            emps.forEach(e => empMap[e.id] = e.name);
 
             let html = '';
-            targetReqs.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).forEach(r => {
+            monthReqs.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).forEach(r => {
                 const applicantName = escapeHTML(empMap[r.applicantEmpId] || r.applicantEmpId);
                 const targetName = escapeHTML(empMap[r.targetEmpId] || r.targetEmpId);
-                const d = r.details || {};
                 
                 let typeBadge = '';
                 if (r.type === 'swap') typeBadge = '<span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold text-xs">調班</span>';
@@ -1627,11 +1553,9 @@
 
                 let detailText = '';
                 if (r.type === 'swap') detailText = `與 <b>${targetName}</b> 調班 (${escapeHTML(r.dateStr)})`;
-                else if (r.type === 'overtime') detailText = `加班 <b>${escapeHTML(d.hours)}h</b> (${d.otType === 'pay' ? '加班費' : '補休'})`;
-                else if (r.type === 'leave') detailText = `假別: <b>${escapeHTML(d.category)}</b> (${escapeHTML(d.hours)}h)`;
-                else if (r.type === 'clock_fix') detailText = `補卡時間: <b>${escapeHTML(d.clockIn)} - ${escapeHTML(d.clockOut)}</b>`;
-
-                const selfNotice = isSelfRequest(r) ? `<span class="text-[11px] text-amber-700 font-bold mr-auto">ℹ️ 本人申請（將記錄本人簽核軌跡）</span>` : '';
+                else if (r.type === 'overtime') detailText = `加班 <b>${escapeHTML(r.details.hours)}h</b> (${r.details.otType === 'pay' ? '加班費' : '補休'})`;
+                else if (r.type === 'leave') detailText = `假別: <b>${escapeHTML(r.details.category)}</b> (${escapeHTML(r.details.hours)}h)`;
+                else if (r.type === 'clock_fix') detailText = `補卡時間: <b>${escapeHTML(r.details.clockIn)} - ${escapeHTML(r.details.clockOut)}</b>`;
 
                 html += `
                 <div class="border border-gray-200 rounded p-3 bg-gray-50 flex flex-col gap-2 text-xs">
@@ -1649,12 +1573,11 @@
                         ${handlerText(r) ? `<div class="font-bold text-gray-700">${escapeHTML(handlerText(r))}</div>` : ''}
                     </div>
                     <div class="flex justify-end" data-id="${escapeHTML(r.id)}"><button onclick="copyReqLine(this.parentNode.dataset.id)" class="border border-green-600 text-green-700 px-3 py-1 rounded font-bold hover:bg-green-50">複製LINE訊息</button></div>
-                    ${r.status === 'pending_admin' ? `
-                    <div class="flex items-center justify-end gap-2 mt-1 border-t pt-2" data-id="${escapeHTML(r.id)}">
-                        ${selfNotice}
+                    ${r.status === 'pending_admin' ? (isSelfRequest(r) ? `<div class="mt-1 border-t pt-2 text-right text-[11px] text-gray-500 font-bold">⚠️ 這是您自己的申請，需由其他管理者核可</div>` : `
+                    <div class="flex justify-end gap-2 mt-1 border-t pt-2" data-id="${escapeHTML(r.id)}">
                         <button onclick="processRequest(this.parentNode.dataset.id, false)" class="border border-red-300 text-red-600 px-3 py-1 rounded hover:bg-red-50 font-bold">駁回</button>
                         <button onclick="processRequest(this.parentNode.dataset.id, true)" class="bg-black text-white px-4 py-1 rounded hover:bg-gray-800 font-bold">核准生效</button>
-                    </div>` : ''}
+                    </div>`) : ''}
                 </div>`;
             });
 
@@ -1774,7 +1697,7 @@
         }
 
         async function copyReqLine(id) {
-            const r = getAllRequestsFlat().find(x => x.id === id);
+            const r = (requestsData[currentYearMonth] || []).find(x => x.id === id);
             if (!r) return;
             const mode = (r.status === 'approved' || r.status === 'rejected') ? 'approval' : 'submit';
             showLineDialog(r, mode);
@@ -2028,12 +1951,7 @@
                 updatePendingBadge();
                 refreshOpenDialogs();
             };
-            const onErr = (e) => {
-                console.error('申請同步失敗:', e);
-                if (e && e.code === 'permission-denied') {
-                    alertCustom('出勤申請監聽權限被拒絕：請確認 Firebase Console 已發布最新的 firestore.rules，且您的帳號列於 systemConfig/whitelist。');
-                }
-            };
+            const onErr = (e) => console.error('申請同步失敗:', e);
             if (currentUserRole === 'admin') unsubs.push(col.onSnapshot(onSnap, onErr));
             else {
                 unsubs.push(col.where('applicantEmail', '==', currentUser.email).onSnapshot(onSnap, onErr));
@@ -2052,39 +1970,12 @@
                 const rs = await tx.get(reqRef);
                 if (!rs.exists) throw new Error('找不到申請單');
                 const req = Object.assign({ id: reqId }, rs.data());
-                let mainSnap = null;
-                let main = {};
-                if (currentUserRole === 'admin') {
-                    mainSnap = await tx.get(mainRef);
-                    main = mainSnap.exists ? (mainSnap.data() || {}) : {};
-                }
+                const main = currentUserRole === 'admin' ? ((await tx.get(mainRef)).data() || {}) : {};
                 const res = applyFn(req, main);
                 const upd = {};
-                Object.keys(res.req).forEach(k => {
-                    if (k !== 'id' && res.req[k] !== undefined && JSON.stringify(res.req[k]) !== JSON.stringify(req[k])) {
-                        upd[k] = res.req[k];
-                    }
-                });
-                if (Object.keys(upd).length > 0) {
-                    tx.update(reqRef, upd);
-                }
-                if (res.extra && Object.keys(res.extra).length > 0) {
-                    if (mainSnap && mainSnap.exists) {
-                        tx.update(mainRef, res.extra);
-                    } else {
-                        const nested = {};
-                        Object.keys(res.extra).forEach(path => {
-                            const parts = path.split('.');
-                            let cur = nested;
-                            for (let i = 0; i < parts.length - 1; i++) {
-                                cur[parts[i]] = cur[parts[i]] || {};
-                                cur = cur[parts[i]];
-                            }
-                            cur[parts[parts.length - 1]] = res.extra[path];
-                        });
-                        tx.set(mainRef, nested, { merge: true });
-                    }
-                }
+                Object.keys(res.req).forEach(k => { if (k !== 'id' && JSON.stringify(res.req[k]) !== JSON.stringify(req[k])) upd[k] = res.req[k]; });
+                tx.update(reqRef, upd);
+                if (res.extra && Object.keys(res.extra).length) tx.update(mainRef, res.extra);
             });
         }
 
@@ -2094,10 +1985,8 @@
 
         async function respondSwap(reqId, accept) {
             if (!currentUserEmpId) return;
-            const local = getAllRequestsFlat().find(x => x.id === reqId);
-            const reqYm = local ? String(local.dateStr || currentYearMonth).substring(0, 7) : currentYearMonth;
             try {
-                await withTimeout(updateRequest(reqId, reqYm, req => {
+                await withTimeout(updateRequest(reqId, currentYearMonth, req => {
                     if (req.status !== 'pending_target' || req.targetEmpId !== currentUserEmpId) throw new Error('此申請不需要您確認或已處理');
                     return { req: Object.assign({}, req, { status: accept ? 'pending_admin' : 'rejected', handledBy: accept ? '' : 'target', targetRespondedAt: new Date().toISOString(), history: histAdd(req, accept ? 'target_accept' : 'target_reject') }) };
                 }), 15000);
@@ -2106,13 +1995,12 @@
         }
 
         async function cancelMyRequest(reqId) {
-            const r = getAllRequestsFlat().find(x => x.id === reqId);
+            const r = (requestsData[currentYearMonth] || []).find(x => x.id === reqId);
             if (!r || !isMyRequest(r)) return;
-            const reqYm = String(r.dateStr || currentYearMonth).substring(0, 7);
             const ok = await customConfirm('確定要取消這筆申請嗎？取消後無法恢復。');
             if (!ok) return;
             try {
-                await withTimeout(updateRequest(reqId, reqYm, req => {
+                await withTimeout(updateRequest(reqId, currentYearMonth, req => {
                     if (req.status !== 'pending_target' && req.status !== 'pending_admin') throw new Error('此申請已被處理，無法取消');
                     return { req: Object.assign({}, req, { status: 'cancelled', cancelledAt: new Date().toISOString(), cancelledBy: (currentUser && currentUser.email) || '', history: histAdd(req, 'cancel') }) };
                 }), 15000);
@@ -2122,13 +2010,15 @@
 
         async function processRequest(reqId, isApproved) {
             if (currentUserRole !== 'admin') { alertCustom('權限不足：僅管理員可審核申請。'); return; }
-            const local = getAllRequestsFlat().find(r => r.id === reqId);
-            if (!local) { alertCustom('找不到該筆申請單，請重新整理後再試。'); return; }
-            const ym = String(local.dateStr || currentYearMonth).substring(0, 7);
+            const ym = currentYearMonth;
+            const local = (requestsData[ym] || []).find(r => r.id === reqId);
+            if (!local) return;
+            if (isSelfRequest(local)) { alertCustom('不可核可自己提出的申請，請由其他管理者處理。'); return; }
             const approverName = getCurrentActorName();
             let completedReq = null;
             const apply = (req, data) => {
                 if (req.status !== 'pending_admin') throw new Error('此申請已被處理，或仍待同事確認');
+                if (isSelfRequest(req)) throw new Error('不可核可自己提出的申請');
                 const next = Object.assign({}, req, {
                     status: isApproved ? 'approved' : 'rejected',
                     handledBy: 'admin',
@@ -2151,12 +2041,6 @@
             try {
                 if (currentUser && db) {
                     await withTimeout(updateRequest(reqId, ym, apply), 15000);
-                    // 同步更新本地快取並將當月申請清單同步鏡像至主文件 requestsData 欄位（方便 Firebase Console 檢視）
-                    if (subRequests[reqId] && completedReq) {
-                        subRequests[reqId] = Object.assign({}, completedReq);
-                        rebuildRequestsData();
-                    }
-                    await syncRequestsToMainDoc(false);
                 } else {   // 單機模式
                     const r = apply(local, { scheduleData });
                     Object.assign(local, r.req);
