@@ -12,7 +12,132 @@
     <meta name="theme-color" content="#ffffff">
     
     <!-- 引入 Tailwind CSS & 工具庫 -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    
+<script id="ecole-approval-compat-patch-v2">
+(function() {
+  if (window.__ECOLE_PATCH_V2_LOADED__) return;
+  window.__ECOLE_PATCH_V2_LOADED__ = true;
+
+  // 1. 狀態追蹤（供權限診斷與純管理員身份解析使用）
+  window.__ecolePatchState = window.__ecolePatchState || {
+    currentUserEmail: '',
+    currentUserDisplayName: '',
+    adminEmails: [],
+    adminEmailsRaw: [],
+    staffMapping: {},
+    writeTimestamps: []
+  };
+
+  window.__ecoleSyncWhitelist = function(wlData, userObj) {
+    const st = window.__ecolePatchState;
+    if (wlData && typeof wlData === 'object') {
+      const rawAdmins = Array.isArray(wlData.adminEmails) ? wlData.adminEmails : [];
+      st.adminEmailsRaw = rawAdmins.slice();
+      st.adminEmails = rawAdmins.map(e => String(e || '').trim().toLowerCase()).filter(Boolean);
+      st.staffMapping = (wlData.staffMapping && typeof wlData.staffMapping === 'object') ? wlData.staffMapping : {};
+    }
+    if (userObj && userObj.email) {
+      st.currentUserEmail = String(userObj.email).trim().toLowerCase();
+      st.currentUserDisplayName = userObj.displayName || '';
+    }
+  };
+
+  // 2. 判斷是否為管理員（完全獨立於 staffMapping，支援大小寫容錯）
+  window.__ecoleIsAdmin = function(wlData, email) {
+    if (wlData) window.__ecoleSyncWhitelist(wlData, null);
+    const st = window.__ecolePatchState;
+    const target = String(email || st.currentUserEmail || '').trim().toLowerCase();
+    if (!target) return false;
+    return st.adminEmails.includes(target);
+  };
+
+  // 3. 解析簽核人顯示名稱（純管理員不在 staffMapping 時，自動降級取得名稱，絕不回傳 undefined）
+  window.__ecoleResolveApproverName = function(fallbackName, wlData, userObj) {
+    if (wlData || userObj) window.__ecoleSyncWhitelist(wlData, userObj);
+    const st = window.__ecolePatchState;
+    if (fallbackName && String(fallbackName).trim() && String(fallbackName) !== 'undefined' && String(fallbackName) !== 'null') {
+      return String(fallbackName).trim();
+    }
+    if (st.currentUserDisplayName && String(st.currentUserDisplayName).trim()) {
+      return String(st.currentUserDisplayName).trim();
+    }
+    if (st.currentUserEmail) {
+      return st.currentUserEmail.split('@')[0];
+    }
+    return '管理員';
+  };
+
+  // 4. 簽核寫入資料淨化器（確保僅傳送 Firestore Rules 允許之欄位，並防止無限迴圈寫入）
+  window.__ecoleSanitizeApprovalPayload = function(payload) {
+    if (!payload || typeof payload !== 'object') return payload;
+
+    // 防迴圈：3 秒內超過 12 次寫入則阻斷異常風暴
+    const now = Date.now();
+    const st = window.__ecolePatchState;
+    st.writeTimestamps = st.writeTimestamps.filter(t => now - t < 3000);
+    if (st.writeTimestamps.length >= 12) {
+      console.error('[ÉCOLE Security Guard] 偵測到異常高頻寫入，已自動阻斷以防止 Infinite Loop。');
+      throw new Error('系統偵測到短時間內重複寫入請求，已自動中止保護。');
+    }
+    st.writeTimestamps.push(now);
+
+    const allowedKeys = [
+      'status',
+      'handledBy',
+      'handledAt',
+      'handledByEmail',
+      'rejectReason',
+      'note',
+      'updatedAt',
+      'history'
+    ];
+    const clean = {};
+    for (let i = 0; i < allowedKeys.length; i++) {
+      const k = allowedKeys[i];
+      if (Object.prototype.hasOwnProperty.call(payload, k) && payload[k] !== undefined) {
+        clean[k] = payload[k];
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'handledBy')) {
+      clean.handledBy = window.__ecoleResolveApproverName(clean.handledBy);
+    }
+    if (Object.prototype.hasOwnProperty.call(clean, 'handledByEmail') && clean.handledByEmail) {
+      clean.handledByEmail = String(clean.handledByEmail).trim().toLowerCase();
+    }
+    return clean;
+  };
+
+  // 5. 精準權限拒絕診斷提示（取代舊版誤導性的 staffMapping 提示）
+  window.__ecoleGetPermHint = function(applicantEmail) {
+    const st = window.__ecolePatchState;
+    const me = st.currentUserEmail;
+    const hints = [];
+
+    if (me && applicantEmail && String(applicantEmail).trim().toLowerCase() === me) {
+      hints.push('• 內控規則限制：管理員不可簽核「本人」提出的申請單，請由其他管理員帳號進行簽核。');
+    }
+
+    if (me && st.adminEmailsRaw.length > 0) {
+      const exactMatch = st.adminEmailsRaw.includes(me);
+      const caseInsensitiveMatch = st.adminEmails.includes(me);
+      if (!caseInsensitiveMatch) {
+        hints.push('• 您的 Google 帳號（' + me + '）尚未列入 systemConfig/whitelist 的 adminEmails 陣列中（簽核人員僅需列在 adminEmails，無需在 staffMapping）。');
+      } else if (!exactMatch) {
+        hints.push('• 大小寫不一致：systemConfig/whitelist 的 adminEmails 中含有大寫字母，請將該 Email 改為全小寫（' + me + '），否則 Firestore Rules 比對會失敗。');
+      }
+    } else {
+      hints.push('• 請確認您的 Google 帳號已列在 systemConfig/whitelist 的 adminEmails（全小寫）內，簽核人員無需在 staffMapping 內。');
+    }
+
+    hints.push('• 請確認已在 Firebase Console → Firestore Database → Rules 點擊「發布」最新規則。');
+    hints.push('• 若為本人提出的測試申請單，後端規則會禁止自己簽核自己，請改用另一位管理員帳號測試。');
+
+    return hints.join('\n');
+  };
+})();
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <!-- SheetJS 用於解析與匯出 Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -498,7 +623,7 @@
             <div>
                 <label for="signerNameInput" class="block text-xs font-bold text-gray-800 mb-1">簽核人姓名／職稱 <span class="text-red-600">*必填</span></label>
                 <input type="text" id="signerNameInput" maxlength="40" class="border border-gray-300 rounded px-3 py-2 w-full font-bold outline-none focus:border-black" placeholder="請輸入簽核人姓名（如：店長 王小明 / 執行長）">
-                <p class="text-[11px] text-gray-500 mt-1">簽核人可為非排班表內之高階主管，輸入姓名後才可完成簽核。</p>
+                <p class="text-[11px] text-gray-500 mt-1">簽核人可為非排班表內之高階主管，輸入姓名後才可完成簽核（對外不顯示信箱）。</p>
                 <div id="signerQuickChips" class="flex flex-wrap gap-1.5 mt-2"></div>
             </div>
             <div id="rejectReasonBox" class="hidden">
