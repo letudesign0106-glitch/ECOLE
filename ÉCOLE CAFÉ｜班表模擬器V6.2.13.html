@@ -13,12 +13,12 @@
     
     <!-- 引入 Tailwind CSS & 工具庫 -->
     
-<script id="ecole-approval-compat-patch-v2">
-(function() {
-  if (window.__ECOLE_PATCH_V2_LOADED__) return;
-  window.__ECOLE_PATCH_V2_LOADED__ = true;
 
-  // 1. 狀態追蹤（供權限診斷與純管理員身份解析使用）
+<script id="ecole-approval-compat-patch-v3">
+(function() {
+  if (window.__ECOLE_PATCH_V3_LOADED__) return;
+  window.__ECOLE_PATCH_V3_LOADED__ = true;
+
   window.__ecolePatchState = window.__ecolePatchState || {
     currentUserEmail: '',
     currentUserDisplayName: '',
@@ -31,7 +31,9 @@
   window.__ecoleSyncWhitelist = function(wlData, userObj) {
     const st = window.__ecolePatchState;
     if (wlData && typeof wlData === 'object') {
-      const rawAdmins = Array.isArray(wlData.adminEmails) ? wlData.adminEmails : [];
+      const rawAdmins = Array.isArray(wlData.adminEmails)
+        ? wlData.adminEmails
+        : (wlData.adminEmails && typeof wlData.adminEmails === 'object' ? Object.keys(wlData.adminEmails) : []);
       st.adminEmailsRaw = rawAdmins.slice();
       st.adminEmails = rawAdmins.map(e => String(e || '').trim().toLowerCase()).filter(Boolean);
       st.staffMapping = (wlData.staffMapping && typeof wlData.staffMapping === 'object') ? wlData.staffMapping : {};
@@ -42,21 +44,37 @@
     }
   };
 
-  // 2. 判斷是否為管理員（完全獨立於 staffMapping，支援大小寫容錯）
+  // 嘗試從全域 firebase auth 讀取目前登入者
+  function detectCurrentUser() {
+    const st = window.__ecolePatchState;
+    try {
+      if (window.firebase && typeof window.firebase.auth === 'function') {
+        const u = window.firebase.auth().currentUser;
+        if (u && u.email) {
+          st.currentUserEmail = String(u.email).trim().toLowerCase();
+          st.currentUserDisplayName = u.displayName || st.currentUserDisplayName;
+        }
+      }
+    } catch (_) {}
+    return st;
+  }
+
   window.__ecoleIsAdmin = function(wlData, email) {
     if (wlData) window.__ecoleSyncWhitelist(wlData, null);
-    const st = window.__ecolePatchState;
+    const st = detectCurrentUser();
     const target = String(email || st.currentUserEmail || '').trim().toLowerCase();
     if (!target) return false;
     return st.adminEmails.includes(target);
   };
 
-  // 3. 解析簽核人顯示名稱（純管理員不在 staffMapping 時，自動降級取得名稱，絕不回傳 undefined）
   window.__ecoleResolveApproverName = function(fallbackName, wlData, userObj) {
     if (wlData || userObj) window.__ecoleSyncWhitelist(wlData, userObj);
-    const st = window.__ecolePatchState;
-    if (fallbackName && String(fallbackName).trim() && String(fallbackName) !== 'undefined' && String(fallbackName) !== 'null') {
-      return String(fallbackName).trim();
+    const st = detectCurrentUser();
+    if (fallbackName !== undefined && fallbackName !== null) {
+      const s = String(fallbackName).trim();
+      if (s && s !== 'undefined' && s !== 'null' && !s.endsWith('(undefined)')) {
+        return s;
+      }
     }
     if (st.currentUserDisplayName && String(st.currentUserDisplayName).trim()) {
       return String(st.currentUserDisplayName).trim();
@@ -67,30 +85,74 @@
     return '管理員';
   };
 
-  // 4. 簽核寫入資料淨化器（確保僅傳送 Firestore Rules 允許之欄位，並防止無限迴圈寫入）
-  window.__ecoleSanitizeApprovalPayload = function(payload) {
+  // 路徑感知寫入淨化器：僅針對 /requests/ 簽核寫入進行欄位白名單對齊與純管理員身份補齊
+  window.__ecoleSmartPatchWrite = function(docRef, payload) {
     if (!payload || typeof payload !== 'object') return payload;
 
-    // 防迴圈：3 秒內超過 12 次寫入則阻斷異常風暴
+    // 防迴圈保護：3 秒內超過 15 次寫入則自動熔斷
     const now = Date.now();
-    const st = window.__ecolePatchState;
+    const st = detectCurrentUser();
     st.writeTimestamps = st.writeTimestamps.filter(t => now - t < 3000);
-    if (st.writeTimestamps.length >= 12) {
+    if (st.writeTimestamps.length >= 15) {
       console.error('[ÉCOLE Security Guard] 偵測到異常高頻寫入，已自動阻斷以防止 Infinite Loop。');
       throw new Error('系統偵測到短時間內重複寫入請求，已自動中止保護。');
     }
     st.writeTimestamps.push(now);
 
+    // 判斷是否為出勤申請子集合 (/requests/{rid}) 或簽核操作
+    let docPath = '';
+    try {
+      if (docRef && typeof docRef.path === 'string') {
+        docPath = docRef.path;
+      }
+    } catch (_) {}
+
+    const isRequestPath = /(?:^|/)requests/[^/]+$/.test(docPath);
+    const looksLikeAdminApproval = (
+      (payload.status === 'approved' || payload.status === 'rejected') &&
+      ('handledBy' in payload || 'handledByEmail' in payload || 'handledAt' in payload || 'approvedBy' in payload || 'rejectedBy' in payload)
+    );
+
+    // 若非 requests 文件且非簽核操作（例如儲存 scheduleData 班表），原封不動放行
+    if (!isRequestPath && !looksLikeAdminApproval) {
+      return payload;
+    }
+
+    // 記錄簽核者 Email 供診斷使用
+    const rawActorEmail = payload.handledByEmail || payload.approvedByEmail || payload.rejectedByEmail || st.currentUserEmail;
+    if (rawActorEmail) {
+      st.currentUserEmail = String(rawActorEmail).trim().toLowerCase();
+    }
+
+    // 若非管理員簽核（例如申請人取消 cancelled 或同事確認 pending_admin），僅移除 undefined 值後放行
+    if (!looksLikeAdminApproval) {
+      const cleanOther = {};
+      Object.keys(payload).forEach(k => {
+        if (payload[k] !== undefined) cleanOther[k] = payload[k];
+      });
+      return cleanOther;
+    }
+
+    // 管理員簽核（approved / rejected）：嚴格對齊 Firestore Rules 允許之欄位白名單
     const allowedKeys = [
       'status',
       'handledBy',
-      'handledAt',
+      'handledByName',
       'handledByEmail',
+      'handledByEmpId',
+      'handledAt',
+      'approvedBy',
+      'approvedAt',
+      'rejectedBy',
+      'rejectedAt',
       'rejectReason',
+      'reason',
       'note',
+      'adminNote',
       'updatedAt',
       'history'
     ];
+
     const clean = {};
     for (let i = 0; i < allowedKeys.length; i++) {
       const k = allowedKeys[i];
@@ -99,18 +161,30 @@
       }
     }
 
-    if (Object.prototype.hasOwnProperty.call(payload, 'handledBy')) {
-      clean.handledBy = window.__ecoleResolveApproverName(clean.handledBy);
+    // 純管理員不在 staffMapping 時，確保 handledBy 絕不為 undefined 或空字串
+    const resolvedName = window.__ecoleResolveApproverName(clean.handledBy || clean.handledByName);
+    if ('handledBy' in payload || !clean.handledBy) {
+      clean.handledBy = resolvedName;
     }
-    if (Object.prototype.hasOwnProperty.call(clean, 'handledByEmail') && clean.handledByEmail) {
+    if ('handledByName' in clean && !clean.handledByName) {
+      clean.handledByName = resolvedName;
+    }
+
+    // 正規化 Email 為小寫
+    if (clean.handledByEmail) {
       clean.handledByEmail = String(clean.handledByEmail).trim().toLowerCase();
     }
+
+    // 若純管理員無員工編號（null 或空字串），移除 handledByEmpId 避免傳入無效值
+    if ('handledByEmpId' in clean && (clean.handledByEmpId === null || clean.handledByEmpId === '')) {
+      delete clean.handledByEmpId;
+    }
+
     return clean;
   };
 
-  // 5. 精準權限拒絕診斷提示（取代舊版誤導性的 staffMapping 提示）
   window.__ecoleGetPermHint = function(applicantEmail) {
-    const st = window.__ecolePatchState;
+    const st = detectCurrentUser();
     const me = st.currentUserEmail;
     const hints = [];
 
@@ -127,11 +201,12 @@
         hints.push('• 大小寫不一致：systemConfig/whitelist 的 adminEmails 中含有大寫字母，請將該 Email 改為全小寫（' + me + '），否則 Firestore Rules 比對會失敗。');
       }
     } else {
-      hints.push('• 請確認您的 Google 帳號已列在 systemConfig/whitelist 的 adminEmails（全小寫）內，簽核人員無需在 staffMapping 內。');
+      const who = me ? '（' + me + '）' : '';
+      hints.push('• 請確認您的 Google 帳號' + who + '已列在 systemConfig/whitelist 的 adminEmails（全小寫）內；簽核人員只需管理員權限，無需在 staffMapping 內。');
     }
 
-    hints.push('• 請確認已在 Firebase Console → Firestore Database → Rules 點擊「發布」最新規則。');
-    hints.push('• 若為本人提出的測試申請單，後端規則會禁止自己簽核自己，請改用另一位管理員帳號測試。');
+    hints.push('• 請確認已在 Firebase Console → Firestore Database → Rules 貼上並點擊「發布」最新規則。');
+    hints.push('• 若該筆申請單是由您本人帳號提出（例如測試申請），後端規則會禁止自己簽核自己，請改由員工帳號提出申請後再測試簽核。');
 
     return hints.join('\n');
   };
@@ -1395,7 +1470,7 @@
             const safeValue = (value === undefined || value === null) ? '' : value;
             const docRef = db.collection("ecoleCafe").doc("main_schedule");
             
-            docRef.update({ [fieldPath]: safeValue }).catch(() => {
+            docRef.update(window.__ecoleSmartPatchWrite(null, { [fieldPath]: safeValue })).catch(() => {
                 const parts = fieldPath.split('.');
                 let obj = {};
                 let curr = obj;
