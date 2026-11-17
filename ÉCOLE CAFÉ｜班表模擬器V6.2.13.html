@@ -14,11 +14,10 @@
     <!-- 引入 Tailwind CSS & 工具庫 -->
     
 
-
-<script id="ecole-approval-compat-patch-v4">
+<script id="ecole-approval-compat-patch-v3">
 (function() {
-  if (window.__ECOLE_PATCH_V4_LOADED__) return;
-  window.__ECOLE_PATCH_V4_LOADED__ = true;
+  if (window.__ECOLE_PATCH_V3_LOADED__) return;
+  window.__ECOLE_PATCH_V3_LOADED__ = true;
 
   window.__ecolePatchState = window.__ecolePatchState || {
     currentUserEmail: '',
@@ -41,22 +40,11 @@
     }
     if (userObj && userObj.email) {
       st.currentUserEmail = String(userObj.email).trim().toLowerCase();
-      st.currentUserDisplayName = userObj.displayName || st.currentUserDisplayName;
+      st.currentUserDisplayName = userObj.displayName || '';
     }
   };
 
-  window.__ecoleWrapAuthCb = function(cb) {
-    if (typeof cb !== 'function') return cb;
-    return function(user) {
-      if (user && user.email) {
-        const st = window.__ecolePatchState;
-        st.currentUserEmail = String(user.email).trim().toLowerCase();
-        st.currentUserDisplayName = user.displayName || st.currentUserDisplayName;
-      }
-      return cb.apply(this, arguments);
-    };
-  };
-
+  // 嘗試從全域 firebase auth 讀取目前登入者
   function detectCurrentUser() {
     const st = window.__ecolePatchState;
     try {
@@ -79,19 +67,16 @@
     return st.adminEmails.includes(target);
   };
 
-  function isInvalidName(val) {
-    if (val === undefined || val === null) return true;
-    const s = String(val).trim();
-    return !s || s === 'undefined' || s === 'null' || s.endsWith('(undefined)') || s.startsWith('undefined');
-  }
-
   window.__ecoleResolveApproverName = function(fallbackName, wlData, userObj) {
     if (wlData || userObj) window.__ecoleSyncWhitelist(wlData, userObj);
     const st = detectCurrentUser();
-    if (!isInvalidName(fallbackName)) {
-      return String(fallbackName).trim();
+    if (fallbackName !== undefined && fallbackName !== null) {
+      const s = String(fallbackName).trim();
+      if (s && s !== 'undefined' && s !== 'null' && !s.endsWith('(undefined)')) {
+        return s;
+      }
     }
-    if (!isInvalidName(st.currentUserDisplayName)) {
+    if (st.currentUserDisplayName && String(st.currentUserDisplayName).trim()) {
       return String(st.currentUserDisplayName).trim();
     }
     if (st.currentUserEmail) {
@@ -100,60 +85,7 @@
     return '管理員';
   };
 
-  function isPlainObject(obj) {
-    if (!obj || typeof obj !== 'object') return false;
-    const proto = Object.getPrototypeOf(obj);
-    return proto === Object.prototype || proto === null;
-  }
-
-  // 深度淨化物件與陣列（移除任何層級的 undefined，修補簽核人空白/undefined，並完整保留 serverTimestamp / arrayUnion 等 Firestore 物件）
-  function deepSanitizeNode(node, resolvedApproverName, parentKey) {
-    if (node === undefined) return undefined;
-    if (node === null || typeof node !== 'object') return node;
-
-    if (Array.isArray(node)) {
-      const outArr = [];
-      for (let i = 0; i < node.length; i++) {
-        const item = deepSanitizeNode(node[i], resolvedApproverName, parentKey);
-        if (item !== undefined) {
-          outArr.push(item);
-        }
-      }
-      return outArr;
-    }
-
-    // 非純物件（例如 Firestore Timestamp, FieldValue.serverTimestamp(), arrayUnion()）原封不動保留
-    if (!isPlainObject(node)) {
-      return node;
-    }
-
-    const nameKeys = ['handledBy', 'handledByName', 'approvedBy', 'rejectedBy', 'by', 'actorName', 'operatorName'];
-    const emailKeys = ['handledByEmail', 'approvedByEmail', 'rejectedByEmail', 'byEmail'];
-    const outObj = {};
-
-    const keys = Object.keys(node);
-    for (let i = 0; i < keys.length; i++) {
-      const k = keys[i];
-      let v = node[k];
-
-      if (nameKeys.includes(k) && isInvalidName(v)) {
-        v = resolvedApproverName;
-      }
-      if (emailKeys.includes(k) && typeof v === 'string' && v.trim()) {
-        v = v.trim().toLowerCase();
-      }
-      if ((k === 'handledByEmpId' || k === 'byEmpId') && (v === undefined || v === null || v === '' || v === 'undefined')) {
-        continue; // 純管理員無員工編號時直接省略，不寫入無效值
-      }
-
-      const cleanedVal = deepSanitizeNode(v, resolvedApproverName, k);
-      if (cleanedVal !== undefined) {
-        outObj[k] = cleanedVal;
-      }
-    }
-    return outObj;
-  }
-
+  // 路徑感知寫入淨化器：僅針對 /requests/ 簽核寫入進行欄位白名單對齊與純管理員身份補齊
   window.__ecoleSmartPatchWrite = function(docRef, payload) {
     if (!payload || typeof payload !== 'object') return payload;
 
@@ -167,6 +99,7 @@
     }
     st.writeTimestamps.push(now);
 
+    // 判斷是否為出勤申請子集合 (/requests/{rid}) 或簽核操作
     let docPath = '';
     try {
       if (docRef && typeof docRef.path === 'string') {
@@ -175,42 +108,76 @@
     } catch (_) {}
 
     const isRequestPath = /(?:^|/)requests/[^/]+$/.test(docPath);
-    const hasApprovalStatus = (payload.status === 'approved' || payload.status === 'rejected');
-    const hasSignoffKeys = (
-      'handledBy' in payload ||
-      'handledByName' in payload ||
-      'handledByEmail' in payload ||
-      'handledAt' in payload ||
-      'approvedBy' in payload ||
-      'rejectedBy' in payload ||
-      'history' in payload
+    const looksLikeAdminApproval = (
+      (payload.status === 'approved' || payload.status === 'rejected') &&
+      ('handledBy' in payload || 'handledByEmail' in payload || 'handledAt' in payload || 'approvedBy' in payload || 'rejectedBy' in payload)
     );
-    const looksLikeAdminApproval = hasApprovalStatus && (isRequestPath || hasSignoffKeys);
 
     // 若非 requests 文件且非簽核操作（例如儲存 scheduleData 班表），原封不動放行
     if (!isRequestPath && !looksLikeAdminApproval) {
       return payload;
     }
 
+    // 記錄簽核者 Email 供診斷使用
     const rawActorEmail = payload.handledByEmail || payload.approvedByEmail || payload.rejectedByEmail || st.currentUserEmail;
     if (rawActorEmail) {
       st.currentUserEmail = String(rawActorEmail).trim().toLowerCase();
     }
 
-    const resolvedName = window.__ecoleResolveApproverName(
-      payload.handledBy || payload.handledByName || payload.approvedBy || payload.rejectedBy
-    );
+    // 若非管理員簽核（例如申請人取消 cancelled 或同事確認 pending_admin），僅移除 undefined 值後放行
+    if (!looksLikeAdminApproval) {
+      const cleanOther = {};
+      Object.keys(payload).forEach(k => {
+        if (payload[k] !== undefined) cleanOther[k] = payload[k];
+      });
+      return cleanOther;
+    }
 
-    // 深度淨化所有巢狀欄位（包含 history 陣列內的簽核紀錄）
-    const clean = deepSanitizeNode(payload, resolvedName, '');
+    // 管理員簽核（approved / rejected）：嚴格對齊 Firestore Rules 允許之欄位白名單
+    const allowedKeys = [
+      'status',
+      'handledBy',
+      'handledByName',
+      'handledByEmail',
+      'handledByEmpId',
+      'handledAt',
+      'approvedBy',
+      'approvedAt',
+      'rejectedBy',
+      'rejectedAt',
+      'rejectReason',
+      'reason',
+      'note',
+      'adminNote',
+      'updatedAt',
+      'history'
+    ];
 
-    if (looksLikeAdminApproval) {
-      if (!clean.handledBy) {
-        clean.handledBy = resolvedName;
+    const clean = {};
+    for (let i = 0; i < allowedKeys.length; i++) {
+      const k = allowedKeys[i];
+      if (Object.prototype.hasOwnProperty.call(payload, k) && payload[k] !== undefined) {
+        clean[k] = payload[k];
       }
-      if (st.currentUserEmail && !clean.handledByEmail) {
-        clean.handledByEmail = st.currentUserEmail;
-      }
+    }
+
+    // 純管理員不在 staffMapping 時，確保 handledBy 絕不為 undefined 或空字串
+    const resolvedName = window.__ecoleResolveApproverName(clean.handledBy || clean.handledByName);
+    if ('handledBy' in payload || !clean.handledBy) {
+      clean.handledBy = resolvedName;
+    }
+    if ('handledByName' in clean && !clean.handledByName) {
+      clean.handledByName = resolvedName;
+    }
+
+    // 正規化 Email 為小寫
+    if (clean.handledByEmail) {
+      clean.handledByEmail = String(clean.handledByEmail).trim().toLowerCase();
+    }
+
+    // 若純管理員無員工編號（null 或空字串），移除 handledByEmpId 避免傳入無效值
+    if ('handledByEmpId' in clean && (clean.handledByEmpId === null || clean.handledByEmpId === '')) {
+      delete clean.handledByEmpId;
     }
 
     return clean;
@@ -231,15 +198,15 @@
       if (!caseInsensitiveMatch) {
         hints.push('• 您的 Google 帳號（' + me + '）尚未列入 systemConfig/whitelist 的 adminEmails 陣列中（簽核人員僅需列在 adminEmails，無需在 staffMapping）。');
       } else if (!exactMatch) {
-        hints.push('• 提醒：systemConfig/whitelist 的 adminEmails 中含有大寫字母，建議統一改為全小寫（' + me + '）。');
+        hints.push('• 大小寫不一致：systemConfig/whitelist 的 adminEmails 中含有大寫字母，請將該 Email 改為全小寫（' + me + '），否則 Firestore Rules 比對會失敗。');
       }
     } else {
       const who = me ? '（' + me + '）' : '';
-      hints.push('• 請確認您的 Google 帳號' + who + '已列在 systemConfig/whitelist 的 adminEmails 內；簽核人員只需管理員權限，無需在 staffMapping 內。');
+      hints.push('• 請確認您的 Google 帳號' + who + '已列在 systemConfig/whitelist 的 adminEmails（全小寫）內；簽核人員只需管理員權限，無需在 staffMapping 內。');
     }
 
-    hints.push('• 請確認已在 Firebase Console → Firestore Database → Rules 貼上最新規則並點擊「發布」。');
-    hints.push('• 若該筆申請單是由您本人帳號提出（例如自行測試申請），後端規則會禁止簽核自己的申請單，請由其他員工帳號提出申請後再測試簽核。');
+    hints.push('• 請確認已在 Firebase Console → Firestore Database → Rules 貼上並點擊「發布」最新規則。');
+    hints.push('• 若該筆申請單是由您本人帳號提出（例如測試申請），後端規則會禁止自己簽核自己，請改由員工帳號提出申請後再測試簽核。');
 
     return hints.join('\n');
   };
@@ -1080,7 +1047,7 @@
         }
 
         const firebaseConfig = {
-             apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
+            apiKey: "AIzaSyBAdOBnQj6VDCOtWMCAZ_XPI71gLlj_h_U",
             authDomain: "ecole-1f392.firebaseapp.com",
             projectId: "ecole-1f392",
             storageBucket: "ecole-1f392.firebasestorage.app",
@@ -1348,7 +1315,7 @@
             db = firebase.firestore();
             provider = new firebase.auth.GoogleAuthProvider();
             
-            auth.onAuthStateChanged(window.__ecoleWrapAuthCb(async (user) => {
+            auth.onAuthStateChanged(async (user) => {
                 const authArea = document.getElementById('authArea');
                 if (user) {
                     try {
@@ -1418,7 +1385,7 @@
                     updateUIPermissions();
                     renderTable(); 
                 }
-            }));
+            });
         } catch(e) {
             console.warn("Firebase 尚未設定，系統將以單機模擬模式運行。");
             document.getElementById('authArea').innerHTML = `<span class="text-xs text-gray-400">單機測試模式</span>`;
@@ -1503,7 +1470,7 @@
             const safeValue = (value === undefined || value === null) ? '' : value;
             const docRef = db.collection("ecoleCafe").doc("main_schedule");
             
-            docRef.update(window.__ecoleSmartPatchWrite(null, window.__ecoleSmartPatchWrite(null, { [fieldPath]: safeValue }))).catch(() => {
+            docRef.update(window.__ecoleSmartPatchWrite(null, { [fieldPath]: safeValue })).catch(() => {
                 const parts = fieldPath.split('.');
                 let obj = {};
                 let curr = obj;
@@ -2241,7 +2208,7 @@
                 if (idx < 0) throw new Error('找不到申請單');
                 const res = applyFn(list[idx], data);
                 list[idx] = res.req;
-                tx.update(ref, window.__ecoleSmartPatchWrite(ref, Object.assign({ ['requestsData.' + ym]: list }, res.extra || {})));
+                tx.update(ref, Object.assign({ ['requestsData.' + ym]: list }, res.extra || {}));
                 if (res.audit) tx.set(ref.collection('auditLogs').doc(), res.audit);
             });
         }
@@ -2307,8 +2274,8 @@
                 const res = applyFn(req, main);
                 const upd = {};
                 Object.keys(res.req).forEach(k => { if (k !== 'id' && JSON.stringify(res.req[k]) !== JSON.stringify(req[k])) upd[k] = res.req[k]; });
-                tx.update(reqRef, window.__ecoleSmartPatchWrite(reqRef, upd));
-                if (res.extra && Object.keys(res.extra).length) tx.update(mainRef, window.__ecoleSmartPatchWrite(mainRef, res.extra));
+                tx.update(reqRef, upd);
+                if (res.extra && Object.keys(res.extra).length) tx.update(mainRef, res.extra);
                 if (res.audit) tx.set(mainRef.collection('auditLogs').doc(), res.audit);
             });
         }
